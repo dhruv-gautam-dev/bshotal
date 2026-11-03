@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { X, Loader2 } from 'lucide-react';
-import { base44 } from '@/api/base44Client';
+import { apiClient } from '@/api/apiClient';
 import { useI18n } from '@/lib/i18n';
 import { checkAvailability, rateForStay, money, todayISO, nightsBetween } from '../lib/adminData';
 
@@ -18,7 +18,7 @@ export default function BookingForm({ open, onClose, onSaved }) {
     if (!open) return;
     setF({ ...empty, checkIn: todayISO() });
     setErr('');
-    base44.entities.RoomType.filter({ is_active: true }, { sort: 'sort', limit: 50 })
+    apiClient.entities.RoomType.filter({ is_active: true }, { sort: 'sort', limit: 50 })
       .then((r) => setTypes(r.items || []))
       .catch(() => setTypes([]));
   }, [open]);
@@ -56,7 +56,7 @@ export default function BookingForm({ open, onClose, onSaved }) {
       }
       const amount = money(f.amount) || money(type.price) * nights;
       const advance = money(f.advance);
-      const created = await base44.entities.Booking.create({
+      const created = await apiClient.entities.Booking.create({
         ref: ref(),
         guest_name: f.name.trim(),
         phone: f.phone.replace(/\D/g, '').slice(-10),
@@ -78,7 +78,7 @@ export default function BookingForm({ open, onClose, onSaved }) {
         history: [{ status: 'pending', at: new Date().toISOString(), by: 'dashboard' }],
       });
       if (advance > 0) {
-        await base44.entities.Payment.create({
+        await apiClient.entities.Payment.create({
           booking_id: created.id, amount: advance, mode: f.payment_mode === 'none' ? 'cash' : f.payment_mode,
           kind: 'advance', paid_at: todayISO(), note: L('Advance at booking', 'बुकिंग पर एडवांस'),
         });

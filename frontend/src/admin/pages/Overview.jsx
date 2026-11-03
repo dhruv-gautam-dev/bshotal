@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { CalendarPlus, UtensilsCrossed, Ban, PlusCircle } from 'lucide-react';
-import { base44 } from '@/api/base44Client';
+import { apiClient } from '@/api/apiClient';
 import { useI18n } from '@/lib/i18n';
 import { useAdmin } from '../AdminContext';
 import { inr, todayISO, money } from '../lib/adminData';
@@ -21,19 +21,19 @@ export default function Overview() {
     queryKey: ['admin-overview'],
     queryFn: async () => {
       const [bookings, orders, reviews, roomTypes, rooms] = await Promise.all([
-        base44.entities.Booking.filter({}, { sort: '-created_date', limit: 300 }),
-        base44.entities.Order.filter({}, { sort: '-created_date', limit: 300 }),
-        base44.entities.Review.filter({}, { sort: '-created_date', limit: 100 }),
-        base44.entities.RoomType.filter({ is_active: true }, { limit: 50 }),
-        base44.entities.Room.filter({ is_active: true }, { limit: 200 }),
+        apiClient.entities.Booking.filter({}, { sort: '-created_date', limit: 300 }),
+        apiClient.entities.Order.filter({}, { sort: '-created_date', limit: 300 }),
+        apiClient.entities.Review.filter({}, { sort: '-created_date', limit: 100 }),
+        apiClient.entities.RoomType.filter({ is_active: true }, { limit: 50 }),
+        apiClient.entities.Room.filter({ is_active: true }, { limit: 200 }),
       ]);
       // Staff may not read enquiries or payments, so only owners/managers fetch them.
       let enquiries = { items: [] };
       let payments = { items: [] };
       if (me?.staff_role !== 'staff') {
         [enquiries, payments] = await Promise.all([
-          base44.entities.Enquiry.filter({}, { sort: '-created_date', limit: 200 }),
-          base44.entities.Payment.filter({}, { sort: '-created_date', limit: 200 }),
+          apiClient.entities.Enquiry.filter({}, { sort: '-created_date', limit: 200 }),
+          apiClient.entities.Payment.filter({}, { sort: '-created_date', limit: 200 }),
         ]);
       }
       return {
@@ -46,7 +46,13 @@ export default function Overview() {
 
   const stats = useMemo(() => {
     if (!data) return null;
-    const { bookings, orders, enquiries, reviews, payments, roomTypes, rooms } = data;
+    const bookings = data.bookings || [];
+    const orders = data.orders || [];
+    const enquiries = data.enquiries || [];
+    const reviews = data.reviews || [];
+    const payments = data.payments || [];
+    const roomTypes = data.roomTypes || [];
+    const rooms = data.rooms || [];
     const active = bookings.filter((b) => ['pending', 'confirmed', 'checked_in'].includes(b.status));
     const occupied = Math.max(
       active.filter((b) => b.status === 'checked_in').length,
@@ -86,18 +92,20 @@ export default function Overview() {
 
   const series = useMemo(() => {
     if (!data) return [];
+    const orders = data.orders || [];
+    const payments = data.payments || [];
     const out = [];
     for (let i = range - 1; i >= 0; i -= 1) {
       const d = new Date();
       d.setDate(d.getDate() - i);
       const key = dayKey(d);
       const revenue =
-        data.orders.filter((o) => (o.created_date || '').startsWith(key) && o.status !== 'cancelled').reduce((s, o) => s + money(o.total), 0) +
-        data.payments.filter((p) => (p.paid_at || '').startsWith(key)).reduce((s, p) => s + money(p.amount), 0);
+        orders.filter((o) => (o.created_date || o.created_at || '').startsWith(key) && o.status !== 'cancelled').reduce((s, o) => s + money(o.total), 0) +
+        payments.filter((p) => (p.paid_at || p.created_at || '').startsWith(key)).reduce((s, p) => s + money(p.amount), 0);
       out.push({
         label: d.toLocaleDateString('en-IN', { day: '2-digit', month: 'short' }),
         revenue,
-        orders: data.orders.filter((o) => (o.created_date || '').startsWith(key) && o.status !== 'cancelled').length,
+        orders: orders.filter((o) => (o.created_date || o.created_at || '').startsWith(key) && o.status !== 'cancelled').length,
       });
     }
     return out;
@@ -105,8 +113,9 @@ export default function Overview() {
 
   const byType = useMemo(() => {
     if (!data) return [];
+    const bookings = data.bookings || [];
     const map = new Map();
-    data.bookings.forEach((b) => {
+    bookings.forEach((b) => {
       const k = b.room_type_name || 'Room';
       map.set(k, (map.get(k) || 0) + 1);
     });
@@ -115,8 +124,9 @@ export default function Overview() {
 
   const topDishes = useMemo(() => {
     if (!data) return [];
+    const orders = data.orders || [];
     const map = new Map();
-    data.orders.filter((o) => o.status !== 'cancelled').forEach((o) => (o.items || []).forEach((i) => {
+    orders.filter((o) => o.status !== 'cancelled').forEach((o) => (o.items || []).forEach((i) => {
       map.set(i.name, (map.get(i.name) || 0) + (Number(i.qty) || 0));
     }));
     return [...map.entries()].map(([label, value]) => ({ label, value })).sort((a, b) => b.value - a.value).slice(0, 6);

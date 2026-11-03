@@ -1,5 +1,5 @@
 import { createContext, useContext, useEffect, useState } from 'react';
-import { base44 } from '@/api/base44Client';
+import { apiClient } from '@/api/apiClient';
 import { can } from './lib/adminData';
 
 const AdminContext = createContext(null);
@@ -15,7 +15,7 @@ export function AdminProvider({ children }) {
 
   useEffect(() => {
     let alive = true;
-    base44.auth.me()
+    apiClient.auth.me()
       .then((user) => {
         if (!alive) return;
         if (!user) { setStatus('anon'); return; }

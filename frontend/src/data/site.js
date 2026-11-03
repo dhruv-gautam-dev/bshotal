@@ -35,12 +35,12 @@ export const ORDER_CONFIG = {
 };
 
 export const IMAGES = {
-  hero: 'https://media.base44.com/images/public/6aea02802823d81a2a6586e3/e1b6e942d_generated_fd66b0ea.png',
-  standard: 'https://media.base44.com/images/public/6aea02802823d81a2a6586e3/68bce6c23_generated_f528e097.png',
-  deluxe: 'https://media.base44.com/images/public/6aea02802823d81a2a6586e3/a4ac43fd8_generated_fddff587.png',
-  family: 'https://media.base44.com/images/public/6aea02802823d81a2a6586e3/82cb62bf7_generated_1e09b968.png',
-  food: 'https://media.base44.com/images/public/6aea02802823d81a2a6586e3/77d8b4275_generated_6af67119.png',
-  ring: 'https://media.base44.com/images/public/6aea02802823d81a2a6586e3/e2c3f75e2_generated_09d18214.png',
-  birthday: 'https://media.base44.com/images/public/6aea02802823d81a2a6586e3/3b0d8e0c6_generated_0389afa0.png',
-  wedding: 'https://media.base44.com/images/public/6aea02802823d81a2a6586e3/95bbf5c5f_generated_a857d84a.png',
+  hero: 'https://media.apiClient.com/images/public/6aea02802823d81a2a6586e3/e1b6e942d_generated_fd66b0ea.png',
+  standard: 'https://media.apiClient.com/images/public/6aea02802823d81a2a6586e3/68bce6c23_generated_f528e097.png',
+  deluxe: 'https://media.apiClient.com/images/public/6aea02802823d81a2a6586e3/a4ac43fd8_generated_fddff587.png',
+  family: 'https://media.apiClient.com/images/public/6aea02802823d81a2a6586e3/82cb62bf7_generated_1e09b968.png',
+  food: 'https://media.apiClient.com/images/public/6aea02802823d81a2a6586e3/77d8b4275_generated_6af67119.png',
+  ring: 'https://media.apiClient.com/images/public/6aea02802823d81a2a6586e3/e2c3f75e2_generated_09d18214.png',
+  birthday: 'https://media.apiClient.com/images/public/6aea02802823d81a2a6586e3/3b0d8e0c6_generated_0389afa0.png',
+  wedding: 'https://media.apiClient.com/images/public/6aea02802823d81a2a6586e3/95bbf5c5f_generated_a857d84a.png',
 };

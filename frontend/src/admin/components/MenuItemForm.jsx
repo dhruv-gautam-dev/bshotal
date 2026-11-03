@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { X, Loader2 } from 'lucide-react';
-import { base44 } from '@/api/base44Client';
+import { apiClient } from '@/api/apiClient';
 import { useI18n } from '@/lib/i18n';
 
 const blank = { name_en: '', name_hi: '', desc: '', price: '', category_id: '', image_url: '', is_veg: true, tags: '', is_available: true, sort: 0 };
@@ -30,8 +30,8 @@ export default function MenuItemForm({ open, item, categories, onClose, onSaved 
         sort: Number(f.sort) || 0,
         tags: f.tags.split(',').map((t) => t.trim()).filter(Boolean),
       };
-      if (item) await base44.entities.MenuItem.update(item.id, payload);
-      else await base44.entities.MenuItem.create(payload);
+      if (item) await apiClient.entities.MenuItem.update(item.id, payload);
+      else await apiClient.entities.MenuItem.create(payload);
       onSaved?.();
       onClose();
     } catch (ex) {

@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Star, Check, EyeOff, Trash2, MessageSquare } from 'lucide-react';
-import { base44 } from '@/api/base44Client';
+import { apiClient } from '@/api/apiClient';
 import { useI18n } from '@/lib/i18n';
 import { useAdmin } from '../AdminContext';
 import { audit } from '../lib/adminData';
@@ -19,24 +19,24 @@ export default function ReviewsAdmin() {
 
   const { data: reviews = [], isLoading } = useQuery({
     queryKey: ['admin-reviews'],
-    queryFn: async () => (await base44.entities.Review.filter({}, { sort: '-created_date', limit: 200 })).items,
+    queryFn: async () => (await apiClient.entities.Review.filter({}, { sort: '-created_date', limit: 200 })).items,
   });
 
   const refresh = () => { qc.invalidateQueries({ queryKey: ['admin-reviews'] }); qc.invalidateQueries({ queryKey: ['reviews-approved'] }); };
 
   const setStatus = async (r, status) => {
-    await base44.entities.Review.update(r.id, { status });
+    await apiClient.entities.Review.update(r.id, { status });
     await audit(me, 'moderate', 'reviews', 'Review', r.id, `${r.name} → ${status}`);
     refresh();
   };
 
   const toggleFeatured = async (r) => {
-    await base44.entities.Review.update(r.id, { is_featured: !r.is_featured });
+    await apiClient.entities.Review.update(r.id, { is_featured: !r.is_featured });
     refresh();
   };
 
   const saveReply = async () => {
-    await base44.entities.Review.update(reply.id, { admin_reply: text });
+    await apiClient.entities.Review.update(reply.id, { admin_reply: text });
     await audit(me, 'reply', 'reviews', 'Review', reply.id, `Replied to ${reply.name}`);
     setReply(null);
     setText('');
@@ -44,7 +44,7 @@ export default function ReviewsAdmin() {
   };
 
   const remove = async () => {
-    await base44.entities.Review.delete(del.id);
+    await apiClient.entities.Review.delete(del.id);
     await audit(me, 'delete', 'reviews', 'Review', del.id, `Deleted review by ${del.name}`);
     setDel(null);
     refresh();

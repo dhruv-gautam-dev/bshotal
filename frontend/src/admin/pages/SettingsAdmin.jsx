@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Save, UserPlus, ShieldCheck } from 'lucide-react';
-import { base44 } from '@/api/base44Client';
+import { apiClient } from '@/api/apiClient';
 import { useI18n } from '@/lib/i18n';
 import { useAdmin } from '../AdminContext';
 import { getSettings, saveSettings, audit } from '../lib/adminData';
@@ -40,8 +40,8 @@ export default function SettingsAdmin() {
       let users = [];
       let logs = [];
       if (isOwner) {
-        try { users = await base44.entities.User.list(); } catch { users = []; }
-        try { logs = (await base44.entities.AuditLog.filter({}, { sort: '-created_date', limit: 100 })).items; } catch { logs = []; }
+        try { users = await apiClient.entities.User.list(); } catch { users = []; }
+        try { logs = (await apiClient.entities.AuditLog.filter({}, { sort: '-created_date', limit: 100 })).items; } catch { logs = []; }
       }
       return { settings, users: Array.isArray(users) ? users : [], logs };
     },
@@ -65,13 +65,13 @@ export default function SettingsAdmin() {
   };
 
   const setRole = async (user, role) => {
-    await base44.entities.User.update(user.id, { staff_role: role, staff_active: true });
+    await apiClient.entities.User.update(user.id, { staff_role: role, staff_active: true });
     await audit(me, 'staff', 'settings', 'User', user.id, `${user.email} → ${role}`);
     refetch();
   };
 
   const toggleActive = async (user) => {
-    await base44.entities.User.update(user.id, { staff_active: user.staff_active === false });
+    await apiClient.entities.User.update(user.id, { staff_active: user.staff_active === false });
     await audit(me, 'staff', 'settings', 'User', user.id, `${user.email} active=${user.staff_active === false}`);
     refetch();
   };
@@ -80,9 +80,9 @@ export default function SettingsAdmin() {
     e.preventDefault();
     setMsg('');
     try {
-      await base44.users.inviteUser(invite.email.trim(), 'user');
-      const found = (await base44.entities.User.list()).find((u) => u.email?.toLowerCase() === invite.email.trim().toLowerCase());
-      if (found) await base44.entities.User.update(found.id, { staff_role: invite.role, staff_active: true });
+      await apiClient.users.inviteUser(invite.email.trim(), 'user');
+      const found = (await apiClient.entities.User.list()).find((u) => u.email?.toLowerCase() === invite.email.trim().toLowerCase());
+      if (found) await apiClient.entities.User.update(found.id, { staff_role: invite.role, staff_active: true });
       await audit(me, 'staff', 'settings', 'User', found?.id || '', `Invited ${invite.email} as ${invite.role}`);
       setMsg(L('Invite sent. They set their password from the email link.', 'आमंत्रण भेज दिया। वे ईमेल लिंक से पासवर्ड सेट करेंगे।'));
       setInvite({ email: '', role: 'staff' });

@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { ArrowLeft, Phone, MessageCircle, Printer, CheckCircle2, LogIn, LogOut, XCircle, Trash2, Plus } from 'lucide-react';
-import { base44 } from '@/api/base44Client';
+import { apiClient } from '@/api/apiClient';
 import { useI18n } from '@/lib/i18n';
 import { useAdmin } from '../AdminContext';
 import {
@@ -30,10 +30,10 @@ export default function BookingDetail() {
     queryFn: async () => {
       // Payments are owner/manager only — staff still see the booking itself.
       const [booking, payments, settings] = await Promise.all([
-        base44.entities.Booking.get(id),
+        apiClient.entities.Booking.get(id),
         me?.staff_role === 'staff'
           ? Promise.resolve({ items: [] })
-          : base44.entities.Payment.filter({ booking_id: id }, { sort: '-created_date', limit: 50 }),
+          : apiClient.entities.Payment.filter({ booking_id: id }, { sort: '-created_date', limit: 50 }),
         getSettings(),
       ]);
       return { booking, payments: payments.items || [], settings };
@@ -48,7 +48,7 @@ export default function BookingDetail() {
     setBusy(true);
     setErr('');
     try {
-      await base44.entities.Booking.update(id, patch);
+      await apiClient.entities.Booking.update(id, patch);
       await audit(me, 'update', 'bookings', 'Booking', id, log);
       await refetch();
       qc.invalidateQueries({ queryKey: ['admin-bookings'] });
@@ -65,9 +65,9 @@ export default function BookingDetail() {
   const checkIn = async () => {
     setBusy(true);
     try {
-      const rooms = await base44.entities.Room.filter({ room_type_id: b.room_type_id, is_active: true }, { limit: 50 });
+      const rooms = await apiClient.entities.Room.filter({ room_type_id: b.room_type_id, is_active: true }, { limit: 50 });
       const free = (rooms.items || []).find((r) => r.status !== 'occupied' && r.status !== 'maintenance');
-      if (free) await base44.entities.Room.update(free.id, { status: 'occupied' });
+      if (free) await apiClient.entities.Room.update(free.id, { status: 'occupied' });
       await save({
         status: 'checked_in',
         room_id: free?.id || b.room_id || '',
@@ -79,7 +79,7 @@ export default function BookingDetail() {
 
   const checkOut = async () => {
     if (b.room_id) {
-      await base44.entities.Room.update(b.room_id, { status: 'cleaning' }).catch(() => {});
+      await apiClient.entities.Room.update(b.room_id, { status: 'cleaning' }).catch(() => {});
     }
     await setStatus('checked_out', `Checked out ${b.guest_name}`);
   };
@@ -94,7 +94,7 @@ export default function BookingDetail() {
   };
 
   const remove = async () => {
-    await base44.entities.Booking.delete(id);
+    await apiClient.entities.Booking.delete(id);
     await audit(me, 'delete', 'bookings', 'Booking', id, `Deleted booking ${b.ref}`);
     navigate('/admin/bookings');
   };
@@ -105,11 +105,11 @@ export default function BookingDetail() {
     if (amount <= 0) return;
     setBusy(true);
     try {
-      await base44.entities.Payment.create({
+      await apiClient.entities.Payment.create({
         booking_id: id, amount, mode: pay.mode, kind: pay.kind, note: pay.note, paid_at: todayISO(), received_by: me?.email || '',
       });
       const paid = money(b.advance_paid) + (pay.kind === 'refund' ? -amount : amount);
-      await base44.entities.Booking.update(id, {
+      await apiClient.entities.Booking.update(id, {
         advance_paid: paid,
         balance: Math.max(0, money(b.amount) - paid),
         payment_mode: pay.mode,

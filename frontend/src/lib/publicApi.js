@@ -1,7 +1,7 @@
 // Public website ↔ database bridge.
 // The site always reads the live menu, room types and packages from the database;
 // the built-in data files are only a fallback for a brand-new app with no seed yet.
-import { base44 } from '@/api/base44Client';
+import { apiClient } from '@/api/apiClient';
 import { MENU } from '@/data/menu';
 import { ROOMS, AMENITIES } from '@/data/rooms';
 import { SITE, ORDER_CONFIG, IMAGES } from '@/data/site';
@@ -11,7 +11,7 @@ const nights = (a, b) => Math.max(0, Math.round((new Date(b) - new Date(a)) / 86
 
 export async function getPublicSettings() {
   try {
-    const rows = await base44.entities.Setting.list();
+    const rows = await apiClient.entities.Setting.list();
     const s = (Array.isArray(rows) ? rows : [])[0];
     if (!s) return null;
     return {
@@ -27,8 +27,8 @@ export async function getPublicSettings() {
 export async function fetchMenu() {
   try {
     const [categories, items] = await Promise.all([
-      base44.entities.MenuCategory.filter({ is_active: true }, { sort: 'sort', limit: 100 }),
-      base44.entities.MenuItem.filter({}, { sort: 'sort', limit: 500 }),
+      apiClient.entities.MenuCategory.filter({ is_active: true }, { sort: 'sort', limit: 100 }),
+      apiClient.entities.MenuItem.filter({}, { sort: 'sort', limit: 500 }),
     ]);
     if (!(categories.items || []).length) return MENU;
     const cats = categories.items.map((c) => ({
@@ -49,7 +49,7 @@ export async function fetchMenu() {
 
 export async function fetchRoomTypes() {
   try {
-    const rows = await base44.entities.RoomType.filter({ is_active: true }, { sort: 'sort', limit: 50 });
+    const rows = await apiClient.entities.RoomType.filter({ is_active: true }, { sort: 'sort', limit: 50 });
     if (!(rows.items || []).length) return ROOMS;
     return rows.items.map((t, n) => ({
       id: t.id,
@@ -67,10 +67,10 @@ export async function fetchRoomTypes() {
 
 /** Public booking request — always saved as "pending" so the hotel confirms it. */
 export async function createBookingRequest(data) {
-  const room = (await base44.entities.RoomType.filter({ id: data.room_type_id }, { limit: 1 })).items[0];
+  const room = (await apiClient.entities.RoomType.filter({ id: data.room_type_id }, { limit: 1 })).items[0];
   const n = nights(data.check_in, data.check_out);
   const amount = room ? Number(room.price) * Math.max(1, n) : Number(data.amount) || 0;
-  const created = await base44.entities.Booking.create({
+  const created = await apiClient.entities.Booking.create({
     ref: makeRef('RM'),
     guest_name: data.guest_name,
     phone: String(data.phone).replace(/\D/g, '').slice(-10),
@@ -98,7 +98,7 @@ export async function createOrder(data) {
   const ids = (data.items || []).map((i) => i.id).filter(Boolean);
   let trusted = [];
   if (ids.length) {
-    const rows = await base44.entities.MenuItem.filter({ id: { $in: ids } }, { limit: 100 });
+    const rows = await apiClient.entities.MenuItem.filter({ id: { $in: ids } }, { limit: 100 });
     const byId = Object.fromEntries((rows.items || []).map((r) => [r.id, r]));
     trusted = (data.items || []).map((i) => {
       const db = byId[i.id];
@@ -117,7 +117,7 @@ export async function createOrder(data) {
   const deliveryCharge = Number(settings?.deliveryCharge ?? ORDER_CONFIG.deliveryCharge) || 0;
   const tax = Math.round((subtotal * taxPercent) / 100);
   const delivery = data.type === 'delivery' ? deliveryCharge : 0;
-  const created = await base44.entities.Order.create({
+  const created = await apiClient.entities.Order.create({
     ref: makeRef('FD'),
     customer_name: data.customer_name,
     phone: String(data.phone).replace(/\D/g, '').slice(-10),
@@ -141,7 +141,7 @@ const ENQUIRY_TYPES = {
 };
 
 export async function createEnquiry(data) {
-  const created = await base44.entities.Enquiry.create({
+  const created = await apiClient.entities.Enquiry.create({
     ref: makeRef('EV'),
     type: ENQUIRY_TYPES[data.eventType] || 'custom',
     name: data.name,
@@ -157,7 +157,7 @@ export async function createEnquiry(data) {
 }
 
 export async function createContactMessage(data) {
-  return base44.entities.Enquiry.create({
+  return apiClient.entities.Enquiry.create({
     ref: makeRef('CT'),
     type: 'contact',
     name: data.name,

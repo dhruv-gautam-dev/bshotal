@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Search, Download, Phone } from 'lucide-react';
-import { base44 } from '@/api/base44Client';
+import { apiClient } from '@/api/apiClient';
 import { useI18n } from '@/lib/i18n';
 import { deriveCustomers, downloadCsv, inr } from '../lib/adminData';
 import Empty from '../components/Empty';
@@ -14,8 +14,8 @@ export default function Customers() {
     queryKey: ['admin-customers'],
     queryFn: async () => {
       const [bookings, orders] = await Promise.all([
-        base44.entities.Booking.filter({}, { sort: '-created_date', limit: 300 }),
-        base44.entities.Order.filter({}, { sort: '-created_date', limit: 300 }),
+        apiClient.entities.Booking.filter({}, { sort: '-created_date', limit: 300 }),
+        apiClient.entities.Order.filter({}, { sort: '-created_date', limit: 300 }),
       ]);
       return { bookings: bookings.items, orders: orders.items };
     },

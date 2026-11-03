@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Plus, Trash2, Pencil, X } from 'lucide-react';
-import { base44 } from '@/api/base44Client';
+import { apiClient } from '@/api/apiClient';
 import { useI18n } from '@/lib/i18n';
 import { useAdmin } from '../AdminContext';
 import { ROOM_STATUS, audit, inr, money, todayISO } from '../lib/adminData';
@@ -28,11 +28,11 @@ export default function RoomsAdmin() {
     queryKey: ['admin-rooms'],
     queryFn: async () => {
       const [types, rooms, bookings, blocks, rules] = await Promise.all([
-        base44.entities.RoomType.filter({}, { sort: 'sort', limit: 100 }),
-        base44.entities.Room.filter({}, { sort: 'number', limit: 200 }),
-        base44.entities.Booking.filter({}, { sort: 'check_in', limit: 300 }),
-        base44.entities.BlockedDate.filter({}, { sort: '-start_date', limit: 100 }),
-        base44.entities.PricingRule.filter({}, { sort: '-start_date', limit: 100 }),
+        apiClient.entities.RoomType.filter({}, { sort: 'sort', limit: 100 }),
+        apiClient.entities.Room.filter({}, { sort: 'number', limit: 200 }),
+        apiClient.entities.Booking.filter({}, { sort: 'check_in', limit: 300 }),
+        apiClient.entities.BlockedDate.filter({}, { sort: '-start_date', limit: 100 }),
+        apiClient.entities.PricingRule.filter({}, { sort: '-start_date', limit: 100 }),
       ]);
       return { types: types.items, rooms: rooms.items, bookings: bookings.items, blocks: blocks.items, rules: rules.items };
     },
@@ -40,6 +40,9 @@ export default function RoomsAdmin() {
 
   const types = data?.types || [];
   const rooms = data?.rooms || [];
+  const bookings = data?.bookings || [];
+  const blocks = data?.blocks || [];
+  const rules = data?.rules || [];
   const refresh = () => { qc.invalidateQueries({ queryKey: ['admin-rooms'] }); qc.invalidateQueries({ queryKey: ['public-rooms'] }); };
 
   const saveType = async (e) => {
@@ -52,8 +55,8 @@ export default function RoomsAdmin() {
       amenities: String(typeForm.amenities || '').split(',').map((s) => s.trim()).filter(Boolean),
       images: String(typeForm.images || '').split(',').map((s) => s.trim()).filter(Boolean),
     };
-    if (payload.id) await base44.entities.RoomType.update(payload.id, payload);
-    else await base44.entities.RoomType.create(payload);
+    if (payload.id) await apiClient.entities.RoomType.update(payload.id, payload);
+    else await apiClient.entities.RoomType.create(payload);
     await audit(me, 'save', 'rooms', 'RoomType', payload.id || '', `${payload.name_en} ₹${payload.price}`);
     setTypeForm(null);
     refresh();
@@ -61,13 +64,13 @@ export default function RoomsAdmin() {
 
   const addRoom = async (e) => {
     e.preventDefault();
-    await base44.entities.Room.create({ number: roomForm.number, room_type_id: roomForm.room_type_id, floor: roomForm.floor, status: 'available', is_active: true });
+    await apiClient.entities.Room.create({ number: roomForm.number, room_type_id: roomForm.room_type_id, floor: roomForm.floor, status: 'available', is_active: true });
     setRoomForm({ open: false, number: '', room_type_id: '', floor: '' });
     refresh();
   };
 
   const setRoomStatus = async (room, status) => {
-    await base44.entities.Room.update(room.id, { status });
+    await apiClient.entities.Room.update(room.id, { status });
     await audit(me, 'status', 'rooms', 'Room', room.id, `Room ${room.number} → ${status}`);
     refresh();
   };
@@ -75,7 +78,7 @@ export default function RoomsAdmin() {
   const addBlock = async (e) => {
     e.preventDefault();
     if (!blockForm.room_type_id || !blockForm.start_date || !blockForm.end_date) return;
-    await base44.entities.BlockedDate.create(blockForm);
+    await apiClient.entities.BlockedDate.create(blockForm);
     await audit(me, 'block', 'rooms', 'BlockedDate', '', `${blockForm.start_date} → ${blockForm.end_date}`);
     setBlockForm({ ...blockForm, end_date: '', reason: '' });
     refresh();
@@ -84,7 +87,7 @@ export default function RoomsAdmin() {
   const addRule = async (e) => {
     e.preventDefault();
     if (!ruleForm.room_type_id || !ruleForm.start_date || !ruleForm.end_date || !ruleForm.price) return;
-    await base44.entities.PricingRule.create({ ...ruleForm, price: money(ruleForm.price) });
+    await apiClient.entities.PricingRule.create({ ...ruleForm, price: money(ruleForm.price) });
     await audit(me, 'price', 'rooms', 'PricingRule', '', `${ruleForm.start_date} → ${ruleForm.end_date} ₹${ruleForm.price}`);
     setRuleForm({ room_type_id: '', start_date: '', end_date: '', price: '', label: '' });
     refresh();
@@ -125,7 +128,7 @@ export default function RoomsAdmin() {
                       <p className="mt-2 line-clamp-2 text-xs text-slate-500">{t.desc_en}</p>
                       <div className="mt-3 flex gap-2">
                         <button onClick={() => setTypeForm({ ...t, amenities: (t.amenities || []).join(', '), images: (t.images || []).join(', ') })} className="flex items-center gap-1 rounded-lg border border-slate-300 px-2.5 py-1.5 text-xs font-semibold"><Pencil size={12} />{L('Edit', 'संपादित')}</button>
-                        {me?.staff_role === 'owner' && <button onClick={async () => { await base44.entities.RoomType.update(t.id, { is_active: !t.is_active }); refresh(); }} className={`rounded-lg border px-2.5 py-1.5 text-xs font-semibold ${t.is_active ? 'border-emerald-200 bg-emerald-50 text-emerald-700' : 'border-slate-200 text-slate-500'}`}>{t.is_active ? L('Active', 'सक्रिय') : L('Hidden', 'छिपा')}</button>}
+                        {me?.staff_role === 'owner' && <button onClick={async () => { await apiClient.entities.RoomType.update(t.id, { is_active: !t.is_active }); refresh(); }} className={`rounded-lg border px-2.5 py-1.5 text-xs font-semibold ${t.is_active ? 'border-emerald-200 bg-emerald-50 text-emerald-700' : 'border-slate-200 text-slate-500'}`}>{t.is_active ? L('Active', 'सक्रिय') : L('Hidden', 'छिपा')}</button>}
                       </div>
                     </div>
                   ))}
@@ -155,7 +158,7 @@ export default function RoomsAdmin() {
             </div>
           )}
 
-          {tab === 'calendar' && <AvailabilityCalendar roomTypes={types.filter((t) => t.is_active !== false)} bookings={data.bookings} blocks={data.blocks} />}
+          {tab === 'calendar' && <AvailabilityCalendar roomTypes={types.filter((t) => t.is_active !== false)} bookings={bookings} blocks={blocks} />}
 
           {tab === 'blocks' && (
             <div className="grid gap-4 lg:grid-cols-2">
@@ -174,13 +177,13 @@ export default function RoomsAdmin() {
                   <button className="w-full rounded-xl bg-slate-900 py-2.5 text-sm font-semibold text-white">{L('Block these dates', 'तारीखें बंद करें')}</button>
                 </form>
                 <ul className="mt-3 divide-y divide-slate-100 text-sm">
-                  {data.blocks.map((b) => (
+                  {blocks.map((b) => (
                     <li key={b.id} className="flex items-center justify-between py-2">
                       <span>{b.start_date} → {b.end_date} <span className="block text-xs text-slate-500">{types.find((t) => t.id === b.room_type_id)?.name_en} {b.reason ? `· ${b.reason}` : ''}</span></span>
-                      <button onClick={async () => { await base44.entities.BlockedDate.delete(b.id); refresh(); }} className="rounded-lg border border-slate-200 p-2 text-red-600" aria-label="Delete"><Trash2 size={14} /></button>
+                      <button onClick={async () => { await apiClient.entities.BlockedDate.delete(b.id); refresh(); }} className="rounded-lg border border-slate-200 p-2 text-red-600" aria-label="Delete"><Trash2 size={14} /></button>
                     </li>
                   ))}
-                  {data.blocks.length === 0 && <li className="py-2 text-slate-500">{L('No blocked dates.', 'कोई तारीख बंद नहीं।')}</li>}
+                  {blocks.length === 0 && <li className="py-2 text-slate-500">{L('No blocked dates.', 'कोई तारीख बंद नहीं।')}</li>}
                 </ul>
               </div>
 
@@ -202,16 +205,16 @@ export default function RoomsAdmin() {
                   <button className="w-full rounded-xl bg-slate-900 py-2.5 text-sm font-semibold text-white">{L('Add price rule', 'कीमत नियम जोड़ें')}</button>
                 </form>
                 <ul className="mt-3 divide-y divide-slate-100 text-sm">
-                  {data.rules.map((r) => (
+                  {rules.map((r) => (
                     <li key={r.id} className="flex items-center justify-between py-2">
                       <span>{r.start_date} → {r.end_date} <span className="block text-xs text-slate-500">{types.find((t) => t.id === r.room_type_id)?.name_en} {r.label ? `· ${r.label}` : ''}</span></span>
                       <span className="flex items-center gap-2">
                         <b className="text-amber-700">{inr(r.price)}</b>
-                        <button onClick={async () => { await base44.entities.PricingRule.delete(r.id); refresh(); }} className="rounded-lg border border-slate-200 p-2 text-red-600" aria-label="Delete"><Trash2 size={14} /></button>
+                        <button onClick={async () => { await apiClient.entities.PricingRule.delete(r.id); refresh(); }} className="rounded-lg border border-slate-200 p-2 text-red-600" aria-label="Delete"><Trash2 size={14} /></button>
                       </span>
                     </li>
                   ))}
-                  {data.rules.length === 0 && <li className="py-2 text-slate-500">{L('No price rules.', 'कोई कीमत नियम नहीं।')}</li>}
+                  {rules.length === 0 && <li className="py-2 text-slate-500">{L('No price rules.', 'कोई कीमत नियम नहीं।')}</li>}
                 </ul>
               </div>
             </div>

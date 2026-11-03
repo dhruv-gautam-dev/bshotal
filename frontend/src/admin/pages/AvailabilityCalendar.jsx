@@ -8,6 +8,9 @@ const pad = (n) => String(n).padStart(2, '0');
 /** Month grid: one row per room type, one cell per day. */
 export default function AvailabilityCalendar({ roomTypes = [], bookings = [], blocks = [] }) {
   const { L } = useI18n();
+  const safeRoomTypes = Array.isArray(roomTypes) ? roomTypes : [];
+  const safeBookings = Array.isArray(bookings) ? bookings : [];
+  const safeBlocks = Array.isArray(blocks) ? blocks : [];
   const [cursor, setCursor] = useState(() => { const d = new Date(); return { y: d.getFullYear(), m: d.getMonth() }; });
 
   const days = new Date(cursor.y, cursor.m + 1, 0).getDate();
@@ -22,9 +25,9 @@ export default function AvailabilityCalendar({ roomTypes = [], bookings = [], bl
   };
 
   const cell = (type, iso) => {
-    const booked = bookings.filter((b) => BLOCKING.includes(b.status) && b.room_type_id === type.id && b.check_in <= iso && b.check_out > iso).length;
-    const blocked = blocks.filter((b) => !b.room_id && b.room_type_id === type.id && b.start_date <= iso && b.end_date > iso).length;
-    const total = Number(type.total_rooms) || 1;
+    const booked = safeBookings.filter((b) => BLOCKING.includes(b?.status) && b?.room_type_id === type?.id && (b?.check_in || '') <= iso && (b?.check_out || '') > iso).length;
+    const blocked = safeBlocks.filter((b) => !b?.room_id && b?.room_type_id === type?.id && (b?.start_date || '') <= iso && (b?.end_date || '') > iso).length;
+    const total = Number(type?.total_rooms) || 1;
     const free = total - booked - blocked;
     return { booked, blocked, free, total };
   };
@@ -48,7 +51,7 @@ export default function AvailabilityCalendar({ roomTypes = [], bookings = [], bl
             </tr>
           </thead>
           <tbody>
-            {roomTypes.map((t) => (
+            {safeRoomTypes.map((t) => (
               <tr key={t.id}>
                 <td className="sticky left-0 z-10 max-w-[130px] truncate bg-white px-2 py-1 font-medium text-slate-700">{t.name_en}</td>
                 {dayList.map((d) => {

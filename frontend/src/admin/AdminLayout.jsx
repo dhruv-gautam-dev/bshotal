@@ -4,7 +4,7 @@ import {
   LayoutDashboard, CalendarCheck, UtensilsCrossed, BedDouble, MessageSquare,
   Star, Users, BarChart3, Settings, LogOut, Menu, X, Globe, KeyRound,
 } from 'lucide-react';
-import { base44 } from '@/api/base44Client';
+import { apiClient } from '@/api/apiClient';
 import { useI18n } from '@/lib/i18n';
 import { useAdmin } from './AdminContext';
 
@@ -29,7 +29,7 @@ export default function AdminLayout() {
   ].filter(([, , , area]) => can(area));
 
   const logout = async () => {
-    await base44.auth.logout();
+    await apiClient.auth.logout();
     navigate('/admin/login');
   };
 

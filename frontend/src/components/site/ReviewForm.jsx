@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { base44 } from '@/api/base44Client';
+import { apiClient } from '@/api/apiClient';
 import { StarInput } from '@/components/site/Stars';
 
 export default function ReviewForm() {
@@ -16,7 +16,7 @@ export default function ReviewForm() {
     setErr('');
     setBusy(true);
     try {
-      await base44.entities.Review.create({ name: f.name.trim(), rating: f.rating, comment: f.comment.trim(), status: 'pending' });
+      await apiClient.entities.Review.create({ name: f.name.trim(), rating: f.rating, comment: f.comment.trim(), status: 'pending' });
       setDone(true);
     } catch {
       setErr('Sorry, we could not submit your review. Please try again.');

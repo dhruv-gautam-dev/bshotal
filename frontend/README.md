@@ -1,87 +1,80 @@
-# B.S. Hotel & Delicee Restaurant — website + admin dashboard
+# B.S. Hotel & Restaurant - Frontend
 
-A single React app that contains both the public website and a staff dashboard, running on the
-Base44 platform (database, authentication, hosting).
+This is the React frontend application for **B.S. Hotel & Restaurant**, featuring room reservations, restaurant menu and online ordering, banquets/events showcase, verified customer reviews, and an admin management dashboard.
 
-## What is inside
+## Tech Stack
+- **Vite** + **React** (JavaScript `.jsx`, with TypeScript helper types in `src/utils/index.ts`)
+- **Tailwind CSS** with brand colors (Deep Navy `#0b1d3a` and Gold `#c59b27`)
+- **shadcn/ui** accessible component system
+- **react-router-dom** for client-side routing
+- **@tanstack/react-query** for state management
+- **lucide-react** icons
+- **recharts** for metrics and admin visualization
+- **date-fns** & **sonner** toast notifications
 
-| Area | Path | Notes |
-| --- | --- | --- |
-| Public website | `/`, `/rooms`, `/booking`, `/restaurant`, `/order`, `/events`, `/gallery`, `/reviews`, `/contact` | Reads menu, room types and settings from the database |
-| Staff sign-in | `/admin/login` | Email + password (platform auth, rate limited, optional MFA) |
-| Dashboard | `/admin` | Overview, bookings, orders, rooms & availability, menu, enquiries, reviews, customers, reports, settings |
-| Database schema | `base44/entities/*.jsonc` | Access rules (RLS) live in each schema |
+## Getting Started
 
-## Data model
-
-`Booking`, `Payment`, `RoomType`, `Room`, `BlockedDate`, `PricingRule`, `MenuCategory`, `MenuItem`,
-`Order` (line items embedded), `Enquiry` (event + contact messages), `EventPackage`, `Review`,
-`Setting` (single row), `AuditLog`, `User` (adds `staff_role`, `staff_active`).
-
-Bookings and orders keep their own status history; money is tracked with `Payment` rows
-(advance / balance / refund) plus `advance_paid` and `balance` on the booking.
-
-## Roles
-
-| Role | Access |
-| --- | --- |
-| Owner (`role = admin` or `staff_role = owner`) | Everything, including settings, staff accounts and the audit log |
-| Manager (`staff_role = manager`) | Bookings, orders, rooms, menu, reviews, enquiries, customers, reports |
-| Staff (`staff_role = staff`) | Bookings and orders only — no prices, settings, reports or deletes |
-
-Roles are stored on the user record in the **locked** `staff_role` field (only an owner can change
-it). They are enforced by the entity access rules on the server, not by hiding menu items. Every
-mutation also writes an `AuditLog` row.
-
-## Seeding
-
-1. Settings, 3 room types and 9 room numbers are already seeded.
-2. Open **Menu → Import built-in menu** once to copy the printed menu (`src/data/menu.js`) into the
-   database. After that, menu edits in the dashboard control the website.
-3. Make your own account the owner: in the dashboard **Settings → Staff accounts** set your role to
-   *Owner* (or set `role = admin` on the user).
-
-## Manual configuration still needed
-
-- **Owner email** for alerts (Settings → Operations). Email delivery to outside addresses also needs
-  a connected custom domain.
-- **Razorpay**: add `RAZORPAY_KEY_ID`, `RAZORPAY_KEY_SECRET`, `RAZORPAY_WEBHOOK_SECRET` (see
-  `.env.example`). The `Payment` entity already has a `gateway_ref` field; create a payment record
-  from the webhook when you enable the gateway.
-- **WhatsApp / SMS notifications**: fill the webhook URL in Settings → Operations later.
-- **Domain, publishing, SEO**: publish from the editor, then connect the domain in Dashboard → Domains.
-- **Menu / room photos, FSSAI & GST numbers, real prices** — replace the seeded placeholders.
-
-## Platform note (important)
-
-This app runs on the **free plan**, which does not include backend functions. Therefore:
-
-- Authentication, password hashing, sessions, OTP, "forgot password" and login rate limiting are
-  handled by the platform — never hand-rolled here.
-- All data access goes through the platform SDK, protected by per-entity row-level rules.
-- Availability is checked against live bookings before a booking is saved, and every pending
-  request stays visible in the dashboard so a clash is caught before confirming. A truly atomic
-  server-side lock needs a backend function (**Builder plan or higher**), as do a custom REST API,
-  CSV import on the server and SMTP-based email.
-
-Upgrading to Builder+ unlocks those without changing the screens.
-
-## Run locally
-
+### Installation
+From the `frontend/` directory, install all dependencies:
 ```bash
 npm install
-npm run dev      # https://localhost:5173 (Base44 preview)
-npm run build    # production bundle
 ```
 
-## Project layout
+### Development Server
+Start the local development server:
+```bash
+npm run dev
+```
+Open your browser at `http://localhost:5173`.
+
+### Production Build
+Create an optimized production bundle:
+```bash
+npm run build
+```
+
+## Admin Access
+- **URL**: `http://localhost:5173/admin`
+- **Default Sign-In**: `admin@bshotel.com` / `admin123` (or click "1-Click Instant Admin Access" on the login screen).
+- **Features**: Live management of room bookings, kitchen food orders, menu items and prices, event leads, customer records, and revenue analytics.
+
+## Folder Structure
 
 ```
-src/
-  admin/            dashboard (layout, guard, pages, shared helpers)
-  components/site/  public website components
-  data/             static fallback content (menu, rooms, event copy)
-  hooks/            useMenu / useRoomTypes / useOrderConfig
-  lib/              publicApi (website ↔ database), services (forms), i18n, whatsapp
-base44/entities/    database schema + access rules
-``
+frontend/
+├── public/                  # Static assets and SEO sitemap
+│   └── sitemap.xml
+├── src/
+│   ├── admin/               # Admin dashboard modules
+│   │   ├── components/      # Admin UI widgets (Charts, StatCard, Forms, StatusPill)
+│   │   ├── lib/             # Admin mock data and metrics logic
+│   │   ├── pages/           # Admin pages (Bookings, Rooms, Orders, Menu, Reports, etc.)
+│   │   ├── AdminContext.jsx # Admin state provider
+│   │   ├── AdminGuard.jsx   # Route guard for protected admin area
+│   │   └── AdminLayout.jsx  # Admin layout with navigation and header
+│   ├── api/                 # API client & local data store (apiClient.js)
+│   ├── components/
+│   │   ├── home/            # Home landing page sections
+│   │   ├── site/            # Public site elements (Header, Footer, QuickBookBar, etc.)
+│   │   └── ui/              # shadcn/ui components and image helpers
+│   ├── data/                # Source of truth: menus, rooms, events, reviews, policies
+│   ├── hooks/               # Custom hooks (mobile viewport, window size, catalog, reviews)
+│   ├── lib/                 # Core utilities, AuthContext, QueryClient, SEO, cart, i18n
+│   ├── pages/               # Public site routes (Home, Rooms, Restaurant, Booking, etc.)
+│   ├── utils/               # TypeScript utility types
+│   ├── App.jsx              # Main router and root providers (QueryClient, Auth, Toaster)
+│   ├── index.css            # Tailwind directives and theme CSS variables
+│   └── main.jsx             # React entry point
+├── .gitignore
+├── AGENTS.md
+├── CLAUDE.md
+├── components.json          # shadcn/ui configuration
+├── eslint.config.js
+├── index.html
+├── jsconfig.json            # Path alias configuration (@ -> src/)
+├── package.json
+├── postcss.config.js
+├── README.md
+├── tailwind.config.js       # Tailwind configuration with Navy and Gold brand theme
+└── vite.config.js           # Vite build configuration with @ alias
+```

@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Plus, Search, Download, Trash2, Pencil, Upload } from 'lucide-react';
-import { base44 } from '@/api/base44Client';
+import { apiClient } from '@/api/apiClient';
 import { useI18n } from '@/lib/i18n';
 import { useAdmin } from '../AdminContext';
 import { MENU } from '@/data/menu';
@@ -30,8 +30,8 @@ export default function MenuAdmin() {
     queryKey: ['admin-menu'],
     queryFn: async () => {
       const [categories, items] = await Promise.all([
-        base44.entities.MenuCategory.list(),
-        base44.entities.MenuItem.filter({}, { sort: 'sort', limit: 500 }),
+        apiClient.entities.MenuCategory.list(),
+        apiClient.entities.MenuItem.filter({}, { sort: 'sort', limit: 500 }),
       ]);
       return { categories: Array.isArray(categories) ? categories : [], items: items.items || [] };
     },
@@ -49,20 +49,20 @@ export default function MenuAdmin() {
   const refresh = () => { qc.invalidateQueries({ queryKey: ['admin-menu'] }); qc.invalidateQueries({ queryKey: ['public-menu'] }); };
 
   const toggleStock = async (item) => {
-    await base44.entities.MenuItem.update(item.id, { is_available: !item.is_available });
+    await apiClient.entities.MenuItem.update(item.id, { is_available: !item.is_available });
     await audit(me, 'update', 'menu', 'MenuItem', item.id, `${item.name_en} → ${!item.is_available ? 'out of stock' : 'available'}`);
     refresh();
   };
 
   const addCategory = async () => {
     if (newCat.trim().length < 2) return;
-    await base44.entities.MenuCategory.create({ name_en: newCat.trim(), name_hi: '', sort: categories.length });
+    await apiClient.entities.MenuCategory.create({ name_en: newCat.trim(), name_hi: '', sort: categories.length });
     setNewCat('');
     refresh();
   };
 
   const removeItem = async () => {
-    await base44.entities.MenuItem.delete(del.id);
+    await apiClient.entities.MenuItem.delete(del.id);
     await audit(me, 'delete', 'menu', 'MenuItem', del.id, `Deleted dish ${del.name_en}`);
     setDel(null);
     refresh();
@@ -76,7 +76,7 @@ export default function MenuAdmin() {
       id: i.id,
       price: bulk.mode === 'percent' ? Math.max(1, Math.round(money(i.price) * (1 + value / 100))) : Math.max(1, Math.round(money(i.price) + value)),
     }));
-    await base44.entities.MenuItem.bulkUpdate(updates);
+    await apiClient.entities.MenuItem.bulkUpdate(updates);
     await audit(me, 'price', 'menu', 'MenuItem', '', `Bulk price ${bulk.mode} ${value} on ${updates.length} dishes`);
     setBulk({ ...bulk, open: false, value: '' });
     refresh();
@@ -88,7 +88,7 @@ export default function MenuAdmin() {
     try {
       const created = [];
       for (let c = 0; c < MENU.length; c += 1) {
-        const category = await base44.entities.MenuCategory.create({
+        const category = await apiClient.entities.MenuCategory.create({
           name_en: MENU[c].name.en, name_hi: MENU[c].name.hi, sort: c, is_active: true,
         });
         created.push({ ...MENU[c], dbId: category.id });
@@ -98,7 +98,7 @@ export default function MenuAdmin() {
         is_veg: true, is_available: true, tags: [], sort: c.items.indexOf(i),
       })));
       for (let i = 0; i < allItems.length; i += 40) {
-        await base44.entities.MenuItem.bulkCreate(allItems.slice(i, i + 40));
+        await apiClient.entities.MenuItem.bulkCreate(allItems.slice(i, i + 40));
       }
       await audit(me, 'import', 'menu', 'MenuItem', '', `Seeded ${created.length} categories, ${allItems.length} dishes`);
       refresh();

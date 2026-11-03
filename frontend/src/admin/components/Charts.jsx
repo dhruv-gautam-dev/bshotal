@@ -34,19 +34,20 @@ export function OrdersChart({ data }) {
 }
 
 /** Simple ranked bars — no chart library needed. */
-export function BarList({ rows, format = (v) => v }) {
-  const max = Math.max(1, ...rows.map((r) => r.value));
-  if (!rows.length) return <p className="py-6 text-center text-sm text-slate-500">No data yet.</p>;
+export function BarList({ rows = [], format = (v) => v }) {
+  const list = Array.isArray(rows) ? rows : [];
+  if (!list.length) return <p className="py-6 text-center text-sm text-slate-500">No data yet.</p>;
+  const max = Math.max(1, ...list.map((r) => Number(r?.value) || 0));
   return (
     <ul className="space-y-2.5">
-      {rows.map((r) => (
+      {list.map((r) => (
         <li key={r.label}>
           <div className="flex justify-between text-sm">
             <span className="truncate pr-2 text-slate-700">{r.label}</span>
             <span className="shrink-0 font-semibold tabular-nums text-slate-900">{format(r.value)}</span>
           </div>
           <div className="mt-1 h-1.5 rounded-full bg-slate-100">
-            <div className="h-1.5 rounded-full bg-amber-500" style={{ width: `${Math.round((r.value / max) * 100)}%` }} />
+            <div className="h-1.5 rounded-full bg-amber-500" style={{ width: `${Math.round(((Number(r.value) || 0) / max) * 100)}%` }} />
           </div>
         </li>
       ))}

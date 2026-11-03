@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { X, Minus, Plus, Loader2 } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
-import { base44 } from '@/api/base44Client';
+import { apiClient } from '@/api/apiClient';
 import { useI18n } from '@/lib/i18n';
 import { getSettings, money, todayISO } from '../lib/adminData';
 
@@ -19,7 +19,7 @@ export default function OrderForm({ open, onClose, onSaved }) {
     enabled: open,
     queryFn: async () => {
       const [items, settings] = await Promise.all([
-        base44.entities.MenuItem.filter({ is_available: true }, { sort: 'sort', limit: 300 }),
+        apiClient.entities.MenuItem.filter({ is_available: true }, { sort: 'sort', limit: 300 }),
         getSettings(),
       ]);
       return { items: items.items || [], settings };
@@ -48,7 +48,7 @@ export default function OrderForm({ open, onClose, onSaved }) {
     if (!lines.length) return setErr(L('Add at least one dish.', 'कम से कम एक डिश जोड़ें।'));
     setBusy(true);
     try {
-      const created = await base44.entities.Order.create({
+      const created = await apiClient.entities.Order.create({
         ref: ref(), customer_name: f.name.trim(), phone: f.phone.replace(/\D/g, '').slice(-10),
         type: f.type, table_no: f.table, address: f.address, items: lines,
         subtotal, tax, delivery, total, notes: f.notes, status: 'new',

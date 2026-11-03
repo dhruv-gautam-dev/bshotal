@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Phone, MessageCircle, X, Plus, Trash2 } from 'lucide-react';
-import { base44 } from '@/api/base44Client';
+import { apiClient } from '@/api/apiClient';
 import { useI18n } from '@/lib/i18n';
 import { useAdmin } from '../AdminContext';
 import { ENQUIRY_STATUS, audit, inr } from '../lib/adminData';
@@ -25,8 +25,8 @@ export default function Enquiries() {
     queryKey: ['admin-enquiries'],
     queryFn: async () => {
       const [enquiries, packages] = await Promise.all([
-        base44.entities.Enquiry.filter({}, { sort: '-created_date', limit: 200 }),
-        base44.entities.EventPackage.filter({}, { sort: 'sort', limit: 50 }),
+        apiClient.entities.Enquiry.filter({}, { sort: '-created_date', limit: 200 }),
+        apiClient.entities.EventPackage.filter({}, { sort: 'sort', limit: 50 }),
       ]);
       return { enquiries: enquiries.items, packages: packages.items };
     },
@@ -37,7 +37,7 @@ export default function Enquiries() {
   const rows = useMemo(() => (data?.enquiries || []).filter((e) => (!filter || e.status === filter) && (!type || e.type === type)), [data, filter, type]);
 
   const update = async (patch, log) => {
-    await base44.entities.Enquiry.update(active.id, patch);
+    await apiClient.entities.Enquiry.update(active.id, patch);
     await audit(me, 'update', 'enquiries', 'Enquiry', active.id, log);
     setActive({ ...active, ...patch });
     refresh();
@@ -46,8 +46,8 @@ export default function Enquiries() {
   const savePkg = async (e) => {
     e.preventDefault();
     const payload = { ...pkg, price_from: Number(pkg.price_from) || 0, price_to: Number(pkg.price_to) || 0, inclusions: String(pkg.inclusions || '').split(',').map((s) => s.trim()).filter(Boolean) };
-    if (payload.id) await base44.entities.EventPackage.update(payload.id, payload);
-    else await base44.entities.EventPackage.create(payload);
+    if (payload.id) await apiClient.entities.EventPackage.update(payload.id, payload);
+    else await apiClient.entities.EventPackage.create(payload);
     setPkg(null);
     refresh();
   };
@@ -109,7 +109,7 @@ export default function Enquiries() {
                   <p className="font-semibold text-slate-900">{p.title_en}</p>
                   <p className="text-xs text-slate-500">{p.capacity} · {inr(p.price_from)}–{inr(p.price_to)}</p>
                 </div>
-                <button onClick={async () => { await base44.entities.EventPackage.delete(p.id); refresh(); }} className="rounded-lg border border-slate-200 p-2 text-red-600" aria-label="Delete"><Trash2 size={14} /></button>
+                <button onClick={async () => { await apiClient.entities.EventPackage.delete(p.id); refresh(); }} className="rounded-lg border border-slate-200 p-2 text-red-600" aria-label="Delete"><Trash2 size={14} /></button>
               </div>
               <p className="mt-2 line-clamp-2 text-sm text-slate-600">{p.desc_en}</p>
               <button onClick={() => setPkg({ ...p, inclusions: (p.inclusions || []).join(', ') })} className="mt-3 rounded-lg border border-slate-300 px-3 py-1.5 text-xs font-semibold">{L('Edit', 'संपादित')}</button>

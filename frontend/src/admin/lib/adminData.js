@@ -1,7 +1,7 @@
 // Shared data helpers for the admin dashboard.
 // All access goes through the entity SDK; the platform's row-level rules decide
 // who may read or write each table (owner = app role "admin", staff = staff_role).
-import { base44 } from '@/api/base44Client';
+import { apiClient } from '@/api/apiClient';
 
 export const BLOCKING = ['pending', 'confirmed', 'checked_in'];
 
@@ -71,14 +71,14 @@ export const SESSIONS = ['cash', 'upi', 'card', 'online'];
 
 /** The settings record is a singleton; create it on first save. */
 export async function getSettings() {
-  const rows = await base44.entities.Setting.list().catch(() => []);
+  const rows = await apiClient.entities.Setting.list().catch(() => []);
   const list = Array.isArray(rows) ? rows : [];
   return list[0] || null;
 }
 
 export async function saveSettings(id, values) {
-  if (id) return base44.entities.Setting.update(id, values);
-  return base44.entities.Setting.create(values);
+  if (id) return apiClient.entities.Setting.update(id, values);
+  return apiClient.entities.Setting.create(values);
 }
 
 /**
@@ -88,16 +88,16 @@ export async function saveSettings(id, values) {
  * still shows every pending request so a clash is caught before confirming.
  */
 export async function checkAvailability(roomTypeId, checkIn, checkOut, excludeId = '') {
-  const type = (await base44.entities.RoomType.filter({ id: roomTypeId }, { limit: 1 })).items[0];
+  const type = (await apiClient.entities.RoomType.filter({ id: roomTypeId }, { limit: 1 })).items[0];
   if (!type) return { available: 0, total: 0, error: 'Room type not found' };
-  const booked = (await base44.entities.Booking.filter({
+  const booked = (await apiClient.entities.Booking.filter({
     room_type_id: roomTypeId,
     status: { $in: BLOCKING },
     check_in: { $lt: checkOut },
     check_out: { $gt: checkIn },
   }, { limit: 100 })).items;
   const overlap = booked.filter((b) => b.id !== excludeId);
-  const blocks = (await base44.entities.BlockedDate.filter({
+  const blocks = (await apiClient.entities.BlockedDate.filter({
     room_type_id: roomTypeId,
     start_date: { $lt: checkOut },
     end_date: { $gt: checkIn },
@@ -114,7 +114,7 @@ export async function checkAvailability(roomTypeId, checkIn, checkOut, excludeId
 
 export async function rateForStay(roomTypeId, checkIn, basePrice) {
   try {
-    const rules = (await base44.entities.PricingRule.filter({
+    const rules = (await apiClient.entities.PricingRule.filter({
       room_type_id: roomTypeId, start_date: { $lte: checkIn }, end_date: { $gte: checkIn },
     }, { limit: 10 })).items;
     return rules.length ? money(rules[0].price) : money(basePrice);
@@ -125,7 +125,7 @@ export async function rateForStay(roomTypeId, checkIn, basePrice) {
 
 export async function audit(me, action, area, entity, recordId, summary) {
   try {
-    await base44.entities.AuditLog.create({
+    await apiClient.entities.AuditLog.create({
       actor_email: me?.email || 'unknown',
       actor_role: me?.staff_role || 'unknown',
       action, area, entity, record_id: String(recordId || ''), summary,

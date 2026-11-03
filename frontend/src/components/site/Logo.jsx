@@ -2,7 +2,7 @@
 // The artwork carries generous dark padding, so each variant zooms to the exact
 // region it needs (measured from the source) and blends over the dark UI.
 const SRC =
-  'https://media.base44.com/images/public/6aea02802823d81a2a6586e3/b6425cfaa_generated_a2a98077.png';
+  'https://media.apiClient.com/images/public/6aea02802823d81a2a6586e3/b6425cfaa_generated_a2a98077.png';
 
 const VARIANTS = {
   // Lotus emblem + BS monogram only

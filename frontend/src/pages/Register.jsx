@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { Link } from "react-router-dom";
-import { base44 } from "@/api/base44Client";
+import { apiClient } from "@/api/apiClient";
 import { continueMfa, loginWithGoogle } from "@/lib/authMfa";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -31,7 +31,7 @@ export default function Register() {
     }
     setLoading(true);
     try {
-      await base44.auth.register({ email, password });
+      await apiClient.auth.register({ email, password });
       setShowOtp(true);
     } catch (err) {
       setError(err.message || "Registration failed");
@@ -44,14 +44,14 @@ export default function Register() {
     setError("");
     setLoading(true);
     try {
-      const result = await base44.auth.verifyOtp({ email, otpCode });
+      const result = await apiClient.auth.verifyOtp({ email, otpCode });
       if (result?.mfa_required) {
         // The account is already verified, so a retry here would fail; sign in again instead.
         await continueMfa(result, safeReturnTo()).catch(() => window.location.assign(loginPath));
         return;
       }
       if (result?.access_token) {
-        base44.auth.setToken(result.access_token);
+        apiClient.auth.setToken(result.access_token);
       }
       window.location.href = safeReturnTo();
     } catch (err) {
@@ -64,7 +64,7 @@ export default function Register() {
   const handleResend = async () => {
     setError("");
     try {
-      await base44.auth.resendOtp(email);
+      await apiClient.auth.resendOtp(email);
       toast({
         title: "Code sent",
         description: "Check your email for the new code.",

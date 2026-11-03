@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Plus, Download, Printer, X, Phone } from 'lucide-react';
-import { base44 } from '@/api/base44Client';
+import { apiClient } from '@/api/apiClient';
 import { useI18n } from '@/lib/i18n';
 import { useAdmin } from '../AdminContext';
 import {
@@ -33,31 +33,31 @@ export default function Orders() {
 
   const { data: orders = [], isLoading } = useQuery({
     queryKey: ['admin-orders'],
-    queryFn: async () => (await base44.entities.Order.filter({}, { sort: '-created_date', limit: 200 })).items,
+    queryFn: async () => (await apiClient.entities.Order.filter({}, { sort: '-created_date', limit: 200 })).items,
   });
 
   // Live board: a new website order appears without a manual refresh.
   useEffect(() => {
-    const unsub = base44.entities.Order.subscribe(() => qc.invalidateQueries({ queryKey: ['admin-orders'] }));
+    const unsub = apiClient.entities.Order.subscribe(() => qc.invalidateQueries({ queryKey: ['admin-orders'] }));
     return unsub;
   }, [qc]);
 
   const move = async (order, status) => {
-    await base44.entities.Order.update(order.id, { status });
+    await apiClient.entities.Order.update(order.id, { status });
     await audit(me, 'status', 'orders', 'Order', order.id, `${order.ref}: ${order.status} → ${status}`);
     qc.invalidateQueries({ queryKey: ['admin-orders'] });
     setActive((a) => (a && a.id === order.id ? { ...a, status } : a));
   };
 
   const markPaid = async (order) => {
-    await base44.entities.Order.update(order.id, { payment_status: 'paid', payment_mode: order.payment_mode === 'none' ? 'cash' : order.payment_mode });
+    await apiClient.entities.Order.update(order.id, { payment_status: 'paid', payment_mode: order.payment_mode === 'none' ? 'cash' : order.payment_mode });
     await audit(me, 'payment', 'orders', 'Order', order.id, `${order.ref} marked paid`);
     qc.invalidateQueries({ queryKey: ['admin-orders'] });
     setActive({ ...order, payment_status: 'paid' });
   };
 
   const kot = (o) => printHtml(`KOT ${o.ref}`, `
-    <h1>KITCHEN ORDER</h1><p class="muted">${o.ref} · ${new Date(o.created_date).toLocaleString('en-IN')} · ${o.type}${o.table_no ? ` · Table ${o.table_no}` : ''}</p>
+    <h1>KITCHEN ORDER</h1><p class="muted">${o.ref} · ${new Date(o.created_date || o.created_at || Date.now()).toLocaleString('en-IN')} · ${o.type}${o.table_no ? ` · Table ${o.table_no}` : ''}</p>
     <table>${(o.items || []).map((i) => `<tr><td style="font-size:15px"><b>${i.qty}×</b> ${i.name}${i.note ? `<br/><span class="muted">${i.note}</span>` : ''}</td></tr>`).join('')}</table>
     ${o.notes ? `<h2>Note</h2><p>${o.notes}</p>` : ''}
   `);
@@ -66,7 +66,7 @@ export default function Orders() {
     <h1>${settings?.hotel_name || 'B.S. Hotel & Delicee Restaurant'}</h1>
     <p class="muted">${settings?.address_en || ''}<br/>${settings?.phone_primary || ''}${settings?.gst ? ` · GSTIN ${settings.gst}` : ''}</p>
     <h2>Bill ${o.ref}</h2>
-    <p class="muted">${new Date(o.created_date).toLocaleString('en-IN')} · ${o.customer_name} · ${o.phone}</p>
+    <p class="muted">${new Date(o.created_date || o.created_at || Date.now()).toLocaleString('en-IN')} · ${o.customer_name} · ${o.phone}</p>
     <table>${(o.items || []).map((i) => `<tr><td>${i.name} × ${i.qty}</td><td class="r">${inr(i.price * i.qty)}</td></tr>`).join('')}</table>
     <table>
       <tr><td>Subtotal</td><td class="r">${inr(o.subtotal)}</td></tr>
@@ -78,11 +78,11 @@ export default function Orders() {
   `);
 
   const today = todayISO();
-  const history = useMemo(() => orders.filter((o) => !['new', 'accepted', 'preparing', 'ready', 'out_for_delivery'].includes(o.status) || (o.created_date || '') < today), [orders, today]);
+  const history = useMemo(() => orders.filter((o) => !['new', 'accepted', 'preparing', 'ready', 'out_for_delivery'].includes(o.status) || (o.created_date || o.created_at || '') < today), [orders, today]);
 
   const exportCsv = () => downloadCsv('orders.csv', orders, [
     { label: 'Ref', value: (o) => o.ref },
-    { label: 'Date', value: (o) => (o.created_date || '').slice(0, 16).replace('T', ' ') },
+    { label: 'Date', value: (o) => (o.created_date || o.created_at || '').slice(0, 16).replace('T', ' ') },
     { label: 'Customer', value: (o) => o.customer_name },
     { label: 'Phone', value: (o) => o.phone },
     { label: 'Type', value: (o) => o.type },
@@ -128,9 +128,9 @@ export default function Orders() {
                           <span className="text-sm font-semibold text-slate-900">{o.customer_name}</span>
                           <span className="text-xs font-semibold tabular-nums text-amber-700">{inr(o.total)}</span>
                         </div>
-                        <p className="mt-0.5 text-[11px] text-slate-500">{o.ref} · {ORDER_TYPES[o.type]?.en}{o.table_no ? ` · T${o.table_no}` : ''}</p>
-                        <p className="mt-1 text-xs text-slate-600">{(o.items || []).reduce((s, i) => s + i.qty, 0)} {L('items', 'आइटम')} · {new Date(o.created_date).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })}</p>
-                        {NEXT[o.status] && (
+                        <p className="mt-0.5 text-[11px] text-slate-500">{o.ref} · {ORDER_TYPES[o.type]?.en || o.type}{o.table_no ? ` · T${o.table_no}` : ''}</p>
+                        <p className="mt-1 text-xs text-slate-600">{(o.items || []).reduce((s, i) => s + (Number(i.qty) || 0), 0)} {L('items', 'आइटम')} · {new Date(o.created_date || o.created_at || Date.now()).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })}</p>
+                        {NEXT[o.status] && ORDER_STATUS[NEXT[o.status]] && (
                           <span
                             role="button"
                             tabIndex={0}
@@ -159,7 +159,7 @@ export default function Orders() {
             <tbody className="divide-y divide-slate-100">
               {orders.map((o) => (
                 <tr key={o.id} className="cursor-pointer hover:bg-slate-50" onClick={() => setActive(o)}>
-                  <td className="px-4 py-3"><span className="font-medium">{o.ref}</span><span className="block text-xs text-slate-500">{new Date(o.created_date).toLocaleDateString('en-IN')}</span></td>
+                  <td className="px-4 py-3"><span className="font-medium">{o.ref}</span><span className="block text-xs text-slate-500">{new Date(o.created_date || o.created_at || Date.now()).toLocaleDateString('en-IN')}</span></td>
                   <td className="px-4 py-3">{o.customer_name}<span className="block text-xs text-slate-500">{o.phone}</span></td>
                   <td className="px-4 py-3 capitalize">{o.type}</td>
                   <td className="px-4 py-3 tabular-nums">{inr(o.total)}</td>
@@ -177,7 +177,7 @@ export default function Orders() {
             <div className="mb-2 flex items-start justify-between">
               <div>
                 <h2 className="text-lg font-semibold text-slate-900">{active.ref}</h2>
-                <p className="text-xs text-slate-500">{new Date(active.created_date).toLocaleString('en-IN')}</p>
+                <p className="text-xs text-slate-500">{new Date(active.created_date || active.created_at || Date.now()).toLocaleString('en-IN')}</p>
               </div>
               <button onClick={() => setActive(null)} aria-label="Close"><X size={20} /></button>
             </div>

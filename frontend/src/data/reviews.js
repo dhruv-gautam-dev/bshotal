@@ -6,3 +6,7 @@ export const SAMPLE_REVIEWS = [
   { id: 's4', name: 'Sample Guest 4', rating: 5, comment: '[SAMPLE] We held our ring ceremony here. The team took care of everything.', sample: true },
   { id: 's5', name: 'Sample Guest 5', rating: 4, comment: '[SAMPLE] Good value rooms and tasty dosa at the restaurant.', sample: true },
 ];
+
+export const REVIEWS = SAMPLE_REVIEWS;
+export const reviewsData = SAMPLE_REVIEWS;
+export default SAMPLE_REVIEWS;

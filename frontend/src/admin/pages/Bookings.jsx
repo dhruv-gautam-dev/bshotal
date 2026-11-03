@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Plus, Search, Download } from 'lucide-react';
-import { base44 } from '@/api/base44Client';
+import { apiClient } from '@/api/apiClient';
 import { useI18n } from '@/lib/i18n';
 import { BOOKING_STATUS, inr, downloadCsv } from '../lib/adminData';
 import StatusPill from '../components/StatusPill';
@@ -24,7 +24,7 @@ export default function Bookings() {
 
   const { data: bookings = [], isLoading } = useQuery({
     queryKey: ['admin-bookings'],
-    queryFn: async () => (await base44.entities.Booking.filter({}, { sort: '-created_date', limit: 300 })).items,
+    queryFn: async () => (await apiClient.entities.Booking.filter({}, { sort: '-created_date', limit: 300 })).items,
   });
 
   const rows = useMemo(() => {
