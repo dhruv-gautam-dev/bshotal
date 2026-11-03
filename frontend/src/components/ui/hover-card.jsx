@@ -1,5 +1,5 @@
 const WIX_MEDIA_HOSTS = {
-  "media.apiClient.com": "/images/public/",
+  "static.wixstatic.com": "/images/public/",
   "static.wixstatic.com": "/media/",
 }
 
@@ -106,3 +106,4 @@ export function nextImageLoadMode(mode) {
     ? IMAGE_LOAD_MODE.ORIGINAL
     : IMAGE_LOAD_MODE.FALLBACK
 }
+

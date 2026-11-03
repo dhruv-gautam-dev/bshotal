@@ -13,7 +13,7 @@ export default function Contact() {
   const [err, setErr] = useState('');
   const [sent, setSent] = useState(null);
   const [busy, setBusy] = useState(false);
-  useSeo('Contact | B.S. Hotel, Township Nagar NH-2 Mathura', 'Call +91 63776 82442 or WhatsApp B.S. Hotel & Restaurant near Township Nagar, NH-2, Baad (Mathura).');
+  useSeo('Contact | B.S. Hotel, Township Nagar NH-2 Mathura', 'Call +91 91492 24039 for bookings, +91 92592 73735 for payments or WhatsApp B.S. Hotel & Restaurant near Township Nagar, NH-2, Baad (Mathura).');
   const set = (k) => (e) => setF({ ...f, [k]: e.target.value });
 
   const submit = async (e) => {
@@ -37,8 +37,20 @@ export default function Contact() {
       <PageHero title={t('nav.contact')} sub="We are happy to help with rooms, food and events." />
       <section className="mx-auto grid max-w-6xl gap-10 px-4 py-12 md:grid-cols-2">
         <div>
-          <a className={row} href={`tel:${SITE.tel1}`}><Phone className="mt-1 text-primary" size={20} />{SITE.phone1}</a>
-          <a className={row} href={`tel:${SITE.tel2}`}><Phone className="mt-1 text-primary" size={20} />{SITE.phone2}</a>
+          <a className={row} href={`tel:${SITE.tel1}`}>
+            <Phone className="mt-1 shrink-0 text-primary" size={20} />
+            <div>
+              <span className="font-medium text-foreground">{SITE.phone1}</span>
+              <span className="block text-xs text-muted-foreground">{t('nav.bookings') || 'Bookings'} & Inquiries</span>
+            </div>
+          </a>
+          <a className={row} href={`tel:${SITE.tel2}`}>
+            <Phone className="mt-1 shrink-0 text-primary" size={20} />
+            <div>
+              <span className="font-medium text-foreground">{SITE.phone2}</span>
+              <span className="block text-xs text-muted-foreground">Payments, Accounts & Billing</span>
+            </div>
+          </a>
           <a className={row} href={waLink()} target="_blank" rel="noopener noreferrer"><MessageCircle className="mt-1 text-primary" size={20} />WhatsApp</a>
           <p className={row}><MapPin className="mt-1 shrink-0 text-primary" size={20} />{tr(SITE.address)}</p>
           <p className={row}><Clock className="mt-1 shrink-0 text-primary" size={20} />{tr(SITE.hours)}</p>

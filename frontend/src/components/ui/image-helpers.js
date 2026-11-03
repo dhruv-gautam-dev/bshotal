@@ -13,7 +13,7 @@ export const DEFAULT_TRANSFORM_WIDTH = 800
 
 export function parseWixMediaUrl(src) {
   if (!src || typeof src !== "string") return null
-  if (src.includes("wixstatic.com") || src.includes("media.apiClient.com")) {
+  if (src.includes("wixstatic.com") || src.includes("static.wixstatic.com")) {
     return {
       baseUrl: src,
       originalUrl: src,
@@ -91,3 +91,4 @@ export default {
   getOptimizedImageUrl,
   getSrcSet,
 }
+

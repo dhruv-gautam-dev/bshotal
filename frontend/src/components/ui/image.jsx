@@ -12,7 +12,7 @@ const FALLBACK_IMAGE_URL =
 
 /**
  * Image with built-in Wix Media Platform support: canonical public images on
- * media.apiClient.com and static.wixstatic.com/media are resized to the rendered
+ * static.wixstatic.com and static.wixstatic.com/media are resized to the rendered
  * container per device pixel ratio and served as AVIF/WebP when supported; `fittingType="fill"`
  * crops server-side, optionally anchored at a focal point. Other URLs render
  * as a plain <img>. Failed transforms retry the original URL; only a broken
@@ -109,3 +109,4 @@ const Image = React.forwardRef(
 Image.displayName = "Image"
 
 export { Image }
+

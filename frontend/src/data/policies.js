@@ -5,7 +5,7 @@ export const POLICIES = {
     body: [
       '[PLACEHOLDER] We collect only the details you share (name, phone, email, booking or order information) to respond to your requests.',
       '[PLACEHOLDER] We do not sell your personal information. Messages sent via WhatsApp are subject to WhatsApp’s own privacy policy.',
-      '[PLACEHOLDER] To request removal of your data, call us on +91 63776 82442.',
+      '[PLACEHOLDER] To request removal of your data, call us on +91 91492 24039.',
     ],
   },
   terms: {

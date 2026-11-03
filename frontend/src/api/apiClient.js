@@ -15,6 +15,11 @@ function getStore(key, defaultData) {
       window.localStorage.setItem(STORAGE_PREFIX + key, JSON.stringify(defaultData))
       return defaultData
     }
+    // Auto-migrate legacy media CDN URLs or old phone numbers if stored in browser
+    if (typeof raw === 'string' && (raw.includes('media.apiClient.com') || raw.includes('media.base44.com') || raw.includes('63776') || raw.includes('82735') || (key === 'Setting' && (!raw.includes(SITE.bookingsPhone) || !raw.includes(SITE.paymentsPhone))))) {
+      window.localStorage.setItem(STORAGE_PREFIX + key, JSON.stringify(defaultData))
+      return defaultData
+    }
     return JSON.parse(raw)
   } catch {
     return defaultData
@@ -97,6 +102,8 @@ const initialSettings = [
     phone1: SITE.phone1,
     phone2: SITE.phone2,
     phone_primary: SITE.phone1,
+    phone_bookings: SITE.phone1,
+    phone_payments: SITE.phone2,
     address_en: SITE.address.en,
     address: SITE.address.en,
     hotel_name: SITE.name,

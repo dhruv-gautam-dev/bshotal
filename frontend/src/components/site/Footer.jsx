@@ -23,8 +23,8 @@ export default function Footer() {
           <h3 className="mb-3 font-body text-sm font-semibold uppercase tracking-widest text-primary">{t('footer.contact')}</h3>
           <ul className="space-y-3 text-sm">
             <li className="flex gap-2"><MapPin size={18} className="mt-0.5 shrink-0 text-primary" />{tr(SITE.address)}</li>
-            <li><a className="flex items-center gap-2 py-1" href={`tel:${SITE.tel1}`}><Phone size={18} className="text-primary" />{SITE.phone1}</a></li>
-            <li><a className="flex items-center gap-2 py-1" href={`tel:${SITE.tel2}`}><Phone size={18} className="text-primary" />{SITE.phone2}</a></li>
+            <li><a className="flex items-center gap-2 py-1" href={`tel:${SITE.tel1}`}><Phone size={18} className="text-primary shrink-0" /><span>{SITE.phone1} <span className="text-xs text-muted-foreground">({t('nav.rooms') || 'Bookings'})</span></span></a></li>
+            <li><a className="flex items-center gap-2 py-1" href={`tel:${SITE.tel2}`}><Phone size={18} className="text-primary shrink-0" /><span>{SITE.phone2} <span className="text-xs text-muted-foreground">(Payments)</span></span></a></li>
             <li><a className="flex items-center gap-2 py-1" href={waLink()} target="_blank" rel="noopener noreferrer"><MessageCircle size={18} className="text-primary" />WhatsApp</a></li>
           </ul>
         </div>
