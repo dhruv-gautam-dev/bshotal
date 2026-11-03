@@ -1,20 +1,132 @@
 {
-  // Entity Schema: Enquiry
   "name": "Enquiry",
-  "description": "General and event inquiries submitted through website forms",
-  "fields": {
-    "id": { "type": "string", "required": true, "description": "Unique enquiry ID (UUID)" },
-    "name": { "type": "string", "required": true, "description": "Name of inquirer" },
-    "email": { "type": "string", "format": "email", "required": false, "description": "Email address" },
-    "phone": { "type": "string", "required": true, "description": "Phone number" },
-    "eventType": { "type": "string", "required": false, "description": "Type of event (Wedding, Birthday, Corporate, Dinner, etc.)" },
-    "eventDate": { "type": "string", "format": "date", "required": false, "description": "Tentative event date" },
-    "guestsCount": { "type": "integer", "required": false, "description": "Estimated guest count" },
-    "message": { "type": "string", "required": true, "description": "Enquiry message / requirements" },
-    "status": { "type": "string", "enum": ["new", "contacted", "in_progress", "converted", "closed"], "required": true, "description": "Lead status" },
-    "notes": { "type": "string", "required": false, "description": "Staff followup notes" },
-    "createdAt": { "type": "string", "format": "date-time", "required": true, "description": "Creation timestamp" }
+  "type": "object",
+  "properties": {
+    "ref": {
+      "type": "string"
+    },
+    "type": {
+      "type": "string",
+      "enum": [
+        "ring",
+        "birthday",
+        "wedding",
+        "custom",
+        "contact"
+      ],
+      "enumColors": [
+        "pink",
+        "purple",
+        "blue",
+        "gray",
+        "yellow"
+      ],
+      "default": "contact"
+    },
+    "name": {
+      "type": "string"
+    },
+    "phone": {
+      "type": "string"
+    },
+    "email": {
+      "type": "string"
+    },
+    "event_date": {
+      "type": "string"
+    },
+    "guests": {
+      "type": "number"
+    },
+    "message": {
+      "type": "string"
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "new",
+        "contacted",
+        "quote_sent",
+        "confirmed",
+        "lost"
+      ],
+      "enumColors": [
+        "yellow",
+        "blue",
+        "purple",
+        "green",
+        "red"
+      ],
+      "default": "new"
+    },
+    "notes": {
+      "type": "string"
+    },
+    "follow_up_date": {
+      "type": "string"
+    },
+    "package_id": {
+      "type": "string"
+    }
   },
-  "relations": {}
+  "required": [
+    "name",
+    "phone"
+  ],
+  "rls": {
+    "read": {
+      "$or": [
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        },
+        {
+          "user_condition": {
+            "data.staff_role": "manager"
+          }
+        }
+      ]
+    },
+    "create": {
+      "$or": [
+        {
+          "data.status": "new"
+        },
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        },
+        {
+          "user_condition": {
+            "data.staff_role": "manager"
+          }
+        }
+      ]
+    },
+    "update": {
+      "$or": [
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        },
+        {
+          "user_condition": {
+            "data.staff_role": "manager"
+          }
+        }
+      ]
+    },
+    "delete": {
+      "$or": [
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        }
+      ]
+    }
+  }
 }
-

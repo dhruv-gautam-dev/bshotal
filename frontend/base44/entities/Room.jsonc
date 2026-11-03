@@ -1,33 +1,87 @@
 {
-  // Entity Schema: Room
   "name": "Room",
-  "description": "Physical room units in B.S. Hotel",
-  "fields": {
-    "id": { "type": "string", "required": true, "description": "Unique room ID (UUID)" },
-    "roomNumber": { "type": "string", "required": true, "description": "Display room number (e.g., 101, 204)" },
-    "floor": { "type": "integer", "required": true, "description": "Floor level" },
-    "roomTypeId": { "type": "string", "required": true, "description": "Category / RoomType foreign key" },
-    "status": { "type": "string", "enum": ["available", "occupied", "maintenance", "reserved"], "required": true, "description": "Current room status" },
-    "isClean": { "type": "boolean", "required": true, "description": "Housekeeping status flag" },
-    "notes": { "type": "string", "required": false, "description": "Internal notes (e.g., view, corner room)" },
-    "createdAt": { "type": "string", "format": "date-time", "required": true, "description": "Creation timestamp" }
+  "type": "object",
+  "properties": {
+    "number": {
+      "type": "string"
+    },
+    "room_type_id": {
+      "type": "string"
+    },
+    "floor": {
+      "type": "string"
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "available",
+        "occupied",
+        "cleaning",
+        "maintenance"
+      ],
+      "enumColors": [
+        "green",
+        "blue",
+        "yellow",
+        "red"
+      ],
+      "default": "available"
+    },
+    "notes": {
+      "type": "string"
+    },
+    "is_active": {
+      "type": "boolean",
+      "default": true
+    }
   },
-  "relations": {
-    "roomType": {
-      "type": "belongsTo",
-      "entity": "RoomType",
-      "foreignKey": "roomTypeId"
+  "required": [
+    "number",
+    "room_type_id"
+  ],
+  "rls": {
+    "read": {},
+    "create": {
+      "$or": [
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        },
+        {
+          "user_condition": {
+            "data.staff_role": "manager"
+          }
+        }
+      ]
     },
-    "bookings": {
-      "type": "hasMany",
-      "entity": "Booking",
-      "foreignKey": "roomId"
+    "update": {
+      "$or": [
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        },
+        {
+          "user_condition": {
+            "data.staff_role": "manager"
+          }
+        },
+        {
+          "user_condition": {
+            "data.staff_role": "staff"
+          }
+        }
+      ]
     },
-    "blockedDates": {
-      "type": "hasMany",
-      "entity": "BlockedDate",
-      "foreignKey": "roomId"
+    "delete": {
+      "$or": [
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        }
+      ]
     }
   }
 }
-

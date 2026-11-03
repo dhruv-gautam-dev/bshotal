@@ -1,38 +1,202 @@
 {
-  // Entity Schema: Booking
   "name": "Booking",
-  "description": "Room reservation records for guests",
-  "fields": {
-    "id": { "type": "string", "required": true, "description": "Unique booking identifier (UUID)" },
-    "bookingNumber": { "type": "string", "required": true, "description": "Human-friendly booking reference (e.g., BSH-2026-001)" },
-    "customerId": { "type": "string", "required": true, "description": "ID of guest / customer" },
-    "roomId": { "type": "string", "required": true, "description": "Assigned room ID" },
-    "checkInDate": { "type": "string", "format": "date", "required": true, "description": "Check-in date" },
-    "checkOutDate": { "type": "string", "format": "date", "required": true, "description": "Check-out date" },
-    "guestsCount": { "type": "integer", "required": true, "description": "Total number of guests" },
-    "totalAmount": { "type": "number", "required": true, "description": "Total cost of booking" },
-    "status": { "type": "string", "enum": ["pending", "confirmed", "checked_in", "checked_out", "cancelled"], "required": true, "description": "Booking status" },
-    "paymentStatus": { "type": "string", "enum": ["unpaid", "partially_paid", "paid", "refunded"], "required": true, "description": "Payment status" },
-    "specialRequests": { "type": "string", "required": false, "description": "Special guest instructions or requests" },
-    "createdAt": { "type": "string", "format": "date-time", "required": true, "description": "Creation timestamp" },
-    "updatedAt": { "type": "string", "format": "date-time", "required": true, "description": "Last update timestamp" }
+  "type": "object",
+  "properties": {
+    "ref": {
+      "type": "string"
+    },
+    "guest_name": {
+      "type": "string"
+    },
+    "phone": {
+      "type": "string"
+    },
+    "email": {
+      "type": "string"
+    },
+    "room_type_id": {
+      "type": "string"
+    },
+    "room_type_name": {
+      "type": "string"
+    },
+    "room_id": {
+      "type": "string"
+    },
+    "room_number": {
+      "type": "string"
+    },
+    "check_in": {
+      "type": "string"
+    },
+    "check_out": {
+      "type": "string"
+    },
+    "nights": {
+      "type": "number"
+    },
+    "guests": {
+      "type": "number"
+    },
+    "special_requests": {
+      "type": "string"
+    },
+    "amount": {
+      "type": "number"
+    },
+    "advance_paid": {
+      "type": "number"
+    },
+    "balance": {
+      "type": "number"
+    },
+    "payment_mode": {
+      "type": "string",
+      "enum": [
+        "cash",
+        "upi",
+        "card",
+        "online",
+        "none"
+      ],
+      "enumColors": [
+        "green",
+        "blue",
+        "purple",
+        "pink",
+        "gray"
+      ],
+      "default": "none"
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "pending",
+        "confirmed",
+        "checked_in",
+        "checked_out",
+        "cancelled",
+        "no_show"
+      ],
+      "enumColors": [
+        "yellow",
+        "green",
+        "blue",
+        "gray",
+        "red",
+        "red"
+      ],
+      "default": "pending"
+    },
+    "cancel_reason": {
+      "type": "string"
+    },
+    "source": {
+      "type": "string",
+      "enum": [
+        "website",
+        "phone",
+        "walkin",
+        "whatsapp"
+      ],
+      "enumColors": [
+        "blue",
+        "purple",
+        "green",
+        "gray"
+      ],
+      "default": "website"
+    },
+    "notes": {
+      "type": "string"
+    },
+    "history": {
+      "type": "array",
+      "items": {
+        "type": "object"
+      }
+    }
   },
-  "relations": {
-    "customer": {
-      "type": "belongsTo",
-      "entity": "Customer",
-      "foreignKey": "customerId"
+  "required": [
+    "guest_name",
+    "phone",
+    "check_in",
+    "check_out"
+  ],
+  "rls": {
+    "read": {
+      "$or": [
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        },
+        {
+          "user_condition": {
+            "data.staff_role": "manager"
+          }
+        },
+        {
+          "user_condition": {
+            "data.staff_role": "staff"
+          }
+        }
+      ]
     },
-    "room": {
-      "type": "belongsTo",
-      "entity": "Room",
-      "foreignKey": "roomId"
+    "create": {
+      "$or": [
+        {
+          "data.status": "pending"
+        },
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        },
+        {
+          "user_condition": {
+            "data.staff_role": "manager"
+          }
+        },
+        {
+          "user_condition": {
+            "data.staff_role": "staff"
+          }
+        }
+      ]
     },
-    "payments": {
-      "type": "hasMany",
-      "entity": "Payment",
-      "foreignKey": "bookingId"
+    "update": {
+      "$or": [
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        },
+        {
+          "user_condition": {
+            "data.staff_role": "manager"
+          }
+        },
+        {
+          "user_condition": {
+            "data.staff_role": "staff"
+          }
+        }
+      ]
+    },
+    "delete": {
+      "$or": [
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        },
+        {
+          "user_condition": {
+            "data.staff_role": "manager"
+          }
+        }
+      ]
     }
   }
 }
-

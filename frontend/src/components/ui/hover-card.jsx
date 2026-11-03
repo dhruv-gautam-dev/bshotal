@@ -1,24 +1,108 @@
-import * as React from "react"
-import * as HoverCardPrimitive from "@radix-ui/react-hover-card"
+const WIX_MEDIA_HOSTS = {
+  "media.base44.com": "/images/public/",
+  "static.wixstatic.com": "/media/",
+}
 
-import { cn } from "@/lib/utils"
+export const DEFAULT_TRANSFORM_WIDTH = 1024
+export const IMAGE_LOAD_MODE = {
+  OPTIMIZED: "optimized",
+  ORIGINAL: "original",
+  FALLBACK: "fallback",
+}
 
-const HoverCard = HoverCardPrimitive.Root
+const DEVICE_PIXEL_RATIOS = [1, 2, 3]
+const MAX_DIMENSION = 6000
 
-const HoverCardTrigger = HoverCardPrimitive.Trigger
+export function splitImageProps(props) {
+  const wrapperProps = {}
+  const imageProps = {}
+  for (const [key, value] of Object.entries(props)) {
+    if (key.startsWith("data-")) wrapperProps[key] = value
+    else imageProps[key] = value
+  }
+  return { wrapperProps, imageProps }
+}
 
-const HoverCardContent = React.forwardRef(({ className, align = "center", sideOffset = 4, ...props }, ref) => (
-  <HoverCardPrimitive.Content
-    ref={ref}
-    align={align}
-    sideOffset={sideOffset}
-    className={cn(
-      "z-50 w-64 rounded-md border bg-popover p-4 text-popover-foreground shadow-md outline-none data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 data-[side=bottom]:slide-in-from-top-2 data-[side=left]:slide-in-from-right-2 data-[side=right]:slide-in-from-left-2 data-[side=top]:slide-in-from-bottom-2 origin-[--radix-hover-card-content-transform-origin]",
-      className
-    )}
-    {...props}
-  />
-))
-HoverCardContent.displayName = HoverCardPrimitive.Content.displayName
+export function getImagePreviewClassName(className, currentClassName, baselineClassName) {
+  const sourceClasses = new Set((className || "").split(/\s+/))
+  const baselineClasses = new Set(baselineClassName.split(/\s+/))
+  return currentClassName.split(/\s+/).filter((token) =>
+    !["inline-block", "relative"].includes(token) || !baselineClasses.has(token) || sourceClasses.has(token)
+  ).join(" ")
+}
 
-export { HoverCard, HoverCardTrigger, HoverCardContent }
+/** Returns transform metadata only for canonical public Wix image URLs. */
+export function parseWixMediaUrl(src) {
+  try {
+    const url = new URL(src)
+    if (
+      url.protocol !== "https:" ||
+      url.username ||
+      url.password ||
+      (url.port && url.port !== "443")
+    ) {
+      return null
+    }
+
+    const pathPrefix = WIX_MEDIA_HOSTS[url.hostname]
+    if (!pathPrefix) return null
+
+    const transformed = url.pathname.match(/^(.*)\/v1\/(?:fill|fit)\/[^/]+\/[^/]+$/i)
+    const basePath = transformed ? transformed[1] : url.pathname
+    const filename = basePath.split("/").pop()
+    if (
+      !basePath.startsWith(pathPrefix) ||
+      !filename ||
+      !/\.[a-z0-9]+$/i.test(filename) ||
+      /\.svg$/i.test(filename)
+    ) {
+      return null
+    }
+
+    return { baseUrl: `${url.origin}${basePath}`, filename }
+  } catch {
+    return null
+  }
+}
+
+const clampDim = (n) => Math.min(Math.max(Math.round(n), 1), MAX_DIMENSION)
+const clamp01 = (n) => Math.min(1, Math.max(0, n))
+
+export function buildTransformUrl(
+  { baseUrl, filename },
+  { width, height, crop, focalPoint, quality }
+) {
+  const params = [`w_${clampDim(width)}`, `h_${clampDim(height || width)}`]
+  if (crop) {
+    params.push(
+      focalPoint
+        ? `fp_${clamp01(focalPoint.x).toFixed(2)}_${clamp01(focalPoint.y).toFixed(2)}`
+        : "al_c"
+    )
+  }
+  // Preserve GIF delivery; negotiate AVIF/WebP for other images via Accept.
+  const encoding = /\.gif$/i.test(filename) ? "enc_webp" : "enc_auto"
+  params.push(`q_${quality}`, "usm_0.66_1.00_0.01", encoding, "quality_auto")
+  return `${baseUrl}/v1/${crop ? "fill" : "fit"}/${params.join(",")}/${filename}`
+}
+
+export function buildSrcSet(parsed, options) {
+  return DEVICE_PIXEL_RATIOS.map(
+    (dpr) =>
+      `${buildTransformUrl(parsed, {
+        ...options,
+        width: options.width * dpr,
+        height: options.height ? options.height * dpr : undefined,
+      })} ${dpr}x`
+  ).join(", ")
+}
+
+export function getOriginalImageUrl(src, parsed) {
+  return parsed?.baseUrl || src
+}
+
+export function nextImageLoadMode(mode) {
+  return mode === IMAGE_LOAD_MODE.OPTIMIZED
+    ? IMAGE_LOAD_MODE.ORIGINAL
+    : IMAGE_LOAD_MODE.FALLBACK
+}

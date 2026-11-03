@@ -1,24 +1,45 @@
 {
-  // Entity Schema: User
   "name": "User",
-  "description": "System accounts for administrators, managers, and staff members",
-  "fields": {
-    "id": { "type": "string", "required": true, "description": "Unique user ID (UUID)" },
-    "email": { "type": "string", "format": "email", "required": true, "description": "Login email address" },
-    "passwordHash": { "type": "string", "required": true, "description": "Encrypted password hash" },
-    "fullName": { "type": "string", "required": true, "description": "Staff member full name" },
-    "role": { "type": "string", "enum": ["admin", "manager", "staff", "receptionist"], "required": true, "description": "Role and access permissions" },
-    "phone": { "type": "string", "required": false, "description": "Contact number" },
-    "isActive": { "type": "boolean", "required": true, "description": "Whether account is currently enabled" },
-    "lastLoginAt": { "type": "string", "format": "date-time", "required": false, "description": "Last successful login timestamp" },
-    "createdAt": { "type": "string", "format": "date-time", "required": true, "description": "Account creation timestamp" }
-  },
-  "relations": {
-    "auditLogs": {
-      "type": "hasMany",
-      "entity": "AuditLog",
-      "foreignKey": "userId"
+  "type": "object",
+  "properties": {
+    "staff_role": {
+      "type": "string",
+      "enum": [
+        "owner",
+        "manager",
+        "staff",
+        "none"
+      ],
+      "enumColors": [
+        "green",
+        "blue",
+        "yellow",
+        "gray"
+      ],
+      "default": "none",
+      "description": "Staff permission level. Locked: only an owner/admin can change it",
+      "rls": {
+        "update": {
+          "user_condition": {
+            "role": "admin"
+          }
+        }
+      }
+    },
+    "staff_active": {
+      "type": "boolean",
+      "default": true,
+      "description": "Set false to revoke dashboard access without deleting the account",
+      "rls": {
+        "update": {
+          "user_condition": {
+            "role": "admin"
+          }
+        }
+      }
+    },
+    "staff_phone": {
+      "type": "string"
     }
   }
 }
-

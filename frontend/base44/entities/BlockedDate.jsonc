@@ -1,27 +1,71 @@
 {
-  // Entity Schema: BlockedDate
   "name": "BlockedDate",
-  "description": "Dates blocked for maintenance, offline reservations, or renovations",
-  "fields": {
-    "id": { "type": "string", "required": true, "description": "Unique identifier (UUID)" },
-    "roomId": { "type": "string", "required": true, "description": "ID of blocked room" },
-    "startDate": { "type": "string", "format": "date", "required": true, "description": "Start date of block" },
-    "endDate": { "type": "string", "format": "date", "required": true, "description": "End date of block" },
-    "reason": { "type": "string", "required": true, "description": "Reason for blocking (maintenance, vip reservation, etc.)" },
-    "createdBy": { "type": "string", "required": false, "description": "Admin user ID who created block" },
-    "createdAt": { "type": "string", "format": "date-time", "required": true, "description": "Creation timestamp" }
-  },
-  "relations": {
-    "room": {
-      "type": "belongsTo",
-      "entity": "Room",
-      "foreignKey": "roomId"
+  "type": "object",
+  "properties": {
+    "room_type_id": {
+      "type": "string"
     },
-    "creator": {
-      "type": "belongsTo",
-      "entity": "User",
-      "foreignKey": "createdBy"
+    "room_id": {
+      "type": "string"
+    },
+    "start_date": {
+      "type": "string"
+    },
+    "end_date": {
+      "type": "string"
+    },
+    "reason": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "room_type_id",
+    "start_date",
+    "end_date"
+  ],
+  "rls": {
+    "read": {},
+    "create": {
+      "$or": [
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        },
+        {
+          "user_condition": {
+            "data.staff_role": "manager"
+          }
+        }
+      ]
+    },
+    "update": {
+      "$or": [
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        },
+        {
+          "user_condition": {
+            "data.staff_role": "manager"
+          }
+        }
+      ]
+    },
+    "delete": {
+      "$or": [
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        },
+        {
+          "user_condition": {
+            "data.staff_role": "manager"
+          }
+        }
+      ]
     }
   }
 }
-

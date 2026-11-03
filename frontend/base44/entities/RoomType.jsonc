@@ -1,32 +1,92 @@
 {
-  // Entity Schema: RoomType
   "name": "RoomType",
-  "description": "Room categories and accommodation tiers (e.g., Deluxe, Super Deluxe, Executive Suite)",
-  "fields": {
-    "id": { "type": "string", "required": true, "description": "Unique room type ID (UUID)" },
-    "name": { "type": "string", "required": true, "description": "Display name of room tier" },
-    "slug": { "type": "string", "required": true, "description": "URL-friendly slug" },
-    "description": { "type": "string", "required": true, "description": "Room overview, amenities overview, atmosphere" },
-    "basePrice": { "type": "number", "required": true, "description": "Default nightly rate in INR" },
-    "maxOccupancy": { "type": "integer", "required": true, "description": "Max adult/child capacity" },
-    "bedType": { "type": "string", "required": true, "description": "Bedding configuration (King, Queen, Twin)" },
-    "roomSizeSqFt": { "type": "integer", "required": false, "description": "Area in square feet" },
-    "amenities": { "type": "array", "items": { "type": "string" }, "required": true, "description": "Amenities list (AC, WiFi, Mini Bar, etc.)" },
-    "images": { "type": "array", "items": { "type": "string" }, "required": false, "description": "Room gallery image URLs" },
-    "isActive": { "type": "boolean", "required": true, "description": "Whether room tier is active" },
-    "createdAt": { "type": "string", "format": "date-time", "required": true, "description": "Creation timestamp" }
-  },
-  "relations": {
-    "rooms": {
-      "type": "hasMany",
-      "entity": "Room",
-      "foreignKey": "roomTypeId"
+  "type": "object",
+  "properties": {
+    "name_en": {
+      "type": "string"
     },
-    "pricingRules": {
-      "type": "hasMany",
-      "entity": "PricingRule",
-      "foreignKey": "roomTypeId"
+    "name_hi": {
+      "type": "string"
+    },
+    "desc_en": {
+      "type": "string"
+    },
+    "desc_hi": {
+      "type": "string"
+    },
+    "price": {
+      "type": "number"
+    },
+    "capacity": {
+      "type": "number"
+    },
+    "amenities": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "images": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "total_rooms": {
+      "type": "number",
+      "default": 1
+    },
+    "is_active": {
+      "type": "boolean",
+      "default": true
+    },
+    "sort": {
+      "type": "number",
+      "default": 0
+    }
+  },
+  "required": [
+    "name_en",
+    "price"
+  ],
+  "rls": {
+    "read": {},
+    "create": {
+      "$or": [
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        },
+        {
+          "user_condition": {
+            "data.staff_role": "manager"
+          }
+        }
+      ]
+    },
+    "update": {
+      "$or": [
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        },
+        {
+          "user_condition": {
+            "data.staff_role": "manager"
+          }
+        }
+      ]
+    },
+    "delete": {
+      "$or": [
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        }
+      ]
     }
   }
 }
-

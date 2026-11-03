@@ -1,9 +1,20 @@
-// SEO meta tags update hook and page title manager
-export const useSeo = (title, description) => {
-  if (typeof document !== 'undefined') {
-    if (title) document.title = `${title} | B.S. Hotel & Restaurant`;
+import { useEffect } from 'react';
+
+function setMeta(attr, key, content) {
+  let el = document.head.querySelector(`meta[${attr}="${key}"]`);
+  if (!el) {
+    el = document.createElement('meta');
+    el.setAttribute(attr, key);
+    document.head.appendChild(el);
   }
-};
+  el.setAttribute('content', content);
+}
 
-export default useSeo;
-
+export default function useSeo(title, description) {
+  useEffect(() => {
+    document.title = title;
+    setMeta('name', 'description', description);
+    setMeta('property', 'og:title', title);
+    setMeta('property', 'og:description', description);
+  }, [title, description]);
+}

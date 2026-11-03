@@ -1,31 +1,72 @@
 {
-  // Entity Schema: Payment
-  "name": "Payment",
-  "description": "Financial payment transactions for room reservations or dining orders",
-  "fields": {
-    "id": { "type": "string", "required": true, "description": "Unique payment ID (UUID)" },
-    "transactionId": { "type": "string", "required": false, "description": "Gateway or UPI transaction reference" },
-    "bookingId": { "type": "string", "required": false, "description": "Linked room booking ID" },
-    "orderId": { "type": "string", "required": false, "description": "Linked restaurant order ID" },
-    "amount": { "type": "number", "required": true, "description": "Payment amount" },
-    "currency": { "type": "string", "default": "INR", "required": true, "description": "Currency code" },
-    "paymentMethod": { "type": "string", "enum": ["cash", "upi", "card", "netbanking", "qr_code"], "required": true, "description": "Payment channel" },
-    "status": { "type": "string", "enum": ["initiated", "successful", "failed", "refunded"], "required": true, "description": "Transaction status" },
-    "paymentGatewayDetails": { "type": "object", "required": false, "description": "Gateway callback payload metadata" },
-    "paidAt": { "type": "string", "format": "date-time", "required": false, "description": "Timestamp of payment completion" },
-    "createdAt": { "type": "string", "format": "date-time", "required": true, "description": "Record creation timestamp" }
-  },
-  "relations": {
-    "booking": {
-      "type": "belongsTo",
-      "entity": "Booking",
-      "foreignKey": "bookingId"
+  "name": "PricingRule",
+  "type": "object",
+  "properties": {
+    "room_type_id": {
+      "type": "string"
     },
-    "order": {
-      "type": "belongsTo",
-      "entity": "Order",
-      "foreignKey": "orderId"
+    "start_date": {
+      "type": "string"
+    },
+    "end_date": {
+      "type": "string"
+    },
+    "price": {
+      "type": "number"
+    },
+    "label": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "room_type_id",
+    "start_date",
+    "end_date",
+    "price"
+  ],
+  "rls": {
+    "read": {},
+    "create": {
+      "$or": [
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        },
+        {
+          "user_condition": {
+            "data.staff_role": "manager"
+          }
+        }
+      ]
+    },
+    "update": {
+      "$or": [
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        },
+        {
+          "user_condition": {
+            "data.staff_role": "manager"
+          }
+        }
+      ]
+    },
+    "delete": {
+      "$or": [
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        },
+        {
+          "user_condition": {
+            "data.staff_role": "manager"
+          }
+        }
+      ]
     }
   }
 }
-

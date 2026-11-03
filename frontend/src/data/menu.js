@@ -1,7 +1,198 @@
-// Restaurant food and beverage menu items, categories, and pricing catalog
-export const menuData = {
-  categories: [],
-  items: [],
-};
-export default menuData;
+// DELICEE RESTAURANT MENU — edit prices/items here. Format: [name, price, description?]
+const slug = (s) => s.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
 
+const RAW = [
+  { id: 'appetizers', en: 'Appetizers', hi: 'स्टार्टर', items: [
+    ['Tandoori Aloo', 199, 'Tandoor-roasted baby potatoes in smoky yogurt marinade.'],
+    ['Hara Bhara Kebab', 200, 'Spinach, paneer and cashew kebabs with coriander and spices.'],
+    ['Dahi Ke Kebab', 219, 'Crispy paneer and hung-curd kebabs, seasoned to perfection.'],
+    ['Veg Seekh Kebab', 259, 'Mixed-vegetable kebabs, spiced and grilled.'],
+    ['Dahi Ke Sholey', 259, 'Crunchy bread rolls with a flavourful yogurt filling.'],
+    ['Tandoori Soya Chaap', 260, 'Soya chaap marinated in spiced yogurt and grilled.'],
+    ['Achari Soya Chaap', 210, 'Soya chaap with tangy achari spices.'],
+    ['Malai Soya Chaap', 239, 'Creamy malai, yogurt and delicate spices.'],
+    ['Afghani Soya Chaap', 239, 'Yogurt, cashew paste and mild Afghani spices.'],
+    ['Cheese Corn Fingers', 219, 'Crispy fingers with gooey cheese and sweet corn.'],
+    ['Cigar Rolls', 189, 'Crispy fried rolls filled with spiced vegetables.'],
+    ['Paneer Tikka', 250, 'Smoky paneer with spiced yogurt, peppers and onions.'],
+    ['Paneer Angara Tikka', 249, 'Smoky, spicy paneer tikka with bold tandoori flavours.'],
+    ['Paneer Pudina Tikka', 259, 'Minty paneer with fresh herbs, grilled to perfection.'],
+    ['Peri-Peri Paneer Tikka', 295, 'Paneer in peri-peri spice paste, grilled for smoky flavour.'],
+    ['Achari Paneer Tikka', 290, 'Achari paneer with bell peppers and onion.'],
+    ['Paneer Malai Tikka', 299, 'Paneer in a rich, creamy marinade with spices.'],
+    ['Tandoori Sizzler Platter', 400, 'Paneer tikka, dahi kebab, malai chaap and veg seekh kebab.'],
+  ]},
+  { id: 'snacks', en: 'Snacks', hi: 'स्नैक्स', items: [
+    ['Paneer Pakora (8 pcs)', 150, 'Spiced paneer pakora served hot with chutney.'],
+    ['Bread Pakora (Aloo & Paneer)', 150, 'Potato-stuffed bread slices in gram-flour batter.'],
+    ['Mix Veg Pakore', 190, 'Golden-fried mixed-vegetable pakoras with chutney.'],
+    ['Pav Bhaji', 190, 'Spiced vegetable curry with toasted, buttered pav.'],
+    ['Chole Bhature', 120, 'Spicy chickpeas with fluffy bhature and pickled onions.'],
+    ['Paneer Tikka Kathi Roll', 60, ''],
+    ['Afghani Chaap Kathi Roll', 180, ''],
+  ]},
+  { id: 'dal-curries', en: 'Dal & Classic Curries', hi: 'दाल और क्लासिक करी', items: [
+    ['Dal Makhani', 240, 'Slow-cooked black lentils in creamy tomato-butter gravy.'],
+    ['Butter Dal Fry', 220, 'Yellow lentils with onions, tomatoes and spices.'],
+    ['Dal Tadka', 170, 'Homestyle dal finished with fragrant ghee tadka.'],
+    ['Chana Masala', 199, 'Tender chickpeas in tomato-onion curry.'],
+    ['Pindi Chole', 250, 'Punjabi-style spiced chickpeas with dry masala.'],
+    ['Rajma Masala', 209, 'Rajma in rich, aromatic tomato gravy.'],
+    ['Matar Paneer', 269, 'Paneer and peas in rich tomato-based curry.'],
+    ['Shahi Paneer', 320, 'Paneer in creamy tomato-cashew gravy.'],
+    ['Malai Kofta', 349, 'Paneer-potato koftas in rich malai curry.'],
+  ]},
+  { id: 'paneer', en: 'Paneer Specialties', hi: 'पनीर स्पेशल', items: [
+    ['Paneer Khurchan', 319, 'Shredded paneer with peppers, onions and masalas.'],
+    ['Paneer Lababdar', 329, 'Creamy paneer curry with tomatoes, cashews and spices.'],
+    ['Paneer Changezi', 339, 'Paneer in gram-flour curd and creamy gravy.'],
+    ['Handi Paneer', 329, 'Traditional clay-pot paneer curry with Mughlai flavours.'],
+    ['Paneer Pasanda', 419, 'Creamy cashew-tomato curry with stuffed paneer triangles.'],
+    ['Paneer Do Pyaza', 309, 'Paneer cubes with onion-rich aromatic gravy.'],
+    ['Butter Paneer Masala', 329, 'Paneer in smooth, spiced tomato-butter sauce.'],
+    ['Paneer Tikka Masala', 329, 'Paneer tikka in thick tomato-based gravy.'],
+    ['Kadhai Paneer', 319, 'Paneer with onions, capsicum and bold kadhai spices.'],
+  ]},
+  { id: 'mains', en: 'Vegetarian Mains', hi: 'शाकाहारी मेन कोर्स', items: [
+    ['Jeera Aloo', 190, 'Potatoes sautéed with cumin, green chillies and mild spices.'],
+    ['Aloo Methi', 200, 'Potatoes sautéed with methi leaves and mild spices.'],
+    ['Aloo Gobhi Masala', 199, 'Cauliflower and potatoes in cumin-turmeric masala.'],
+    ['Bhindi Masala', 190, 'Bhindi tossed in onion-tomato masala.'],
+    ['Bhindi Do Pyaza', 210, 'Bhindi tossed with onions and spices.'],
+    ['Dum Aloo', 250, 'Potatoes cooked on dum with aromatic spices.'],
+    ['Kashmiri Dum Aloo', 340, 'Potatoes in Kashmiri gravy with aromatic spices.'],
+    ['Mix Veg', 255, 'Mixed vegetables with herbs, spices and light masala.'],
+    ['Navaratan Korma', 350, 'Creamy cashew gravy with paneer, vegetables and dry fruits.'],
+  ]},
+  { id: 'palak-mushroom-soya', en: 'Palak, Mushroom & Soya', hi: 'पालक, मशरूम और सोया', items: [
+    ['Corn Palak', 280, 'Sweet corn in creamy, spiced spinach gravy.'],
+    ['Palak Paneer', 299, 'Spinach curry with soft paneer cubes.'],
+    ['Matar Mushroom', 319, 'Mushrooms and peas in tomato-onion gravy.'],
+    ['Mushroom Do Pyaza', 319, 'Juicy mushrooms cooked with onions and spices.'],
+    ['Mushroom Masala', 319, 'Mushrooms and peas in tomato-onion gravy.'],
+    ['Mushroom Tikka Masala', 349, 'Tandoori mushrooms in buttery tomato gravy.'],
+    ['Soya Chaap Masala', 349, 'Tandoori soya chaap in bold, creamy masala.'],
+    ['Soya Chaap Butter Masala', 339, 'Tandoori soya chaap in buttery, creamy masala.'],
+    ['Kadhai Soya Chaap', 319, 'Soya chaap in spicy kadhai gravy with peppers.'],
+  ]},
+  { id: 'roti-naan', en: 'Roti & Naan', hi: 'रोटी और नान', items: [
+    ['Tandoori Roti', 18], ['Butter Roti', 25], ['Missi Roti', 35], ['Onion Missi Roti', 40],
+    ['Plain Naan', 50], ['Butter Naan', 65], ['Garlic Naan', 80], ['Cheesy Garlic Naan', 99],
+    ['Aloo Stuffed Naan', 99], ['Paneer / Veg Stuffed Naan', 120],
+  ]},
+  { id: 'rice', en: 'Rice', hi: 'चावल', items: [
+    ['Plain Rice', 120], ['Jeera Rice', 140], ['Matar Pulao', 160], ['Vegetable Pulao', 180],
+    ['Paneer Matar Pulao', 189], ['Vegetable Biryani With Raita', 240], ['Kashmiri / Navratan Pulao', 270],
+  ]},
+  { id: 'curd-raita-salad', en: 'Curd, Raita & Salad', hi: 'दही, रायता और सलाद', items: [
+    ['Plain Curd', 80], ['Boondi Raita', 110], ['Pineapple Raita', 150], ['Vegetable Raita', 140],
+    ['Mix Fruit Raita', 179], ['Green Salad (Seasonal)', 99], ['Roasted Papad', 25], ['Masala Papad', 50],
+    ['Russian Salad', 199], ['Onion / Cucumber Salad', 69],
+  ]},
+  { id: 'parantha', en: 'Parantha', hi: 'पराठा', items: [
+    ['Lacchha Parantha', 50], ['Hari Mirch Parantha', 60], ['Pudina Parantha', 70], ['Aloo Parantha', 120],
+    ['Pyaaz Parantha', 120], ['Aloo Pyaaz Parantha', 140], ['Mooli Parantha', 140], ['Gobhi Parantha', 140],
+    ['Mix Parantha', 160], ['Paneer Parantha', 180], ['Plain Parantha (Tawa)', 60], ['Aloo Parantha (Tawa)', 80],
+    ['Onion Parantha (Tawa)', 80], ['Aloo Pyaaz Parantha (Tawa)', 100], ['Mooli Parantha (Tawa)', 100],
+    ['Gobhi Parantha (Tawa)', 100], ['Mix Parantha (Tawa)', 130], ['Paneer Parantha (Tawa)', 150],
+  ]},
+  { id: 'soup', en: 'Soup', hi: 'सूप', items: [
+    ['Tomato Soup', 109], ['Lemon Coriander Soup', 119], ['Sweet Corn Soup', 119],
+    ['Hot N Sour Soup', 119], ['Manchow Soup', 119], ['Veg Clear Soup', 119],
+  ]},
+  { id: 'chinese-appetizers', en: 'Chinese Appetizers', hi: 'चाइनीज़ स्टार्टर', items: [
+    ['Chilli Mushroom (Dry / Gravy)', 275, 'Mushrooms in garlic-chilli sauce with onion and bell peppers.'],
+    ['Spring Rolls', 180, 'Crispy rolls filled with spiced vegetables and chilli dip.'],
+    ['Veg Manchurian (Dry / Gravy)', 250, 'Crunchy Manchurian in chilli sauce with peppers and onion.'],
+    ['Chilli Potatoes', 200, 'Crispy potatoes stir-fried with onions, peppers and chilli sauce.'],
+    ['Chilli Paneer (Dry / Gravy)', 320, 'Paneer in spicy chilli-garlic sauce with onions and peppers.'],
+    ['Honey Chilli Potatoes', 200, 'Crispy potato fingers in sweet-spicy honey chilli glaze.'],
+    ['Crispy Corn', 280, 'Golden-fried corn with spices, herbs and lemon.'],
+    ['Lotus Chilli (Seasonal)', 320, 'Crispy lotus stem in spicy, tangy chilli sauce.'],
+  ]},
+  { id: 'chinese-main', en: 'Chinese Main Course', hi: 'चाइनीज़ मेन कोर्स', items: [
+    ['Vegetable Fried Rice', 250, 'Stir-fried rice with mixed vegetables, soy sauce and spices.'],
+    ['Hakka Noodles', 220, 'Noodles with peppers, cabbage and spring onions.'],
+    ['Vegetable Chowmein', 200, 'Noodles with mixed vegetables in savoury soy-chilli sauce.'],
+    ['Chilli Garlic Noodles', 220, 'Stir-fried noodles with roasted garlic and red chillies.'],
+    ['Schezuan Fried Rice', 250, 'Spicy Schezuan rice tossed with vegetables and garlic.'],
+    ['Chinese Platter', 450, 'Veg Manchurian gravy, chilli paneer dry, veg noodles and fried rice.'],
+  ]},
+  { id: 'pasta', en: 'Pasta', hi: 'पास्ता', items: [
+    ['Penne Arrabbiata', 250, 'Pasta in spicy tomato arrabbiata sauce with garlic.'],
+    ['Creamy Alfredo Pasta', 270, 'Silky white sauce pasta with garlic, cream and cheese.'],
+    ['Penne in Pink Sauce', 300, 'Pasta in creamy tomato-cheese sauce with herbs.'],
+  ]},
+  { id: 'pizza', en: 'Pizza', hi: 'पिज़्ज़ा', items: [
+    ['Tandoori Paneer Pizza', 180, 'Paneer, onion, capsicum and cheese.'],
+    ['Hawaiian Pizza', 190, 'Tomato sauce, mozzarella, pineapple and capsicum.'],
+    ["Veggie Lover's Pizza", 160, 'Tomato sauce topped with capsicum and onions.'],
+    ['Mexicana Pizza', 160, 'Jalapeños, corn, peppers and onions.'],
+    ['Cheesy Corn Pizza', 150, 'Cheesy pizza with golden corn and a hint of spice.'],
+    ['Margherita Pizza', 130, 'Classic tomato sauce with mozzarella cheese.'],
+    ['Exotic Veggies Pizza', 150, 'Onion, corn, olives, mushrooms, capsicum, tomato and jalapeños.'],
+  ]},
+  { id: 'sandwiches', en: 'Cafe — Sandwiches', hi: 'कैफ़े — सैंडविच', items: [
+    ['Coleslaw Sandwich', 99, 'Carrot and cabbage in creamy sauce between soft bread.'],
+    ['Grilled Vegetable Sandwich', 170, 'Creamy vegetables in soft bread, grilled to perfection.'],
+    ['Veg Club Sandwich', 150, 'Cucumber, tomato and onion layered in soft bread.'],
+  ]},
+  { id: 'burgers-fries', en: 'Cafe — Burgers & Fries', hi: 'कैफ़े — बर्गर और फ्राइज़', items: [
+    ['Classic Veggie Burger', 150, 'Veg patty with cucumber, tomato, onion and creamy sauce.'],
+    ['Spicy Paneer Burger', 180, 'Paneer with assorted vegetables and spicy sauce.'],
+    ['Aloo Tikki Burger', 100, 'Herbed aloo patty with vegetables and creamy sauce.'],
+    ['Peri Peri Fries', 120, 'Crunchy fries with peri-peri flavour.'],
+    ['French Fries Classic', 100, 'Classic salted French fries.'],
+    ['Cheese & Jalapeños Fries', 180, 'Fries topped with melted cheese and chopped jalapeños.'],
+  ]},
+  { id: 'south-indian', en: 'South Indian', hi: 'साउथ इंडियन', items: [
+    ['Plain Dosa', 120, 'Golden dosa served with chutney and sambar.'],
+    ['Masala Dosa', 160, 'Crispy dosa with spiced potato masala, chutneys and sambar.'],
+    ['Butter Masala Dosa', 170, 'Crispy dosa with spiced potato masala, chutneys and sambar.'],
+    ['Mysore Masala Dosa', 180, 'Crispy dosa with spiced potato masala, chutneys and sambar.'],
+    ['Rava Plain Dosa', 140, 'Rava dosa served with chutney and sambar.'],
+    ['Rava Masala Dosa', 150, 'Crispy rava dosa with onion and spiced potato filling.'],
+    ['Cheese Masala Dosa', 170, 'Rice-lentil dosa with spiced potatoes and melting cheese.'],
+    ['Paneer Masala Dosa', 190, 'Crispy dosa stuffed with special paneer filling.'],
+  ]},
+  { id: 'beverages', en: 'Beverages', hi: 'पेय', items: [
+    ['Masala Chai', 70], ['Hot Coffee', 100], ['Sweet Lassi', 60], ['Salted Lassi', 50],
+  ]},
+  { id: 'cold-coffee', en: 'Cold Coffee', hi: 'कोल्ड कॉफ़ी', items: [
+    ['Cold Coffee', 69], ['Classic Caramel', 99], ['Caramel Cookie', 109],
+    ['Mocha Reserve', 109], ['Salted Caramel', 119], ['Iced Americano', 69],
+  ]},
+  { id: 'premium-shakes', en: 'Premium Shakes', hi: 'प्रीमियम शेक', items: [
+    ['Oreo Overload', 99], ['Choco Supreme', 99], ['Choco Hazelnut Reserve', 129], ['Kitkat Crunch', 119],
+    ['Peanut Butter Power', 129], ['Rich Brownie', 149], ['Classic Vanilla', 89], ['Butterscotch Crush', 99],
+    ['Ruby Strawberry', 99], ['Blueberry', 99], ['Red Velvet', 99], ['Black Currant', 99],
+  ]},
+  { id: 'fruit-shakes', en: 'Fresh Fruit Shakes', hi: 'फ्रेश फ्रूट शेक', items: [
+    ['Banana Bliss', 79], ['Mango Magic', 89], ['Chikoo Classic', 89],
+  ]},
+  { id: 'mocktails', en: 'Mocktails', hi: 'मॉकटेल', items: [
+    ['Lemon Water', 39], ['Lemon Soda', 59], ['Lemon Ice Tea', 69], ['Peach Ice Tea', 69], ['Virgin Mojito', 69],
+    ['Blue Lagoon', 69], ['Watermelon', 69], ['Green Apple', 69], ['Blood Apple', 69],
+  ]},
+  { id: 'smoothies', en: 'Smoothies', hi: 'स्मूदी', items: [
+    ['Mango', 119], ['Berry Blast', 149], ['Banana Delight', 109], ['Chocolate Banana', 119],
+    ['Pineapple', 119], ['Kiwi', 129], ['Mixed Fruit', 139],
+  ]},
+];
+
+export const MENU = RAW.map((c) => ({
+  id: c.id,
+  name: { en: c.en, hi: c.hi },
+  items: c.items.map(([name, price, desc]) => ({
+    id: `${c.id}-${slug(name)}`,
+    name,
+    price,
+    desc: desc || '',
+    category: c.id,
+  })),
+}));
+
+export const ALL_ITEMS = MENU.flatMap((c) => c.items);
+
+const FEATURED_NAMES = ['Dal Makhani', 'Shahi Paneer', 'Paneer Tikka', 'Malai Kofta', 'Chole Bhature', 'Masala Dosa', 'Vegetable Biryani With Raita', 'Hara Bhara Kebab'];
+export const FEATURED = FEATURED_NAMES.map((n) => ALL_ITEMS.find((i) => i.name === n)).filter(Boolean);

@@ -1,21 +1,17 @@
-import React from 'react'
-import { Outlet, Link } from 'react-router-dom'
-import Header from './Header'
-import Footer from './Footer'
-import FloatingWhatsApp from './FloatingWhatsApp'
-import MobileBar from './MobileBar'
+import { Outlet } from 'react-router-dom';
+import Header from '@/components/site/Header';
+import Footer from '@/components/site/Footer';
+import MobileBar from '@/components/site/MobileBar';
+import FloatingWhatsApp from '@/components/site/FloatingWhatsApp';
 
-export default function SiteLayout({ children }) {
+export default function SiteLayout() {
   return (
-    <div className="min-h-screen flex flex-col bg-background text-foreground">
+    <div className="min-h-screen pb-[56px] md:pb-0">
       <Header />
-      <main className="flex-1">
-        {children || <Outlet />}
-      </main>
+      <main><Outlet /></main>
       <Footer />
       <FloatingWhatsApp />
       <MobileBar />
     </div>
-  )
+  );
 }
-

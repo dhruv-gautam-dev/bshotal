@@ -1,22 +1,40 @@
-import React, { createContext, useContext, useState } from 'react'
+import { createContext, useContext, useEffect, useState } from 'react';
+import { base44 } from '@/api/base44Client';
+import { can } from './lib/adminData';
 
-export const AdminContext = createContext(null)
+const AdminContext = createContext(null);
 
+/**
+ * Loads the signed-in user once and works out what they may do.
+ * role "admin" (or staff_role "owner") = owner: full access.
+ * manager / staff come from the locked staff_role field on the user record.
+ */
 export function AdminProvider({ children }) {
-  const [adminUser, setAdminUser] = useState({ id: 'admin-1', role: 'admin', name: 'Hotel Manager' })
-  const [sidebarOpen, setSidebarOpen] = useState(true)
+  const [me, setMe] = useState(null);
+  const [status, setStatus] = useState('loading'); // loading | ready | anon | denied
+
+  useEffect(() => {
+    let alive = true;
+    base44.auth.me()
+      .then((user) => {
+        if (!alive) return;
+        if (!user) { setStatus('anon'); return; }
+        const staff_role = user.role === 'admin'
+          ? (user.staff_role && user.staff_role !== 'none' ? user.staff_role : 'owner')
+          : (user.staff_role || 'none');
+        const allowed = user.staff_active !== false && staff_role !== 'none';
+        setMe({ id: user.id, email: user.email, full_name: user.full_name, role: user.role, staff_role, allowed });
+        setStatus(allowed ? 'ready' : 'denied');
+      })
+      .catch(() => { if (alive) setStatus('anon'); });
+    return () => { alive = false; };
+  }, []);
 
   return (
-    <AdminContext.Provider value={{ adminUser, setAdminUser, sidebarOpen, setSidebarOpen }}>
-      {children || <div>AdminContext</div>}
+    <AdminContext.Provider value={{ me, status, can: (area) => can(me, area) }}>
+      {children}
     </AdminContext.Provider>
-  )
+  );
 }
 
-export function useAdmin() {
-  const context = useContext(AdminContext)
-  return context || { adminUser: null, sidebarOpen: true, setSidebarOpen: () => {} }
-}
-
-export default AdminProvider
-
+export const useAdmin = () => useContext(AdminContext);

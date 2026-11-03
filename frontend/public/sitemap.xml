@@ -1,24 +1,16 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
-  <url>
-    <loc>https://bshotel.com/</loc>
-    <changefreq>daily</changefreq>
-    <priority>1.0</priority>
-  </url>
-  <url>
-    <loc>https://bshotel.com/rooms</loc>
-    <changefreq>weekly</changefreq>
-    <priority>0.8</priority>
-  </url>
-  <url>
-    <loc>https://bshotel.com/restaurant</loc>
-    <changefreq>weekly</changefreq>
-    <priority>0.8</priority>
-  </url>
-  <url>
-    <loc>https://bshotel.com/events</loc>
-    <changefreq>monthly</changefreq>
-    <priority>0.7</priority>
-  </url>
+  <!-- Replace https://YOUR-DOMAIN with the live domain -->
+  <url><loc>https://YOUR-DOMAIN/</loc></url>
+  <url><loc>https://YOUR-DOMAIN/rooms</loc></url>
+  <url><loc>https://YOUR-DOMAIN/booking</loc></url>
+  <url><loc>https://YOUR-DOMAIN/restaurant</loc></url>
+  <url><loc>https://YOUR-DOMAIN/order</loc></url>
+  <url><loc>https://YOUR-DOMAIN/events</loc></url>
+  <url><loc>https://YOUR-DOMAIN/gallery</loc></url>
+  <url><loc>https://YOUR-DOMAIN/reviews</loc></url>
+  <url><loc>https://YOUR-DOMAIN/contact</loc></url>
+  <url><loc>https://YOUR-DOMAIN/privacy-policy</loc></url>
+  <url><loc>https://YOUR-DOMAIN/terms</loc></url>
+  <url><loc>https://YOUR-DOMAIN/cancellation-refund</loc></url>
 </urlset>
-

@@ -1,11 +1,3 @@
-// General TypeScript utility types and helper functions placeholder
-export type ID = string;
-
-export interface BaseEntity {
-  id: ID;
-  createdAt?: string;
-  updatedAt?: string;
+export function createPageUrl(pageName: string) {
+    return '/' + pageName.replace(/ /g, '-');
 }
-
-export const noop = (): void => {};
-

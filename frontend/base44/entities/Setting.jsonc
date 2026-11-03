@@ -1,15 +1,116 @@
 {
-  // Entity Schema: Setting
   "name": "Setting",
-  "description": "System-wide hotel configuration, contact details, operational hours and tax rates",
-  "fields": {
-    "id": { "type": "string", "required": true, "description": "Unique setting ID (UUID)" },
-    "key": { "type": "string", "required": true, "description": "Setting key identifier (e.g., hotel_phone, gst_rate, checkin_time)" },
-    "value": { "type": "string", "required": true, "description": "Serialized configuration value" },
-    "description": { "type": "string", "required": false, "description": "Human-readable label or description" },
-    "group": { "type": "string", "required": true, "description": "Category group (general, restaurant, billing, notifications)" },
-    "updatedAt": { "type": "string", "format": "date-time", "required": true, "description": "Last modified timestamp" }
+  "type": "object",
+  "properties": {
+    "hotel_name": {
+      "type": "string"
+    },
+    "tagline_en": {
+      "type": "string"
+    },
+    "tagline_hi": {
+      "type": "string"
+    },
+    "phone_primary": {
+      "type": "string"
+    },
+    "phone_secondary": {
+      "type": "string"
+    },
+    "whatsapp": {
+      "type": "string"
+    },
+    "owner_email": {
+      "type": "string"
+    },
+    "address_en": {
+      "type": "string"
+    },
+    "address_hi": {
+      "type": "string"
+    },
+    "hours_en": {
+      "type": "string"
+    },
+    "hours_hi": {
+      "type": "string"
+    },
+    "fssai": {
+      "type": "string"
+    },
+    "gst": {
+      "type": "string"
+    },
+    "logo_url": {
+      "type": "string"
+    },
+    "tax_percent": {
+      "type": "number",
+      "default": 0
+    },
+    "delivery_charge": {
+      "type": "number",
+      "default": 0
+    },
+    "delivery_radius_km": {
+      "type": "number",
+      "default": 0
+    },
+    "min_order": {
+      "type": "number",
+      "default": 0
+    },
+    "advance_percent": {
+      "type": "number",
+      "default": 0
+    },
+    "checkin_time": {
+      "type": "string",
+      "default": "12:00"
+    },
+    "checkout_time": {
+      "type": "string",
+      "default": "10:00"
+    },
+    "cancellation_policy": {
+      "type": "string"
+    },
+    "notify_email": {
+      "type": "boolean",
+      "default": true
+    },
+    "notify_whatsapp_hook": {
+      "type": "string"
+    }
   },
-  "relations": {}
+  "rls": {
+    "read": {},
+    "create": {
+      "$or": [
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        }
+      ]
+    },
+    "update": {
+      "$or": [
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        }
+      ]
+    },
+    "delete": {
+      "$or": [
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        }
+      ]
+    }
+  }
 }
-

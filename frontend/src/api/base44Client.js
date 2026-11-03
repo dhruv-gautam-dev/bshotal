@@ -1,9 +1,12 @@
-// Client instance and API request wrappers for Base44 backend services
-export const base44Client = {
-  get: async () => ({}),
-  post: async () => ({}),
-  put: async () => ({}),
-  delete: async () => ({}),
-};
-export default base44Client;
+import { createClient } from '@base44/sdk';
+import { appParams } from '@/lib/app-params';
 
+const { appId, token, functionsVersion, appBaseUrl } = appParams;
+
+export const base44 = createClient({
+  appId,
+  token,
+  functionsVersion,
+  serverUrl: '',
+  appBaseUrl
+});

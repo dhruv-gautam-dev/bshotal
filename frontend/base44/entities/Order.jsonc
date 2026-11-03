@@ -1,47 +1,228 @@
 {
-  // Entity Schema: Order
   "name": "Order",
-  "description": "Dining, room-service, and takeaway food orders",
-  "fields": {
-    "id": { "type": "string", "required": true, "description": "Unique order ID (UUID)" },
-    "orderNumber": { "type": "string", "required": true, "description": "Order reference code (e.g., ORD-2026-004)" },
-    "customerId": { "type": "string", "required": false, "description": "Customer ID if registered or identified" },
-    "orderType": { "type": "string", "enum": ["dine_in", "room_service", "takeaway"], "required": true, "description": "Type of food order" },
-    "tableOrRoomNumber": { "type": "string", "required": false, "description": "Table or room destination" },
+  "type": "object",
+  "properties": {
+    "ref": {
+      "type": "string"
+    },
+    "customer_name": {
+      "type": "string"
+    },
+    "phone": {
+      "type": "string"
+    },
+    "type": {
+      "type": "string",
+      "enum": [
+        "dine-in",
+        "pickup",
+        "delivery"
+      ],
+      "enumColors": [
+        "blue",
+        "purple",
+        "green"
+      ],
+      "default": "dine-in"
+    },
+    "table_no": {
+      "type": "string"
+    },
+    "address": {
+      "type": "string"
+    },
     "items": {
       "type": "array",
-      "required": true,
-      "description": "Ordered line items with quantities and prices",
       "items": {
         "type": "object",
         "properties": {
-          "menuItemId": { "type": "string" },
-          "name": { "type": "string" },
-          "quantity": { "type": "integer" },
-          "unitPrice": { "type": "number" },
-          "notes": { "type": "string" }
+          "item_id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "price": {
+            "type": "number"
+          },
+          "qty": {
+            "type": "number"
+          },
+          "note": {
+            "type": "string"
+          }
         }
       }
     },
-    "subtotal": { "type": "number", "required": true, "description": "Items sum before taxes" },
-    "tax": { "type": "number", "required": true, "description": "Applicable GST/VAT" },
-    "discount": { "type": "number", "required": false, "description": "Applied discount" },
-    "totalAmount": { "type": "number", "required": true, "description": "Final payable amount" },
-    "status": { "type": "string", "enum": ["pending", "preparing", "ready", "served", "delivered", "cancelled"], "required": true, "description": "Order progression status" },
-    "paymentStatus": { "type": "string", "enum": ["unpaid", "paid", "refunded"], "required": true, "description": "Settlement state" },
-    "createdAt": { "type": "string", "format": "date-time", "required": true, "description": "Order placement timestamp" }
-  },
-  "relations": {
-    "customer": {
-      "type": "belongsTo",
-      "entity": "Customer",
-      "foreignKey": "customerId"
+    "subtotal": {
+      "type": "number"
     },
-    "payments": {
-      "type": "hasMany",
-      "entity": "Payment",
-      "foreignKey": "orderId"
+    "tax": {
+      "type": "number"
+    },
+    "delivery": {
+      "type": "number"
+    },
+    "total": {
+      "type": "number"
+    },
+    "notes": {
+      "type": "string"
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "new",
+        "accepted",
+        "preparing",
+        "ready",
+        "out_for_delivery",
+        "served",
+        "completed",
+        "cancelled"
+      ],
+      "enumColors": [
+        "yellow",
+        "blue",
+        "purple",
+        "blue",
+        "pink",
+        "green",
+        "green",
+        "red"
+      ],
+      "default": "new"
+    },
+    "payment_status": {
+      "type": "string",
+      "enum": [
+        "unpaid",
+        "paid",
+        "refunded"
+      ],
+      "enumColors": [
+        "yellow",
+        "green",
+        "red"
+      ],
+      "default": "unpaid"
+    },
+    "payment_mode": {
+      "type": "string",
+      "enum": [
+        "cash",
+        "upi",
+        "card",
+        "online",
+        "none"
+      ],
+      "enumColors": [
+        "green",
+        "blue",
+        "purple",
+        "pink",
+        "gray"
+      ],
+      "default": "none"
+    },
+    "assigned_to": {
+      "type": "string"
+    },
+    "source": {
+      "type": "string",
+      "enum": [
+        "website",
+        "phone",
+        "walkin",
+        "dine_in"
+      ],
+      "enumColors": [
+        "blue",
+        "purple",
+        "green",
+        "gray"
+      ],
+      "default": "website"
+    }
+  },
+  "required": [
+    "customer_name",
+    "phone"
+  ],
+  "rls": {
+    "read": {
+      "$or": [
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        },
+        {
+          "user_condition": {
+            "data.staff_role": "manager"
+          }
+        },
+        {
+          "user_condition": {
+            "data.staff_role": "staff"
+          }
+        }
+      ]
+    },
+    "create": {
+      "$or": [
+        {
+          "data.status": "new"
+        },
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        },
+        {
+          "user_condition": {
+            "data.staff_role": "manager"
+          }
+        },
+        {
+          "user_condition": {
+            "data.staff_role": "staff"
+          }
+        }
+      ]
+    },
+    "update": {
+      "$or": [
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        },
+        {
+          "user_condition": {
+            "data.staff_role": "manager"
+          }
+        },
+        {
+          "user_condition": {
+            "data.staff_role": "staff"
+          }
+        }
+      ]
+    },
+    "delete": {
+      "$or": [
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        },
+        {
+          "user_condition": {
+            "data.staff_role": "manager"
+          }
+        }
+      ]
     }
   }
 }
-

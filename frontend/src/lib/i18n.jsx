@@ -1,25 +1,26 @@
-// Internationalization context and translation dictionary for multi-language support
-import React, { createContext, useContext, useState } from 'react'
+import { createContext, useContext, useEffect, useState, useCallback } from 'react';
+import { COMMON } from '@/data/ui-common';
 
-export const I18nContext = createContext(null)
+const DICT = { en: { ...COMMON.en }, hi: { ...COMMON.hi } };
+
+// Register extra translation bundles (used by page-level dictionaries)
+export function extendDict(bundle) {
+  Object.keys(bundle).forEach((l) => Object.assign(DICT[l], bundle[l]));
+}
+
+const I18nContext = createContext(null);
 
 export function I18nProvider({ children }) {
-  const [locale, setLocale] = useState('en')
-  const t = (key) => key
-
-  return (
-    <I18nContext.Provider value={{ locale, setLocale, t }}>
-      {children || <div>I18n</div>}
-    </I18nContext.Provider>
-  )
+  const [lang, setLang] = useState(() => localStorage.getItem('bsh_lang') || 'en');
+  useEffect(() => {
+    localStorage.setItem('bsh_lang', lang);
+    document.documentElement.lang = lang === 'hi' ? 'hi' : 'en';
+  }, [lang]);
+  const t = useCallback((key) => DICT[lang][key] ?? DICT.en[key] ?? key, [lang]);
+  // pick a {en, hi} object value
+  const tr = useCallback((obj) => (obj && typeof obj === 'object' ? obj[lang] ?? obj.en : obj), [lang]);
+  const L = useCallback((en, hi) => (lang === 'hi' && hi ? hi : en), [lang]);
+  return <I18nContext.Provider value={{ lang, setLang, t, tr, L }}>{children}</I18nContext.Provider>;
 }
 
-export function useI18n() {
-  const context = useContext(I18nContext)
-  return context || { locale: 'en', setLocale: () => {}, t: (key) => key }
-}
-
-export default function I18n() {
-  return <div>I18n</div>
-}
-
+export const useI18n = () => useContext(I18nContext);
