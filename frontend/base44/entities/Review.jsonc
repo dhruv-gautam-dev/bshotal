@@ -1,0 +1,25 @@
+{
+  // Entity Schema: Review
+  "name": "Review",
+  "description": "Guest feedback, testimonials, and ratings for hotel stay or restaurant",
+  "fields": {
+    "id": { "type": "string", "required": true, "description": "Unique review ID (UUID)" },
+    "customerName": { "type": "string", "required": true, "description": "Reviewer's display name" },
+    "customerEmail": { "type": "string", "format": "email", "required": false, "description": "Reviewer's contact email" },
+    "rating": { "type": "number", "minimum": 1, "maximum": 5, "required": true, "description": "Star rating out of 5" },
+    "title": { "type": "string", "required": false, "description": "Review headline" },
+    "comment": { "type": "string", "required": true, "description": "Detailed review remarks" },
+    "category": { "type": "string", "enum": ["hotel", "restaurant", "event"], "required": true, "description": "Service area reviewed" },
+    "isApproved": { "type": "boolean", "required": true, "description": "Moderation status for public display" },
+    "verifiedStay": { "type": "boolean", "required": true, "description": "Flag for verified bookings" },
+    "createdAt": { "type": "string", "format": "date-time", "required": true, "description": "Submission timestamp" }
+  },
+  "relations": {
+    "customer": {
+      "type": "belongsTo",
+      "entity": "Customer",
+      "foreignKey": "customerEmail"
+    }
+  }
+}
+

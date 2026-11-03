@@ -1,0 +1,23 @@
+{
+  // Entity Schema: MenuCategory
+  "name": "MenuCategory",
+  "description": "Restaurant menu classifications (e.g., Starters, Main Course, Tandoor, Desserts, Beverages)",
+  "fields": {
+    "id": { "type": "string", "required": true, "description": "Unique category ID (UUID)" },
+    "name": { "type": "string", "required": true, "description": "Category name" },
+    "slug": { "type": "string", "required": true, "description": "URL-friendly slug" },
+    "description": { "type": "string", "required": false, "description": "Category description" },
+    "displayOrder": { "type": "integer", "required": true, "description": "Sort order in menu listing" },
+    "isActive": { "type": "boolean", "required": true, "description": "Visibility in public menu" },
+    "icon": { "type": "string", "required": false, "description": "Icon identifier or image URL" },
+    "createdAt": { "type": "string", "format": "date-time", "required": true, "description": "Creation timestamp" }
+  },
+  "relations": {
+    "items": {
+      "type": "hasMany",
+      "entity": "MenuItem",
+      "foreignKey": "categoryId"
+    }
+  }
+}
+

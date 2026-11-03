@@ -1,0 +1,27 @@
+{
+  // Entity Schema: MenuItem
+  "name": "MenuItem",
+  "description": "Food and beverage catalog items served at B.S. Restaurant",
+  "fields": {
+    "id": { "type": "string", "required": true, "description": "Unique menu item ID (UUID)" },
+    "categoryId": { "type": "string", "required": true, "description": "MenuCategory foreign key" },
+    "name": { "type": "string", "required": true, "description": "Dish or beverage name" },
+    "description": { "type": "string", "required": false, "description": "Dish description, ingredients, or allergens" },
+    "price": { "type": "number", "required": true, "description": "Selling price in INR" },
+    "isVeg": { "type": "boolean", "required": true, "description": "True if vegetarian, false if non-vegetarian" },
+    "isSpicy": { "type": "boolean", "required": false, "description": "Spiciness indicator" },
+    "isAvailable": { "type": "boolean", "required": true, "description": "Stock / kitchen availability flag" },
+    "image": { "type": "string", "required": false, "description": "Dish photo URL" },
+    "preparationTimeMinutes": { "type": "integer", "required": false, "description": "Estimated prep time in minutes" },
+    "tags": { "type": "array", "items": { "type": "string" }, "required": false, "description": "Tags like ChefSpecial, BestSeller, Jain" },
+    "createdAt": { "type": "string", "format": "date-time", "required": true, "description": "Creation timestamp" }
+  },
+  "relations": {
+    "category": {
+      "type": "belongsTo",
+      "entity": "MenuCategory",
+      "foreignKey": "categoryId"
+    }
+  }
+}
+

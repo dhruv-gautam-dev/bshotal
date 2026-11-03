@@ -1,0 +1,20 @@
+{
+  // Entity Schema: Enquiry
+  "name": "Enquiry",
+  "description": "General and event inquiries submitted through website forms",
+  "fields": {
+    "id": { "type": "string", "required": true, "description": "Unique enquiry ID (UUID)" },
+    "name": { "type": "string", "required": true, "description": "Name of inquirer" },
+    "email": { "type": "string", "format": "email", "required": false, "description": "Email address" },
+    "phone": { "type": "string", "required": true, "description": "Phone number" },
+    "eventType": { "type": "string", "required": false, "description": "Type of event (Wedding, Birthday, Corporate, Dinner, etc.)" },
+    "eventDate": { "type": "string", "format": "date", "required": false, "description": "Tentative event date" },
+    "guestsCount": { "type": "integer", "required": false, "description": "Estimated guest count" },
+    "message": { "type": "string", "required": true, "description": "Enquiry message / requirements" },
+    "status": { "type": "string", "enum": ["new", "contacted", "in_progress", "converted", "closed"], "required": true, "description": "Lead status" },
+    "notes": { "type": "string", "required": false, "description": "Staff followup notes" },
+    "createdAt": { "type": "string", "format": "date-time", "required": true, "description": "Creation timestamp" }
+  },
+  "relations": {}
+}
+

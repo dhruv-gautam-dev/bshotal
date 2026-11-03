@@ -1,0 +1,20 @@
+{
+  // Entity Schema: EventPackage
+  "name": "EventPackage",
+  "description": "Banquet and event packages (weddings, anniversaries, corporate banquets)",
+  "fields": {
+    "id": { "type": "string", "required": true, "description": "Unique package ID (UUID)" },
+    "title": { "type": "string", "required": true, "description": "Title of package (e.g., Royal Wedding Banquet, Corporate Gala)" },
+    "slug": { "type": "string", "required": true, "description": "URL-friendly slug" },
+    "description": { "type": "string", "required": true, "description": "Package details and inclusions" },
+    "minGuests": { "type": "integer", "required": true, "description": "Minimum guest requirement" },
+    "maxGuests": { "type": "integer", "required": true, "description": "Maximum capacity" },
+    "pricePerPerson": { "type": "number", "required": true, "description": "Base price per head in INR" },
+    "inclusions": { "type": "array", "items": { "type": "string" }, "required": true, "description": "Included services and menu highlights" },
+    "images": { "type": "array", "items": { "type": "string" }, "required": false, "description": "Image asset URLs" },
+    "isActive": { "type": "boolean", "required": true, "description": "Whether package is currently offered" },
+    "createdAt": { "type": "string", "format": "date-time", "required": true, "description": "Creation timestamp" }
+  },
+  "relations": {}
+}
+

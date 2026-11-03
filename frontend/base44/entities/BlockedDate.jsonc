@@ -1,0 +1,27 @@
+{
+  // Entity Schema: BlockedDate
+  "name": "BlockedDate",
+  "description": "Dates blocked for maintenance, offline reservations, or renovations",
+  "fields": {
+    "id": { "type": "string", "required": true, "description": "Unique identifier (UUID)" },
+    "roomId": { "type": "string", "required": true, "description": "ID of blocked room" },
+    "startDate": { "type": "string", "format": "date", "required": true, "description": "Start date of block" },
+    "endDate": { "type": "string", "format": "date", "required": true, "description": "End date of block" },
+    "reason": { "type": "string", "required": true, "description": "Reason for blocking (maintenance, vip reservation, etc.)" },
+    "createdBy": { "type": "string", "required": false, "description": "Admin user ID who created block" },
+    "createdAt": { "type": "string", "format": "date-time", "required": true, "description": "Creation timestamp" }
+  },
+  "relations": {
+    "room": {
+      "type": "belongsTo",
+      "entity": "Room",
+      "foreignKey": "roomId"
+    },
+    "creator": {
+      "type": "belongsTo",
+      "entity": "User",
+      "foreignKey": "createdBy"
+    }
+  }
+}
+

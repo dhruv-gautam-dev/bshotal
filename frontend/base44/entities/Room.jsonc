@@ -1,0 +1,33 @@
+{
+  // Entity Schema: Room
+  "name": "Room",
+  "description": "Physical room units in B.S. Hotel",
+  "fields": {
+    "id": { "type": "string", "required": true, "description": "Unique room ID (UUID)" },
+    "roomNumber": { "type": "string", "required": true, "description": "Display room number (e.g., 101, 204)" },
+    "floor": { "type": "integer", "required": true, "description": "Floor level" },
+    "roomTypeId": { "type": "string", "required": true, "description": "Category / RoomType foreign key" },
+    "status": { "type": "string", "enum": ["available", "occupied", "maintenance", "reserved"], "required": true, "description": "Current room status" },
+    "isClean": { "type": "boolean", "required": true, "description": "Housekeeping status flag" },
+    "notes": { "type": "string", "required": false, "description": "Internal notes (e.g., view, corner room)" },
+    "createdAt": { "type": "string", "format": "date-time", "required": true, "description": "Creation timestamp" }
+  },
+  "relations": {
+    "roomType": {
+      "type": "belongsTo",
+      "entity": "RoomType",
+      "foreignKey": "roomTypeId"
+    },
+    "bookings": {
+      "type": "hasMany",
+      "entity": "Booking",
+      "foreignKey": "roomId"
+    },
+    "blockedDates": {
+      "type": "hasMany",
+      "entity": "BlockedDate",
+      "foreignKey": "roomId"
+    }
+  }
+}
+

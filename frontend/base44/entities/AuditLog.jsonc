@@ -1,0 +1,23 @@
+{
+  // Entity Schema: AuditLog
+  "name": "AuditLog",
+  "description": "System audit trail for tracking user and administrative actions",
+  "fields": {
+    "id": { "type": "string", "required": true, "description": "Unique audit log identifier (UUID)" },
+    "userId": { "type": "string", "required": false, "description": "ID of user performing action" },
+    "action": { "type": "string", "required": true, "description": "Action performed (e.g., CREATE, UPDATE, DELETE, LOGIN)" },
+    "entityName": { "type": "string", "required": true, "description": "Target entity name (e.g., Booking, MenuItem)" },
+    "entityId": { "type": "string", "required": false, "description": "ID of affected entity record" },
+    "details": { "type": "object", "required": false, "description": "Diff or payload details of the action" },
+    "ipAddress": { "type": "string", "required": false, "description": "Client IP address" },
+    "createdAt": { "type": "string", "format": "date-time", "required": true, "description": "Timestamp when action occurred" }
+  },
+  "relations": {
+    "user": {
+      "type": "belongsTo",
+      "entity": "User",
+      "foreignKey": "userId"
+    }
+  }
+}
+

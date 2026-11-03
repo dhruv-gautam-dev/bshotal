@@ -1,0 +1,15 @@
+{
+  // Entity Schema: Setting
+  "name": "Setting",
+  "description": "System-wide hotel configuration, contact details, operational hours and tax rates",
+  "fields": {
+    "id": { "type": "string", "required": true, "description": "Unique setting ID (UUID)" },
+    "key": { "type": "string", "required": true, "description": "Setting key identifier (e.g., hotel_phone, gst_rate, checkin_time)" },
+    "value": { "type": "string", "required": true, "description": "Serialized configuration value" },
+    "description": { "type": "string", "required": false, "description": "Human-readable label or description" },
+    "group": { "type": "string", "required": true, "description": "Category group (general, restaurant, billing, notifications)" },
+    "updatedAt": { "type": "string", "format": "date-time", "required": true, "description": "Last modified timestamp" }
+  },
+  "relations": {}
+}
+

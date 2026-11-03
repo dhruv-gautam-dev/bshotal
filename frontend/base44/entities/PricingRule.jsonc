@@ -1,0 +1,27 @@
+{
+  // Entity Schema: PricingRule
+  "name": "PricingRule",
+  "description": "Dynamic pricing and seasonal tariff adjustments for room types",
+  "fields": {
+    "id": { "type": "string", "required": true, "description": "Unique rule ID (UUID)" },
+    "name": { "type": "string", "required": true, "description": "Rule label (e.g., Weekend Surcharge, Festive Season, Monsoon Discount)" },
+    "roomTypeId": { "type": "string", "required": false, "description": "Applicable room type ID (null applies to all)" },
+    "ruleType": { "type": "string", "enum": ["seasonal", "weekend", "occupancy", "special_event"], "required": true, "description": "Pricing rule classification" },
+    "adjustmentType": { "type": "string", "enum": ["percentage", "fixed"], "required": true, "description": "Modifier calculation formula" },
+    "adjustmentValue": { "type": "number", "required": true, "description": "Value to add or deduct (positive or negative)" },
+    "startDate": { "type": "string", "format": "date", "required": false, "description": "Effective start date" },
+    "endDate": { "type": "string", "format": "date", "required": false, "description": "Effective end date" },
+    "daysOfWeek": { "type": "array", "items": { "type": "integer" }, "required": false, "description": "Applicable days of week (0=Sunday to 6=Saturday)" },
+    "isActive": { "type": "boolean", "required": true, "description": "Whether rule is currently active" },
+    "priority": { "type": "integer", "required": true, "description": "Execution evaluation priority order" },
+    "createdAt": { "type": "string", "format": "date-time", "required": true, "description": "Creation timestamp" }
+  },
+  "relations": {
+    "roomType": {
+      "type": "belongsTo",
+      "entity": "RoomType",
+      "foreignKey": "roomTypeId"
+    }
+  }
+}
+

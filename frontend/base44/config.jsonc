@@ -1,0 +1,14 @@
+{
+  // Base44 configuration for B.S. Hotel & Restaurant
+  "projectName": "B.S. Hotel & Restaurant",
+  "version": "1.0.0",
+  "auth": {
+    "enabled": true,
+    "userEntity": "User",
+    "roles": ["admin", "staff", "customer"]
+  },
+  "storage": {
+    "defaultBucket": "hotel-assets"
+  }
+}
+

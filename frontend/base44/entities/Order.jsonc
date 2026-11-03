@@ -1,0 +1,47 @@
+{
+  // Entity Schema: Order
+  "name": "Order",
+  "description": "Dining, room-service, and takeaway food orders",
+  "fields": {
+    "id": { "type": "string", "required": true, "description": "Unique order ID (UUID)" },
+    "orderNumber": { "type": "string", "required": true, "description": "Order reference code (e.g., ORD-2026-004)" },
+    "customerId": { "type": "string", "required": false, "description": "Customer ID if registered or identified" },
+    "orderType": { "type": "string", "enum": ["dine_in", "room_service", "takeaway"], "required": true, "description": "Type of food order" },
+    "tableOrRoomNumber": { "type": "string", "required": false, "description": "Table or room destination" },
+    "items": {
+      "type": "array",
+      "required": true,
+      "description": "Ordered line items with quantities and prices",
+      "items": {
+        "type": "object",
+        "properties": {
+          "menuItemId": { "type": "string" },
+          "name": { "type": "string" },
+          "quantity": { "type": "integer" },
+          "unitPrice": { "type": "number" },
+          "notes": { "type": "string" }
+        }
+      }
+    },
+    "subtotal": { "type": "number", "required": true, "description": "Items sum before taxes" },
+    "tax": { "type": "number", "required": true, "description": "Applicable GST/VAT" },
+    "discount": { "type": "number", "required": false, "description": "Applied discount" },
+    "totalAmount": { "type": "number", "required": true, "description": "Final payable amount" },
+    "status": { "type": "string", "enum": ["pending", "preparing", "ready", "served", "delivered", "cancelled"], "required": true, "description": "Order progression status" },
+    "paymentStatus": { "type": "string", "enum": ["unpaid", "paid", "refunded"], "required": true, "description": "Settlement state" },
+    "createdAt": { "type": "string", "format": "date-time", "required": true, "description": "Order placement timestamp" }
+  },
+  "relations": {
+    "customer": {
+      "type": "belongsTo",
+      "entity": "Customer",
+      "foreignKey": "customerId"
+    },
+    "payments": {
+      "type": "hasMany",
+      "entity": "Payment",
+      "foreignKey": "orderId"
+    }
+  }
+}
+
