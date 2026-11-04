@@ -16,7 +16,7 @@ function getStore(key, defaultData) {
       return defaultData
     }
     // Auto-migrate legacy media CDN URLs or old phone numbers if stored in browser
-    if (typeof raw === 'string' && (raw.includes('media.apiClient.com') || raw.includes('media.base44.com') || raw.includes('63776') || raw.includes('82735') || (key === 'Setting' && (!raw.includes(SITE.bookingsPhone) || !raw.includes(SITE.paymentsPhone))))) {
+    if (typeof raw === 'string' && (raw.includes('media.apiClient.com') || raw.includes('63776') || raw.includes('82735') || (key === 'Setting' && (!raw.includes(SITE.bookingsPhone) || !raw.includes(SITE.paymentsPhone))))) {
       window.localStorage.setItem(STORAGE_PREFIX + key, JSON.stringify(defaultData))
       return defaultData
     }
@@ -522,8 +522,46 @@ const entitiesProxy = new Proxy(entityStores, {
   },
 })
 
+export const users = {
+  async inviteUser(email, role = 'staff') {
+    const cleanEmail = (email || '').trim().toLowerCase()
+    if (!cleanEmail) throw new Error('Email is required')
+    const list = await entityStores.User.list()
+    const existing = list.find((u) => u.email?.toLowerCase() === cleanEmail)
+    const targetRole = role === 'owner' ? 'owner' : (role === 'manager' ? 'manager' : 'staff')
+    if (existing) {
+      return await entityStores.User.update(existing.id, {
+        staff_role: targetRole,
+        staff_active: true,
+      })
+    }
+    const namePart = cleanEmail.split('@')[0]
+    const formattedName = namePart.charAt(0).toUpperCase() + namePart.slice(1)
+    return await entityStores.User.create({
+      email: cleanEmail,
+      full_name: formattedName,
+      role: targetRole === 'owner' ? 'admin' : 'staff',
+      staff_role: targetRole,
+      staff_active: true,
+    })
+  },
+  async list() {
+    return await entityStores.User.list()
+  },
+  async get(id) {
+    return await entityStores.User.get(id)
+  },
+  async update(id, data) {
+    return await entityStores.User.update(id, data)
+  },
+  async delete(id) {
+    return await entityStores.User.delete(id)
+  },
+}
+
 export const apiClient = {
   auth,
+  users,
   app: {
     async getPublicSettings() {
       return {

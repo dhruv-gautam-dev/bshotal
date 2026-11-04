@@ -18,6 +18,7 @@ export default function Contact() {
 
   const submit = async (e) => {
     e.preventDefault();
+    
     if (f.name.trim().length < 2) return setErr('Please enter your name.');
     if (!isValidPhone(f.phone)) return setErr('Enter a valid 10-digit Indian mobile number.');
     if (f.message.trim().length < 5) return setErr('Please write a short message.');

@@ -1,0 +1,359 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>B.S. Hotel & Restaurant — Deployment Plan & Cost Notes</title>
+  <style>
+    @page {
+      size: A4;
+      margin: 14mm 16mm 14mm 16mm;
+    }
+    * {
+      box-sizing: border-box;
+      -webkit-print-color-adjust: exact;
+      print-color-adjust: exact;
+    }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+      color: #1e293b;
+      line-height: 1.5;
+      font-size: 13px;
+      margin: 0;
+      padding: 0;
+      background: #ffffff;
+    }
+    .header-banner {
+      border-bottom: 2px solid #d97706;
+      padding-bottom: 12px;
+      margin-bottom: 18px;
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-end;
+    }
+    .header-title h1 {
+      margin: 0;
+      font-size: 22px;
+      font-weight: 700;
+      color: #0f172a;
+      letter-spacing: -0.5px;
+    }
+    .header-title p {
+      margin: 3px 0 0;
+      font-size: 13px;
+      color: #d97706;
+      font-weight: 600;
+    }
+    .header-meta {
+      text-align: right;
+      font-size: 11px;
+      color: #64748b;
+    }
+    h2 {
+      font-size: 15px;
+      color: #0f172a;
+      border-left: 4px solid #d97706;
+      padding-left: 8px;
+      margin: 18px 0 8px 0;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.3px;
+    }
+    h3 {
+      font-size: 13px;
+      color: #334155;
+      margin: 12px 0 4px 0;
+      font-weight: 600;
+    }
+    p, ul, ol {
+      margin: 0 0 8px 0;
+    }
+    ul, ol {
+      padding-left: 20px;
+    }
+    li {
+      margin-bottom: 4px;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 10px 0 16px 0;
+      font-size: 12px;
+    }
+    th, td {
+      border: 1px solid #e2e8f0;
+      padding: 7px 10px;
+      text-align: left;
+    }
+    th {
+      background-color: #0f172a;
+      color: #ffffff;
+      font-weight: 600;
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    tr:nth-child(even) {
+      background-color: #f8fafc;
+    }
+    .badge {
+      display: inline-block;
+      padding: 2px 7px;
+      border-radius: 4px;
+      font-size: 10px;
+      font-weight: 600;
+      text-transform: uppercase;
+    }
+    .badge-free {
+      background: #dcfce7;
+      color: #15803d;
+    }
+    .badge-paid {
+      background: #fef3c7;
+      color: #b45309;
+    }
+    .badge-rec {
+      background: #dbeafe;
+      color: #1d4ed8;
+    }
+    .callout {
+      background: #fffbeb;
+      border-left: 4px solid #f59e0b;
+      padding: 10px 14px;
+      margin: 12px 0;
+      border-radius: 0 6px 6px 0;
+      font-size: 12px;
+    }
+    .callout-title {
+      font-weight: 700;
+      color: #92400e;
+      margin-bottom: 3px;
+    }
+    .grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+      margin: 10px 0;
+    }
+    .card {
+      border: 1px solid #e2e8f0;
+      border-radius: 8px;
+      padding: 10px 12px;
+      background: #ffffff;
+    }
+    .card h4 {
+      margin: 0 0 4px 0;
+      font-size: 13px;
+      color: #0f172a;
+    }
+    .page-break {
+      page-break-before: always;
+    }
+    .footer {
+      margin-top: 20px;
+      border-top: 1px solid #e2e8f0;
+      padding-top: 8px;
+      font-size: 10px;
+      color: #94a3b8;
+      display: flex;
+      justify-content: space-between;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- HEADER -->
+  <div class="header-banner">
+    <div class="header-title">
+      <h1>B.S. HOTEL & RESTAURANT</h1>
+      <p>Live Deployment Roadmap, Cloud Infrastructure & Cost Planning</p>
+    </div>
+    <div class="header-meta">
+      <strong>Document Version:</strong> 1.0 (Production Release)<br>
+      <strong>Date:</strong> November 2026<br>
+      <strong>Location:</strong> NH-2, Baad, Mathura
+    </div>
+  </div>
+
+  <!-- SECTION 1 -->
+  <h2>1. Executive Summary & Strategy</h2>
+  <p>
+    This document outlines the end-to-end deployment strategy, infrastructure procurement, cost breakdown, and account ownership model for <strong>B.S. Hotel & Restaurant (Delicee Restaurant)</strong>.
+  </p>
+  <div class="callout">
+    <div class="callout-title">Core Milestone Strategy (Developer Protection & Clean Handoff)</div>
+    The project will be deployed and tested under the developer's cloud accounts (Vercel staging & demo environment). Once the client reviews the live system and clears the final milestone payment, full ownership of the domain, hosting, database, and configurations will be transferred cleanly to the client with zero downtime.
+  </div>
+
+  <!-- SECTION 2 -->
+  <h2>2. Contact Numbers & Identity Verification</h2>
+  <p>The system is wired with dedicated channels for guest bookings and payment operations:</p>
+  <table>
+    <thead>
+      <tr>
+        <th>Operational Area</th>
+        <th>Phone Number</th>
+        <th>Display Format</th>
+        <th>Integration Channel</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><strong>Room Bookings & Inquiries</strong></td>
+        <td><code>91492 24039</code></td>
+        <td>+91 91492 24039</td>
+        <td>Direct Call / WhatsApp Automated Dispatch</td>
+      </tr>
+      <tr>
+        <td><strong>Payments, Accounts & Billing</strong></td>
+        <td><code>92592 73735</code></td>
+        <td>+91 92592 73735</td>
+        <td>Direct Call / Billing Desk Verification</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <!-- SECTION 3 -->
+  <h2>3. Client Onboarding Checklist (Information Needed)</h2>
+  <p>Collect the following items from the client to set up accounts in their business name:</p>
+  <ul>
+    <li><strong>Dedicated Project Email:</strong> A clean Google account (e.g. <code>bshotelmathura@gmail.com</code>) used strictly for all cloud registrations.</li>
+    <li><strong>Business Phone Number:</strong> Mobile phone available to receive SMS OTPs for domain and payment gateway registration.</li>
+    <li><strong>Banking & KYC Details:</strong> Required for Razorpay / Cashfree payment gateway activation:
+      <ul>
+        <li>Business / Proprietor PAN Card copy</li>
+        <li>Bank Account details (Account Number + IFSC) for direct daily settlement</li>
+        <li>GST Certificate & FSSAI License Number (if applicable for bills/invoices)</li>
+      </ul>
+    </li>
+  </ul>
+
+  <!-- SECTION 4 -->
+  <h2>4. Cloud Infrastructure: What to Buy & Where</h2>
+  <table>
+    <thead>
+      <tr>
+        <th>Service</th>
+        <th>Recommended Provider</th>
+        <th>Purpose</th>
+        <th>Billing Model</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><strong>Custom Domain</strong></td>
+        <td>Hostinger.in / Namecheap</td>
+        <td>Official website URL (<code>bshotelmathura.com</code> or <code>.in</code>)</td>
+        <td>Billed Annually</td>
+      </tr>
+      <tr>
+        <td><strong>Frontend Hosting</strong></td>
+        <td>Vercel (Hobby Tier)</td>
+        <td>React SPA hosting, Global CDN, SSL/HTTPS, 1-click client transfer</td>
+        <td><span class="badge badge-free">Free Forever</span></td>
+      </tr>
+      <tr>
+        <td><strong>Backend API Server</strong></td>
+        <td>Render.com / Railway</td>
+        <td>Node.js & Express REST API, Booking/Order management logic</td>
+        <td>Free or ~$7/mo</td>
+      </tr>
+      <tr>
+        <td><strong>Cloud Database</strong></td>
+        <td>Supabase (PostgreSQL) / MongoDB Atlas</td>
+        <td>Secure cloud storage for bookings, orders, rooms, customers</td>
+        <td><span class="badge badge-free">Free Tier</span> (500MB)</td>
+      </tr>
+      <tr>
+        <td><strong>Payment Gateway</strong></td>
+        <td>Razorpay / Cashfree</td>
+        <td>Instant online UPI, debit/credit cards, netbanking gateway</td>
+        <td>₹0 setup, ~2% / tx</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <div class="page-break"></div>
+
+  <!-- SECTION 5 -->
+  <h2>5. Detailed Cost Breakdown (Monthly vs. Annual)</h2>
+  <p>Two clear pricing packages to present to the client:</p>
+
+  <div class="grid">
+    <div class="card">
+      <h4>Package A: Lean Launch (Budget-Friendly)</h4>
+      <p style="font-size: 11px; color: #64748b;">Best for low initial overhead while taking bookings via WhatsApp & calls.</p>
+      <table>
+        <tr><td>Domain (.in / .com)</td><td style="text-align:right">₹600 – ₹1,000 / yr</td></tr>
+        <tr><td>Frontend (Vercel)</td><td style="text-align:right"><span class="badge badge-free">₹0</span></td></tr>
+        <tr><td>Backend (Render Free)</td><td style="text-align:right"><span class="badge badge-free">₹0</span></td></tr>
+        <tr><td>Database (Free Tier)</td><td style="text-align:right"><span class="badge badge-free">₹0</span></td></tr>
+        <tr><td>SSL Certificate</td><td style="text-align:right"><span class="badge badge-free">₹0</span></td></tr>
+        <tr style="font-weight:bold; background:#f1f5f9;">
+          <td>Total Cost</td>
+          <td style="text-align:right; color:#0f172a;">~₹800 / year (₹0/mo)</td>
+        </tr>
+      </table>
+      <p style="font-size: 11px; color: #475569;"><em>Note: Free backend spins down on inactivity (30s wakeup delay on first visitor).</em></p>
+    </div>
+
+    <div class="card">
+      <h4>Package B: Production Pro (Recommended)</h4>
+      <p style="font-size: 11px; color: #64748b;">Always-on 24/7 dedicated server with zero delay and professional speed.</p>
+      <table>
+        <tr><td>Domain (.com)</td><td style="text-align:right">₹1,000 / yr</td></tr>
+        <tr><td>Frontend (Vercel)</td><td style="text-align:right"><span class="badge badge-free">₹0</span></td></tr>
+        <tr><td>Backend (Render Always-On)</td><td style="text-align:right">~₹550 / month ($7)</td></tr>
+        <tr><td>Database (Cloud Tier)</td><td style="text-align:right"><span class="badge badge-free">₹0</span></td></tr>
+        <tr><td>Business Email (Zoho/Google)</td><td style="text-align:right">~₹125 / month</td></tr>
+        <tr style="font-weight:bold; background:#fef3c7;">
+          <td>Total Cost</td>
+          <td style="text-align:right; color:#92400e;">~₹675 / mo (₹8,100 / yr)</td>
+        </tr>
+      </table>
+      <p style="font-size: 11px; color: #475569;"><em>Zero cold starts, instant response for kitchen orders and room bookings.</em></p>
+    </div>
+  </div>
+
+  <!-- SECTION 6 -->
+  <h2>6. Staging & Client Ownership Transfer Process</h2>
+  <ol>
+    <li>
+      <strong>Staging Deployment (Developer Account):</strong><br>
+      The code is pushed to your private GitHub repo and imported into your personal Vercel and Render accounts. A preview link (e.g., <code>bshotel.vercel.app</code>) is provided for the client to review and test.
+    </li>
+    <li>
+      <strong>Client Approval & Milestone Payment:</strong><br>
+      The client tests room booking, restaurant ordering, menu administration, and reports. Once satisfied, the final milestone invoice is cleared.
+    </li>
+    <li>
+      <strong>Two-Minute Zero-Downtime Handoff:</strong><br>
+      <ul>
+        <li><strong>Vercel:</strong> In Project Settings &rarr; Click <em>Transfer Project</em> &rarr; Enter client's Vercel username/email. Instant migration.</li>
+        <li><strong>Database:</strong> In Supabase/MongoDB &rarr; Organization Settings &rarr; Invite client as <em>Owner</em> &rarr; Remove developer seat.</li>
+        <li><strong>Domain DNS:</strong> Add CNAME/A records on the client's Hostinger/Namecheap dashboard pointing to Vercel.</li>
+      </ul>
+    </li>
+  </ol>
+
+  <!-- SECTION 7 -->
+  <h2>7. Backend Architecture & Development Roadmap</h2>
+  <p>The backend will be structured cleanly in the project root alongside the frontend:</p>
+  <div style="background:#0f172a; color:#f8fafc; padding:10px 14px; border-radius:6px; font-family:monospace; font-size:11px; line-height:1.6;">
+    bshotal/<br>
+    ├── frontend/ &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;# React + Vite SPA (Deployed on Vercel)<br>
+    │ &nbsp;&nbsp;└── src/api/apiClient.js &nbsp;# Configured to switch between local mock & live API<br>
+    └── backend/ &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;# Node.js + Express API (Deployed on Render)<br>
+    &nbsp;&nbsp;&nbsp;&nbsp;├── server.js &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;# Main server initialization<br>
+    &nbsp;&nbsp;&nbsp;&nbsp;├── models/ &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;# Booking, Order, Room, Menu, User, Review schemas<br>
+    &nbsp;&nbsp;&nbsp;&nbsp;├── routes/ &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;# REST endpoints (/api/bookings, /api/orders, etc.)<br>
+    &nbsp;&nbsp;&nbsp;&nbsp;└── middleware/ &nbsp;&nbsp;&nbsp;&nbsp;# Admin JWT authentication & error handlers
+  </div>
+
+  <div class="footer">
+    <span>B.S. Hotel & Restaurant — Official Technical Proposal & Deployment Notes</span>
+    <span>Confidential — Prepared for Client Execution</span>
+  </div>
+
+</body>
+</html>
+

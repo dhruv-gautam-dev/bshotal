@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { Save, UserPlus, ShieldCheck } from 'lucide-react';
+import { Save, UserPlus, ShieldCheck, Trash2 } from 'lucide-react';
 import { apiClient } from '@/api/apiClient';
 import { useI18n } from '@/lib/i18n';
 import { useAdmin } from '../AdminContext';
@@ -76,15 +76,39 @@ export default function SettingsAdmin() {
     refetch();
   };
 
+  const deleteStaff = async (user) => {
+    if (!window.confirm(L(`Remove staff account for ${user.email}?`, `क्या आप ${user.email} का स्टाफ खाता हटाना चाहते हैं?`))) return;
+    await apiClient.entities.User.delete(user.id);
+    await audit(me, 'staff_delete', 'settings', 'User', user.id, `Removed ${user.email}`);
+    refetch();
+  };
+
   const sendInvite = async (e) => {
     e.preventDefault();
     setMsg('');
+    const cleanEmail = (invite.email || '').trim().toLowerCase();
+    if (!cleanEmail) return;
     try {
-      await apiClient.users.inviteUser(invite.email.trim(), 'user');
-      const found = (await apiClient.entities.User.list()).find((u) => u.email?.toLowerCase() === invite.email.trim().toLowerCase());
-      if (found) await apiClient.entities.User.update(found.id, { staff_role: invite.role, staff_active: true });
-      await audit(me, 'staff', 'settings', 'User', found?.id || '', `Invited ${invite.email} as ${invite.role}`);
-      setMsg(L('Invite sent. They set their password from the email link.', 'आमंत्रण भेज दिया। वे ईमेल लिंक से पासवर्ड सेट करेंगे।'));
+      if (apiClient.users?.inviteUser) {
+        await apiClient.users.inviteUser(cleanEmail, invite.role);
+      }
+      const allUsers = await apiClient.entities.User.list();
+      let found = (Array.isArray(allUsers) ? allUsers : []).find(
+        (u) => u.email?.toLowerCase() === cleanEmail
+      );
+      if (found) {
+        await apiClient.entities.User.update(found.id, { staff_role: invite.role, staff_active: true });
+      } else {
+        found = await apiClient.entities.User.create({
+          email: cleanEmail,
+          full_name: cleanEmail.split('@')[0],
+          role: invite.role === 'owner' ? 'admin' : 'staff',
+          staff_role: invite.role,
+          staff_active: true,
+        });
+      }
+      await audit(me, 'staff', 'settings', 'User', found?.id || '', `Invited ${cleanEmail} as ${invite.role}`);
+      setMsg(L('Invite sent. Staff member added successfully.', 'आमंत्रण भेज दिया। स्टाफ सदस्य सफलतापूर्वक जोड़ा गया।'));
       setInvite({ email: '', role: 'staff' });
       refetch();
     } catch (ex) {
@@ -163,13 +187,20 @@ export default function SettingsAdmin() {
 
           <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white">
             <table className="w-full text-sm">
-              <thead className="bg-slate-50 text-left text-xs uppercase text-slate-500"><tr><th className="px-4 py-3">{L('Account', 'खाता')}</th><th className="px-4 py-3">{L('Role', 'भूमिका')}</th><th className="px-4 py-3">{L('Access', 'पहुँच')}</th></tr></thead>
+              <thead className="bg-slate-50 text-left text-xs uppercase text-slate-500">
+                <tr>
+                  <th className="px-4 py-3">{L('Account', 'खाता')}</th>
+                  <th className="px-4 py-3">{L('Role', 'भूमिका')}</th>
+                  <th className="px-4 py-3">{L('Access', 'पहुँच')}</th>
+                  <th className="px-4 py-3 text-right">{L('Action', 'कार्रवाई')}</th>
+                </tr>
+              </thead>
               <tbody className="divide-y divide-slate-100">
                 {(data?.users || []).map((u) => {
                   const role = u.role === 'admin' ? 'owner' : (u.staff_role || 'none');
                   return (
                     <tr key={u.id}>
-                      <td className="px-4 py-3"><p className="font-medium">{u.full_name || u.email}</p><p className="text-xs text-slate-500">{u.email}</p></td>
+                      <td className="px-4 py-3"><p className="font-medium text-slate-900">{u.full_name || u.email}</p><p className="text-xs text-slate-500">{u.email}</p></td>
                       <td className="px-4 py-3">
                         <select value={role} disabled={u.id === me?.id} onChange={(e) => setRole(u, e.target.value)} className="rounded-lg border border-slate-300 px-2 py-1.5 text-xs font-semibold disabled:opacity-50">
                           <option value="owner">{L('Owner', 'मालिक')}</option>
@@ -182,6 +213,18 @@ export default function SettingsAdmin() {
                         <button onClick={() => toggleActive(u)} disabled={u.id === me?.id} className={`rounded-full border px-3 py-1 text-xs font-semibold disabled:opacity-50 ${u.staff_active === false ? 'border-red-200 bg-red-50 text-red-700' : 'border-emerald-200 bg-emerald-50 text-emerald-700'}`}>
                           {u.staff_active === false ? L('Blocked', 'अवरुद्ध') : L('Active', 'सक्रिय')}
                         </button>
+                      </td>
+                      <td className="px-4 py-3 text-right">
+                        {u.id !== me?.id && (
+                          <button
+                            type="button"
+                            onClick={() => deleteStaff(u)}
+                            className="inline-flex items-center justify-center rounded-lg p-1.5 text-slate-400 hover:bg-red-50 hover:text-red-600 transition-colors"
+                            title={L('Remove user', 'उपयोगकर्ता हटाएं')}
+                          >
+                            <Trash2 size={16} />
+                          </button>
+                        )}
                       </td>
                     </tr>
                   );
