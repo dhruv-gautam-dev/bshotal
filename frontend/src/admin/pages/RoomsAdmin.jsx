@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { Plus, Trash2, Pencil, X } from 'lucide-react';
+import { Plus, Trash2, Pencil, X, Upload, Loader2 } from 'lucide-react';
 import { apiClient } from '@/api/apiClient';
 import { useI18n } from '@/lib/i18n';
 import { useAdmin } from '../AdminContext';
@@ -17,10 +17,28 @@ export default function RoomsAdmin() {
   const [params, setParams] = useSearchParams();
   const [tab, setTab] = useState(params.get('tab') || 'types');
   const [typeForm, setTypeForm] = useState(null);
+  const [uploading, setUploading] = useState(false);
   const [roomForm, setRoomForm] = useState({ open: false, number: '', room_type_id: '', floor: '' });
   const [blockForm, setBlockForm] = useState({ room_type_id: '', start_date: todayISO(), end_date: '', reason: '' });
   const [ruleForm, setRuleForm] = useState({ room_type_id: '', start_date: '', end_date: '', price: '', label: '' });
   const qc = useQueryClient();
+
+  const handleRoomImageUpload = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setUploading(true);
+    try {
+      const res = await apiClient.upload(file, 'room-photos');
+      setTypeForm((prev) => ({
+        ...prev,
+        images: prev?.images ? `${prev.images}, ${res.url}` : res.url,
+      }));
+    } catch (err) {
+      alert(err.message || 'Image upload failed');
+    } finally {
+      setUploading(false);
+    }
+  };
 
   useEffect(() => { const t = params.get('tab'); if (t) setTab(t); }, [params]);
 
@@ -235,7 +253,17 @@ export default function RoomsAdmin() {
               <label className="text-sm">{L('Price per night ₹', 'प्रति रात ₹')}<input className={input} type="number" value={typeForm.price} onChange={(e) => setTypeForm({ ...typeForm, price: e.target.value })} required /></label>
               <label className="text-sm">{L('Rooms of this type', 'इस प्रकार के कमरे')}<input className={input} type="number" min="1" value={typeForm.total_rooms} onChange={(e) => setTypeForm({ ...typeForm, total_rooms: e.target.value })} /></label>
               <label className="text-sm">{L('Capacity', 'क्षमता')}<input className={input} type="number" min="1" value={typeForm.capacity} onChange={(e) => setTypeForm({ ...typeForm, capacity: e.target.value })} /></label>
-              <label className="text-sm">{L('Photo URLs (comma separated)', 'फ़ोटो URL (कॉमा से)')}<input className={input} value={typeForm.images} onChange={(e) => setTypeForm({ ...typeForm, images: e.target.value })} /></label>
+              <label className="text-sm">
+                <div className="flex items-center justify-between mb-1">
+                  <span>{L('Photo URLs (comma separated)', 'फ़ोटो URL (कॉमा से)')}</span>
+                  <label className="inline-flex cursor-pointer items-center gap-1 text-xs font-semibold text-amber-600 hover:text-amber-700">
+                    {uploading ? <Loader2 size={12} className="animate-spin" /> : <Upload size={12} />}
+                    <span>{uploading ? L('Uploading…', 'अपलोड…') : L('Upload', 'अपलोड')}</span>
+                    <input type="file" accept="image/jpeg,image/png,image/webp" className="hidden" onChange={handleRoomImageUpload} disabled={uploading} />
+                  </label>
+                </div>
+                <input className={input} value={typeForm.images} onChange={(e) => setTypeForm({ ...typeForm, images: e.target.value })} placeholder="https://…" />
+              </label>
               <label className="text-sm sm:col-span-2">{L('Description', 'विवरण')}<textarea rows={2} className={input} value={typeForm.desc_en} onChange={(e) => setTypeForm({ ...typeForm, desc_en: e.target.value })} /></label>
               <label className="text-sm sm:col-span-2">{L('Amenities (comma separated)', 'सुविधाएँ (कॉमा से)')}<input className={input} value={typeForm.amenities} onChange={(e) => setTypeForm({ ...typeForm, amenities: e.target.value })} placeholder="ac, wifi, tv" /></label>
             </div>

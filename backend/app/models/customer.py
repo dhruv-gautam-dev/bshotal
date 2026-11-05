@@ -1,6 +1,6 @@
 from decimal import Decimal
 
-from sqlalchemy import Boolean, Integer, Numeric, String, Text
+from sqlalchemy import Boolean, CheckConstraint, Integer, Numeric, String, Text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.base import TimeStampedModel
@@ -8,6 +8,11 @@ from app.db.base import TimeStampedModel
 
 class Customer(TimeStampedModel):
     __tablename__ = "customers"
+    __table_args__ = (
+        CheckConstraint("total_spent >= 0", name="ck_customers_total_spent_positive"),
+        CheckConstraint("total_bookings_count >= 0", name="ck_customers_bookings_count_positive"),
+        CheckConstraint("total_orders_count >= 0", name="ck_customers_orders_count_positive"),
+    )
 
     phone: Mapped[str] = mapped_column(String(20), unique=True, index=True, nullable=False)
     name: Mapped[str] = mapped_column(String(100), nullable=False)

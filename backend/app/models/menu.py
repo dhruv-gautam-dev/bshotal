@@ -1,7 +1,6 @@
 from decimal import Decimal
 
-from sqlalchemy import Boolean, ForeignKey, Integer, Numeric, String, Text
-from sqlalchemy.dialects.sqlite import JSON as SQLITE_JSON
+from sqlalchemy import Boolean, CheckConstraint, ForeignKey, Index, Integer, JSON, Numeric, String, Text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.base import TimeStampedModel
@@ -27,6 +26,10 @@ class MenuCategory(TimeStampedModel):
 
 class MenuItem(TimeStampedModel):
     __tablename__ = "menu_items"
+    __table_args__ = (
+        Index("ix_menu_items_cat_avail_order", "category_id", "is_available", "display_order"),
+        CheckConstraint("price >= 0", name="ck_menu_items_price_positive"),
+    )
 
     category_id: Mapped[str] = mapped_column(
         String(36), ForeignKey("menu_categories.id", ondelete="CASCADE"), nullable=False, index=True
@@ -40,7 +43,7 @@ class MenuItem(TimeStampedModel):
     is_available: Mapped[bool] = mapped_column(Boolean, default=True, index=True)
     is_bestseller: Mapped[bool] = mapped_column(Boolean, default=False)
     image_url: Mapped[str | None] = mapped_column(String(500), nullable=True)
-    tags: Mapped[list[str] | None] = mapped_column(SQLITE_JSON, default=list)
+    tags: Mapped[list[str] | None] = mapped_column(JSON, default=list)
     display_order: Mapped[int] = mapped_column(Integer, default=0)
 
     category = relationship("MenuCategory", back_populates="items")

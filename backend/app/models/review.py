@@ -1,4 +1,4 @@
-from sqlalchemy import Boolean, ForeignKey, Integer, String, Text
+from sqlalchemy import Boolean, CheckConstraint, ForeignKey, Index, Integer, String, Text
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.db.base import TimeStampedModel
@@ -6,6 +6,10 @@ from app.db.base import TimeStampedModel
 
 class Review(TimeStampedModel):
     __tablename__ = "reviews"
+    __table_args__ = (
+        Index("ix_reviews_status_created_at", "status", "created_at"),
+        CheckConstraint("rating >= 1 AND rating <= 5", name="ck_reviews_rating_range"),
+    )
 
     guest_name: Mapped[str] = mapped_column(String(100), nullable=False)
     guest_city: Mapped[str | None] = mapped_column(String(50), nullable=True)

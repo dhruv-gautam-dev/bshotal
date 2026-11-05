@@ -1,6 +1,6 @@
 from decimal import Decimal
 
-from sqlalchemy import ForeignKey, Numeric, String, Text
+from sqlalchemy import CheckConstraint, ForeignKey, Numeric, String, Text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.base import TimeStampedModel
@@ -8,6 +8,9 @@ from app.db.base import TimeStampedModel
 
 class Payment(TimeStampedModel):
     __tablename__ = "payments"
+    __table_args__ = (
+        CheckConstraint("amount >= 0", name="ck_payments_amount_positive"),
+    )
 
     payment_reference: Mapped[str] = mapped_column(
         String(30), unique=True, index=True, nullable=False

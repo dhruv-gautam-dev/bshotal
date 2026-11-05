@@ -26,9 +26,13 @@ from app.seed.menu_data import DELICEE_CATEGORIES
 async def seed_database(demo: bool = False):
     print("[SEED] Starting database seed...")
 
-    # Ensure tables exist
-    async with engine.begin() as conn:
-        await conn.run_sync(Base.metadata.create_all)
+    if demo and settings.APP_ENV == "production":
+        raise ValueError("[SAFETY] Cannot seed demo data in a production environment!")
+
+    # In local SQLite development, ensure tables exist
+    if "sqlite" in settings.DATABASE_URL:
+        async with engine.begin() as conn:
+            await conn.run_sync(Base.metadata.create_all)
 
     async with async_session_maker() as db:
         # 1. Site Settings (Singleton)

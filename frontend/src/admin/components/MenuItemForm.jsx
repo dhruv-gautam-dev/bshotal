@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { X, Loader2 } from 'lucide-react';
+import { X, Loader2, Upload } from 'lucide-react';
 import { apiClient } from '@/api/apiClient';
 import { useI18n } from '@/lib/i18n';
 
@@ -9,6 +9,7 @@ export default function MenuItemForm({ open, item, categories, onClose, onSaved 
   const { L } = useI18n();
   const [f, setF] = useState(blank);
   const [busy, setBusy] = useState(false);
+  const [uploading, setUploading] = useState(false);
   const [err, setErr] = useState('');
 
   useEffect(() => {
@@ -16,6 +17,21 @@ export default function MenuItemForm({ open, item, categories, onClose, onSaved 
     setErr('');
     setF(item ? { ...blank, ...item, tags: (item.tags || []).join(', ') } : { ...blank, category_id: categories[0]?.id || '' });
   }, [open, item, categories]);
+
+  const handleFileUpload = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setUploading(true);
+    setErr('');
+    try {
+      const res = await apiClient.upload(file, 'menu-photos');
+      setF((prev) => ({ ...prev, image_url: res.url }));
+    } catch (ex) {
+      setErr(ex.message || L('Upload failed.', 'अपलोड विफल रहा।'));
+    } finally {
+      setUploading(false);
+    }
+  };
 
   const save = async (e) => {
     e.preventDefault();
@@ -60,7 +76,17 @@ export default function MenuItemForm({ open, item, categories, onClose, onSaved 
             </select>
           </label>
           <label className="text-sm font-medium text-slate-700 sm:col-span-2">{L('Description', 'विवरण')}<textarea rows={2} className={input} value={f.desc} onChange={(e) => setF({ ...f, desc: e.target.value })} /></label>
-          <label className="text-sm font-medium text-slate-700 sm:col-span-2">{L('Photo URL', 'फ़ोटो URL')}<input className={input} value={f.image_url} onChange={(e) => setF({ ...f, image_url: e.target.value })} placeholder="https://…" /></label>
+          <label className="text-sm font-medium text-slate-700 sm:col-span-2">
+            <div className="flex items-center justify-between mb-1">
+              <span>{L('Photo URL', 'फ़ोटो URL')}</span>
+              <label className="inline-flex cursor-pointer items-center gap-1.5 text-xs font-semibold text-amber-600 hover:text-amber-700">
+                {uploading ? <Loader2 size={13} className="animate-spin" /> : <Upload size={13} />}
+                <span>{uploading ? L('Uploading…', 'अपलोड हो रहा है…') : L('Upload to Storage', 'स्टोरेज में अपलोड करें')}</span>
+                <input type="file" accept="image/jpeg,image/png,image/webp" className="hidden" onChange={handleFileUpload} disabled={uploading} />
+              </label>
+            </div>
+            <input className={input} value={f.image_url} onChange={(e) => setF({ ...f, image_url: e.target.value })} placeholder="https://…" />
+          </label>
           <label className="text-sm font-medium text-slate-700">{L('Tags', 'टैग')}<input className={input} value={f.tags} onChange={(e) => setF({ ...f, tags: e.target.value })} placeholder="bestseller, spicy, new" /></label>
           <label className="text-sm font-medium text-slate-700">{L('Sort', 'क्रम')}<input className={input} type="number" value={f.sort} onChange={(e) => setF({ ...f, sort: e.target.value })} /></label>
           <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={f.is_available} onChange={(e) => setF({ ...f, is_available: e.target.checked })} className="h-5 w-5" />{L('Available on the website', 'वेबसाइट पर उपलब्ध')}</label>

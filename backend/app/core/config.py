@@ -12,11 +12,42 @@ class Settings(BaseSettings):
     # Project metadata
     PROJECT_NAME: str = "B.S. Hotel & Restaurant API"
     ENVIRONMENT: str = "development"
+    APP_ENV: str = "development"
     API_V1_PREFIX: str = "/api/v1"
     DEBUG: bool = True
 
-    # Database
+    # Database URLs
+    # Runtime app: Supabase pooler (e.g. port 6543 transaction or port 5432 session) or SQLite
     DATABASE_URL: str = "sqlite+aiosqlite:///./bshotel.db"
+    # Migrations only: Supabase DIRECT or session-pooler connection (port 5432), never transaction pooler
+    DIRECT_DATABASE_URL: str | None = None
+
+    # Supabase Managed Services (Postgres & Storage)
+    SUPABASE_URL: str = ""
+    SUPABASE_SERVICE_ROLE_KEY: str = ""  # Backend only - never exposed to browser
+    SUPABASE_ANON_KEY: str = ""          # Used only for RLS verification security testing
+    SUPABASE_STORAGE_BUCKET_ROOMS: str = "room-photos"
+    SUPABASE_STORAGE_BUCKET_MENU: str = "menu-photos"
+    SUPABASE_STORAGE_BUCKET_GALLERY: str = "gallery"
+    SUPABASE_STORAGE_BUCKET_INVOICES: str = "invoices"
+
+    # Database Connection Pool Tuning (Supabase limits)
+    DB_POOL_SIZE: int = 10
+    DB_MAX_OVERFLOW: int = 5
+    DB_POOL_RECYCLE: int = 300
+    DB_POOL_PRE_PING: bool = True
+    STATEMENT_CACHE_SIZE: int = 0  # 0 disables statement cache for PgBouncer transaction mode
+
+    # Observability & Hosts
+    SENTRY_DSN: str | None = None
+    ALLOWED_HOSTS: list[str] | str = ["*"]
+
+    @field_validator("DATABASE_URL", "DIRECT_DATABASE_URL", mode="before")
+    @classmethod
+    def ensure_asyncpg_driver(cls, v: str | None) -> str | None:
+        if isinstance(v, str) and v.startswith("postgresql://"):
+            return "postgresql+asyncpg://" + v[len("postgresql://") :]
+        return v
 
     # Security & Tokens
     SECRET_KEY: str = "development_secret_key_change_in_production_bshotel_nh2_mathura"

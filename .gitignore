@@ -1,0 +1,62 @@
+# Environment & Secrets (NEVER COMMIT SENSITIVE VALUES)
+.env
+.env.*
+!.env.example
+!.env.development.example
+!.env.staging.example
+!.env.production.example
+backend/.env
+backend/.env.*
+!backend/.env.example
+!backend/.env.development.example
+!backend/.env.staging.example
+!backend/.env.production.example
+frontend/.env
+frontend/.env.*
+!frontend/.env.example
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+backend/.venv/
+.venv/
+env/
+venv/
+ENV/
+.pytest_cache/
+.ruff_cache/
+*.db
+*.db-journal
+*.db-wal
+*.db-shm
+*.sqlite3
+backend/*.db
+
+# Node & Frontend Build
+node_modules/
+frontend/node_modules/
+dist/
+frontend/dist/
+dist-ssr/
+*.local
+
+# Local File Uploads
+static/uploads/
+backend/static/uploads/
+uploads/
+
+# Logs & Diagnostics
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# OS & Editor Files
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+

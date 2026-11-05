@@ -444,13 +444,38 @@ const DEFAULT_ADMIN = {
   staff_active: true,
 }
 
+// API base URL for FastAPI backend
+const API_BASE = (typeof import.meta !== 'undefined' && import.meta.env?.VITE_API_BASE_URL) || '/api/v1'
+
 export const auth = {
   async me() {
     if (typeof window === 'undefined') return DEFAULT_ADMIN
+    const token = window.localStorage.getItem('access_token')
+    if (token && !token.startsWith('token_')) {
+      try {
+        const res = await fetch(`${API_BASE}/auth/me`, {
+          headers: { Authorization: `Bearer ${token}` },
+        })
+        if (res.ok) {
+          const u = await res.json()
+          const mapped = {
+            id: u.id,
+            email: u.email,
+            full_name: u.full_name,
+            role: u.role,
+            staff_role: u.role === 'owner' ? 'owner' : (u.role === 'manager' ? 'manager' : 'staff'),
+            staff_active: u.is_active,
+          }
+          window.localStorage.setItem(STORAGE_PREFIX + 'auth_user', JSON.stringify(mapped))
+          return mapped
+        }
+      } catch {
+        // Fallback to local session
+      }
+    }
     try {
       const stored = window.localStorage.getItem(STORAGE_PREFIX + 'auth_user')
       if (stored) return JSON.parse(stored)
-      const token = window.localStorage.getItem('access_token')
       if (token) return DEFAULT_ADMIN
       return null
     } catch {
@@ -458,6 +483,35 @@ export const auth = {
     }
   },
   async login(email, password) {
+    try {
+      const res = await fetch(`${API_BASE}/auth/login`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username: email, password }),
+      })
+      if (res.ok) {
+        const data = await res.json()
+        const user = {
+          id: data.user.id,
+          email: data.user.email,
+          full_name: data.user.full_name,
+          role: data.user.role,
+          staff_role: data.user.role === 'owner' ? 'owner' : (data.user.role === 'manager' ? 'manager' : 'staff'),
+          staff_active: data.user.is_active,
+        }
+        if (typeof window !== 'undefined') {
+          window.localStorage.setItem(STORAGE_PREFIX + 'auth_user', JSON.stringify(user))
+          window.localStorage.setItem('access_token', data.access_token)
+          if (data.refresh_token) {
+            window.localStorage.setItem('refresh_token', data.refresh_token)
+          }
+        }
+        return { user, access_token: data.access_token }
+      }
+    } catch {
+      // Backend unavailable; fallback to offline demo
+    }
+
     const user = {
       id: 'admin-' + Date.now(),
       email: email || 'admin@bshotel.com',
@@ -473,9 +527,21 @@ export const auth = {
     return { user, access_token: 'token_' + Date.now() }
   },
   async logout() {
+    const token = typeof window !== 'undefined' ? window.localStorage.getItem('access_token') : null
+    if (token && !token.startsWith('token_')) {
+      try {
+        await fetch(`${API_BASE}/auth/logout`, {
+          method: 'POST',
+          headers: { Authorization: `Bearer ${token}` },
+        })
+      } catch {
+        // ignore
+      }
+    }
     if (typeof window !== 'undefined') {
       window.localStorage.removeItem(STORAGE_PREFIX + 'auth_user')
       window.localStorage.removeItem('access_token')
+      window.localStorage.removeItem('refresh_token')
       window.localStorage.removeItem('token')
     }
     return { success: true }
@@ -562,6 +628,35 @@ export const users = {
 export const apiClient = {
   auth,
   users,
+  async upload(file, bucket = 'room-photos') {
+    const token = typeof window !== 'undefined' ? window.localStorage.getItem('access_token') : null
+    const formData = new FormData()
+    formData.append('file', file)
+    formData.append('bucket', bucket)
+
+    try {
+      const res = await fetch(`${API_BASE}/admin/uploads`, {
+        method: 'POST',
+        headers: {
+          ...(token && !token.startsWith('token_') ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: formData,
+      })
+
+      if (res.ok) {
+        return await res.json()
+      }
+      const err = await res.json().catch(() => ({}))
+      throw new Error(err.error || err.detail || 'Upload failed')
+    } catch (err) {
+      console.warn('Backend storage upload unavailable, falling back to object URL preview:', err)
+      return {
+        url: URL.createObjectURL(file),
+        filename: file.name,
+        bucket,
+      }
+    }
+  },
   app: {
     async getPublicSettings() {
       return {

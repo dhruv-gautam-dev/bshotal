@@ -14,6 +14,7 @@ from app.api.admin.reviews import router as reviews_router
 from app.api.admin.rooms import router as rooms_router
 from app.api.admin.settings import router as settings_router
 from app.api.admin.staff import router as staff_router
+from app.api.admin.uploads import router as uploads_router
 
 router = APIRouter(prefix="/admin", tags=["Admin"])
 
@@ -31,3 +32,4 @@ router.include_router(settings_router)
 router.include_router(staff_router)
 router.include_router(audit_router)
 router.include_router(notifications_router)
+router.include_router(uploads_router)

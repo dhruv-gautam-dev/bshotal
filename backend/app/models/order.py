@@ -1,6 +1,6 @@
 from decimal import Decimal
 
-from sqlalchemy import ForeignKey, Integer, Numeric, String, Text
+from sqlalchemy import CheckConstraint, ForeignKey, Index, Integer, Numeric, String, Text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.base import TimeStampedModel
@@ -8,6 +8,12 @@ from app.db.base import TimeStampedModel
 
 class Order(TimeStampedModel):
     __tablename__ = "orders"
+    __table_args__ = (
+        Index("ix_orders_status_created_at", "status", "created_at"),
+        CheckConstraint("total_amount >= 0", name="ck_orders_total_amount_positive"),
+        CheckConstraint("subtotal >= 0", name="ck_orders_subtotal_positive"),
+        CheckConstraint("tax_amount >= 0", name="ck_orders_tax_positive"),
+    )
 
     order_reference: Mapped[str] = mapped_column(
         String(30), unique=True, index=True, nullable=False
@@ -59,6 +65,11 @@ class Order(TimeStampedModel):
 
 class OrderItem(TimeStampedModel):
     __tablename__ = "order_items"
+    __table_args__ = (
+        CheckConstraint("quantity > 0", name="ck_order_items_quantity_positive"),
+        CheckConstraint("unit_price >= 0", name="ck_order_items_unit_price_positive"),
+        CheckConstraint("total_price >= 0", name="ck_order_items_total_price_positive"),
+    )
 
     order_id: Mapped[str] = mapped_column(
         String(36), ForeignKey("orders.id", ondelete="CASCADE"), nullable=False, index=True

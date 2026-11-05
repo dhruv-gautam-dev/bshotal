@@ -1,7 +1,7 @@
 from datetime import date
 from decimal import Decimal
 
-from sqlalchemy import Date, ForeignKey, Integer, Numeric, String, Text
+from sqlalchemy import CheckConstraint, Date, ForeignKey, Index, Integer, Numeric, String, Text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.base import TimeStampedModel
@@ -9,6 +9,14 @@ from app.db.base import TimeStampedModel
 
 class Booking(TimeStampedModel):
     __tablename__ = "bookings"
+    __table_args__ = (
+        Index("ix_bookings_availability_lookup", "room_type_id", "check_in_date", "check_out_date", "booking_status"),
+        CheckConstraint("check_out_date > check_in_date", name="ck_bookings_date_range"),
+        CheckConstraint("num_rooms > 0", name="ck_bookings_num_rooms_positive"),
+        CheckConstraint("num_guests > 0", name="ck_bookings_num_guests_positive"),
+        CheckConstraint("total_amount >= 0", name="ck_bookings_total_amount_positive"),
+        CheckConstraint("advance_paid >= 0", name="ck_bookings_advance_paid_positive"),
+    )
 
     booking_reference: Mapped[str] = mapped_column(
         String(30), unique=True, index=True, nullable=False

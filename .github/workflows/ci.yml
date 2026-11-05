@@ -1,0 +1,90 @@
+name: Production CI/CD Pipeline
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+    branches: [main, master]
+
+jobs:
+  backend-ci:
+    name: Backend Lint & Automated Tests
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: bshotel
+          POSTGRES_PASSWORD: bshotel_secret
+          POSTGRES_DB: bshotel_test_db
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: "pip"
+
+      - name: Install Backend Dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r backend/requirements.txt
+
+      - name: Code Quality & Linting (Ruff)
+        run: |
+          cd backend
+          ruff check .
+
+      - name: Run Backend Test Suite against PostgreSQL
+        env:
+          DATABASE_URL: "postgresql+asyncpg://bshotel:bshotel_secret@localhost:5432/bshotel_test_db"
+          APP_ENV: "development"
+          SECRET_KEY: "ci_pipeline_test_secret_key_64_characters_long_for_security_checks"
+        run: |
+          cd backend
+          pytest -v
+
+  frontend-ci:
+    name: Frontend Quality & Production Build
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: "npm"
+          cache-dependency-path: frontend/package.json
+
+      - name: Install Frontend Dependencies
+        run: |
+          cd frontend
+          npm install
+
+      - name: Build Frontend Application
+        run: |
+          cd frontend
+          npm run build
+
+      - name: Security Scan (Verify zero backend secrets in bundle)
+        run: |
+          if grep -rn "service_role" frontend/dist/ 2>/dev/null; then
+            echo "CRITICAL: Found service_role key leaked in frontend bundle!"
+            exit 1
+          fi
+          echo "Frontend bundle passed secret scan verification."
+

@@ -1,6 +1,6 @@
 from datetime import date
 
-from sqlalchemy import Date, ForeignKey, String, Text
+from sqlalchemy import CheckConstraint, Date, ForeignKey, String, Text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.base import TimeStampedModel
@@ -8,6 +8,9 @@ from app.db.base import TimeStampedModel
 
 class BlockedDate(TimeStampedModel):
     __tablename__ = "blocked_dates"
+    __table_args__ = (
+        CheckConstraint("end_date >= start_date", name="ck_blocked_dates_range"),
+    )
 
     room_type_id: Mapped[str | None] = mapped_column(
         String(36), ForeignKey("room_types.id", ondelete="CASCADE"), nullable=True, index=True
