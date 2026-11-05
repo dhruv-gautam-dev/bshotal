@@ -3,13 +3,14 @@ import RoomCard from '@/components/site/RoomCard';
 import SectionHeading from '@/components/site/SectionHeading';
 import Reveal from '@/components/site/Reveal';
 import { useRoomTypes } from '@/hooks/useSiteCatalog';
+import { ROOMS } from '@/data/rooms';
 import { useI18n } from '@/lib/i18n';
 
 export default function RoomsPreview() {
   const { t } = useI18n();
   const nav = useNavigate();
   const { data: rooms } = useRoomTypes();
-  const list = rooms || [];
+  const list = (rooms && rooms.length) ? rooms : ROOMS;
 
   return (
     <section className="mx-auto max-w-7xl px-4 py-20 md:py-28">

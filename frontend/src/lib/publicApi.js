@@ -38,7 +38,7 @@ export async function fetchMenu() {
           price: Number(i.price) || 0,
           desc: i.description || '',
           category: c.id,
-          image: i.image_url || '/images/food/dal-makhani.jpg',
+          image: i.image_url || '/images/food.png',
           tags: Array.isArray(i.tags) ? i.tags : [],
           is_veg: i.is_veg !== false,
           spicy_level: i.spicy_level || 0,
@@ -57,14 +57,17 @@ export async function fetchRoomTypes() {
     const roomTypes = await res.json();
     if (!Array.isArray(roomTypes)) return [];
 
+    const defaultRoomImages = ['/images/standard.png', '/images/deluxe.png', '/images/family.png'];
+
     return roomTypes.map((t, idx) => ({
       id: t.id,
       name: { en: t.name, hi: t.name },
+      name_en: t.name,
       desc: { en: t.description || '', hi: t.description || '' },
       price: Number(t.base_price) || 0,
       capacity: Number(t.max_guests) || 2,
-      amenities: Array.isArray(t.amenities) && t.amenities.length ? t.amenities : ['ac', 'wifi', 'tv'],
-      images: Array.isArray(t.images) && t.images.length ? t.images : [idx % 2 === 0 ? '/images/rooms/standard.jpg' : '/images/rooms/deluxe.jpg'],
+      amenities: Array.isArray(t.amenities) && t.amenities.length ? t.amenities : ['Air Conditioning', 'Free High-Speed Wi-Fi', 'Geyser / Hot Water'],
+      images: Array.isArray(t.images) && t.images.length ? t.images : [defaultRoomImages[idx % defaultRoomImages.length]],
       bed_type: t.bed_type || 'King Bed',
       total_inventory: t.total_inventory || 1,
     }));
@@ -81,20 +84,42 @@ export async function fetchEventPackages() {
     const packages = await res.json();
     if (!Array.isArray(packages)) return [];
 
-    return packages.map((p, idx) => ({
-      id: p.id,
-      title: p.name,
-      name: p.name,
-      slug: p.slug,
-      desc: p.description,
-      description: p.description,
-      price: Number(p.base_price_per_person) || 0,
-      price_per_person: Number(p.base_price_per_person) || 0,
-      min_guests: p.min_guests || 50,
-      max_guests: p.max_guests || 500,
-      includes: Array.isArray(p.includes) ? p.includes : [],
-      image: ['/images/events/ring-ceremony.jpg', '/images/events/birthday.jpg', '/images/events/wedding.jpg'][idx % 3],
-    }));
+    const defaultEventImages = ['/images/ring.png', '/images/birthday.png', '/images/wedding.png'];
+    const eventValues = ['Ring Ceremony / Engagement', 'Birthday Party', 'Wedding'];
+
+    return packages.map((p, idx) => {
+      const lower = (p.name || '').toLowerCase();
+      let img = defaultEventImages[idx % defaultEventImages.length];
+      let val = eventValues[idx % eventValues.length];
+
+      if (lower.includes('ring') || lower.includes('engagement')) {
+        img = '/images/ring.png';
+        val = 'Ring Ceremony / Engagement';
+      } else if (lower.includes('birthday')) {
+        img = '/images/birthday.png';
+        val = 'Birthday Party';
+      } else if (lower.includes('wedding') || lower.includes('marriage')) {
+        img = '/images/wedding.png';
+        val = 'Wedding';
+      }
+
+      return {
+        id: p.id,
+        title: p.name,
+        name: { en: p.name, hi: p.name },
+        value: val,
+        slug: p.slug,
+        desc: { en: p.description || '', hi: p.description || '' },
+        description: p.description,
+        price: Number(p.base_price_per_person) || 0,
+        price_per_person: Number(p.base_price_per_person) || 0,
+        capacity: `${p.min_guests || 50}–${p.max_guests || 500} guests`,
+        min_guests: p.min_guests || 50,
+        max_guests: p.max_guests || 500,
+        includes: Array.isArray(p.features) && p.features.length ? p.features : (Array.isArray(p.includes) && p.includes.length ? p.includes : ['Banquet Hall', 'Stage Decor', 'Pure Veg Catering', 'Music & DJ']),
+        image: img,
+      };
+    });
   } catch (err) {
     console.error('Failed to load event packages from database:', err);
     return [];

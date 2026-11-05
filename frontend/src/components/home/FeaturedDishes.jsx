@@ -4,6 +4,7 @@ import DishCard from '@/components/site/DishCard';
 import SectionHeading from '@/components/site/SectionHeading';
 import Reveal from '@/components/site/Reveal';
 import { useMenu } from '@/hooks/useSiteCatalog';
+import { FEATURED } from '@/data/menu';
 import { useI18n } from '@/lib/i18n';
 
 export default function FeaturedDishes() {
@@ -11,10 +12,13 @@ export default function FeaturedDishes() {
   const { data: menu } = useMenu();
 
   const featured = useMemo(() => {
-    if (!menu || !menu.length) return [];
-    const allDishes = menu.flatMap((c) => c.items || []);
-    const special = allDishes.filter((d) => (d.tags || []).includes('popular') || (d.tags || []).includes('chef-special'));
-    return (special.length ? special : allDishes).slice(0, 4);
+    if (menu && menu.length) {
+      const allDishes = menu.flatMap((c) => c.items || []);
+      const special = allDishes.filter((d) => (d.tags || []).includes('popular') || (d.tags || []).includes('chef-special'));
+      if (special.length) return special.slice(0, 4);
+      if (allDishes.length) return allDishes.slice(0, 4);
+    }
+    return FEATURED || [];
   }, [menu]);
 
   return (

@@ -5,6 +5,7 @@ import PageHero from '@/components/site/PageHero';
 import CategoryRail from '@/components/site/CategoryRail';
 import MenuItemRow from '@/components/site/MenuItemRow';
 import { useMenu } from '@/hooks/useSiteCatalog';
+import { MENU } from '@/data/menu';
 import { useCart } from '@/lib/cart';
 import { useI18n } from '@/lib/i18n';
 import { inr } from '@/lib/whatsapp';
@@ -15,8 +16,8 @@ export default function Restaurant() {
   const { count, subtotal } = useCart();
   const [search, setSearch] = useState('');
   const { data: menu } = useMenu();
-  const menuList = menu || [];
-  const [active, setActive] = useState('');
+  const menuList = (menu && menu.length) ? menu : MENU;
+  const [active, setActive] = useState(menuList[0]?.id || '');
 
   useEffect(() => {
     if (!active && menuList.length > 0) {

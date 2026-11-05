@@ -31,15 +31,28 @@ export default function Orders() {
   useEffect(() => { setOpenForm(params.get('new') === '1'); }, [params]);
   useEffect(() => { getSettings().then(setSettings); }, []);
 
-  const { data: orders = [], isLoading } = useQuery({
+  const { data: rawOrders = [], isLoading } = useQuery({
     queryKey: ['admin-orders'],
-    queryFn: async () => (await apiClient.entities.Order.filter({}, { sort: '-created_date', limit: 200 })).items,
+    queryFn: async () => {
+      try {
+        const res = await apiClient.entities.Order.filter({}, { sort: '-created_date', limit: 200 });
+        return Array.isArray(res?.items) ? res.items : (Array.isArray(res) ? res : []);
+      } catch (err) {
+        console.error('Failed to load admin orders:', err);
+        return [];
+      }
+    },
+    refetchInterval: 6000, // Automatically refresh live board every 6s
   });
 
-  // Live board: a new website order appears without a manual refresh.
+  const orders = Array.isArray(rawOrders) ? rawOrders : [];
+
+  // Live board: safe listener if real-time subscription is supported
   useEffect(() => {
-    const unsub = apiClient.entities.Order.subscribe(() => qc.invalidateQueries({ queryKey: ['admin-orders'] }));
-    return unsub;
+    if (typeof apiClient?.entities?.Order?.subscribe === 'function') {
+      const unsub = apiClient.entities.Order.subscribe(() => qc.invalidateQueries({ queryKey: ['admin-orders'] }));
+      return unsub;
+    }
   }, [qc]);
 
   const move = async (order, status) => {
@@ -118,17 +131,17 @@ export default function Orders() {
               return (
                 <section key={col} className="min-w-[240px] flex-1 rounded-2xl bg-slate-100 p-2.5">
                   <div className="mb-2 flex items-center justify-between px-1">
-                    <h2 className="text-xs font-bold uppercase tracking-wide text-slate-600">{ORDER_STATUS[col].en}</h2>
+                    <h2 className="text-xs font-bold uppercase tracking-wide text-slate-600">{ORDER_STATUS[col]?.en || col}</h2>
                     <span className="rounded-full bg-white px-2 text-xs font-semibold text-slate-600">{list.length}</span>
                   </div>
                   <div className="space-y-2">
                     {list.map((o) => (
                       <button key={o.id} onClick={() => setActive(o)} className="w-full rounded-xl border border-slate-200 bg-white p-3 text-left shadow-sm">
                         <div className="flex items-start justify-between gap-2">
-                          <span className="text-sm font-semibold text-slate-900">{o.customer_name}</span>
+                          <span className="text-sm font-semibold text-slate-900">{o.customer_name || 'Customer'}</span>
                           <span className="text-xs font-semibold tabular-nums text-amber-700">{inr(o.total)}</span>
                         </div>
-                        <p className="mt-0.5 text-[11px] text-slate-500">{o.ref} · {ORDER_TYPES[o.type]?.en || o.type}{o.table_no ? ` · T${o.table_no}` : ''}</p>
+                        <p className="mt-0.5 text-[11px] text-slate-500">{o.ref} · {ORDER_TYPES[o.type]?.en || o.type || 'Order'}{o.table_no ? ` · T${o.table_no}` : ''}</p>
                         <p className="mt-1 text-xs text-slate-600">{(o.items || []).reduce((s, i) => s + (Number(i.qty) || 0), 0)} {L('items', 'आइटम')} · {new Date(o.created_date || o.created_at || Date.now()).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })}</p>
                         {NEXT[o.status] && ORDER_STATUS[NEXT[o.status]] && (
                           <span
@@ -138,7 +151,7 @@ export default function Orders() {
                             onKeyDown={(e) => { if (e.key === 'Enter') { e.stopPropagation(); move(o, NEXT[o.status]); } }}
                             className="mt-2 block rounded-lg bg-slate-900 py-2 text-center text-xs font-semibold text-white"
                           >
-                            → {ORDER_STATUS[NEXT[o.status]].en}
+                            → {ORDER_STATUS[NEXT[o.status]]?.en || NEXT[o.status]}
                           </span>
                         )}
                       </button>

@@ -5,6 +5,7 @@ import EventStory from '@/components/site/EventStory';
 import EnquiryForm from '@/components/site/EnquiryForm';
 import SectionHeading from '@/components/site/SectionHeading';
 import { useEventPackages } from '@/hooks/useSiteCatalog';
+import { EVENTS } from '@/data/events';
 import { useI18n } from '@/lib/i18n';
 import useSeo from '@/lib/useSeo';
 
@@ -13,7 +14,7 @@ export default function Events() {
   const [type, setType] = useState('');
   const { hash } = useLocation();
   const { data: packages } = useEventPackages();
-  const list = packages || [];
+  const list = (packages && packages.length) ? packages : EVENTS;
 
   useSeo('Events: Ring Ceremony, Birthday, Wedding | B.S. Hotel Mathura', 'Host your ring ceremony, birthday party or wedding at B.S. Hotel near Township Nagar, NH-2, Mathura, with pure veg catering.');
   useEffect(() => { if (hash) setTimeout(() => document.querySelector(hash)?.scrollIntoView({ behavior: 'smooth' }), 100); }, [hash]);

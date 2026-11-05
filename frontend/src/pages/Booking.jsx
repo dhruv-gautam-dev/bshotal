@@ -14,8 +14,9 @@ const Err = ({ m }) => (m ? <p className="mt-1 text-sm text-red-400" role="alert
 export default function Booking() {
   const { t, tr } = useI18n();
   const { data: rooms } = useRoomTypes();
+  const roomList = rooms || [];
   const [q] = useSearchParams();
-  const [f, setF] = useState({ name: '', phone: '', email: '', checkIn: q.get('in') || '', checkOut: q.get('out') || '', guests: q.get('guests') || 2, room: q.get('room') || 'standard', special: '' });
+  const [f, setF] = useState({ name: '', phone: '', email: '', checkIn: q.get('in') || '', checkOut: q.get('out') || '', guests: q.get('guests') || 2, room: q.get('room') || '', special: '' });
   const [errors, setErrors] = useState({});
   const [busy, setBusy] = useState(false);
   const [done, setDone] = useState(null);
@@ -41,9 +42,10 @@ export default function Booking() {
     setErrors(e);
     if (Object.keys(e).length) return;
     setBusy(true);
-    const room = rooms.find((r) => r.id === f.room) || rooms[0];
-    const nights = Math.round((new Date(f.checkOut) - new Date(f.checkIn)) / 86400000);
-    const res = await submitBooking({ ...f, room: room.id, roomName: room.name.en, nights, amount: (room.price || 0) * nights });
+    const room = roomList.find((r) => r.id === f.room) || roomList[0];
+    const nights = Math.max(1, Math.round((new Date(f.checkOut) - new Date(f.checkIn)) / 86400000));
+    const roomName = room ? (typeof room.name === 'object' ? tr(room.name) : (room.name_en || room.name)) : 'Room';
+    const res = await submitBooking({ ...f, room: room?.id || '', roomName, nights, amount: ((room?.price || 0) * nights) });
     setBusy(false);
     setDone(res);
     window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -62,7 +64,7 @@ export default function Booking() {
             <label className="text-sm">{t('f.checkOut')}<input className="field mt-1" type="date" min={f.checkIn || today()} value={f.checkOut} onChange={set('checkOut')} /><Err m={errors.checkOut} /></label>
             <label className="text-sm">{t('f.guests')}<input className="field mt-1" type="number" min="1" max="10" value={f.guests} onChange={set('guests')} /><Err m={errors.guests} /></label>
             <label className="text-sm">{t('f.roomType')}
-              <select className="field mt-1" value={f.room} onChange={set('room')}>{rooms.map((r) => <option key={r.id} value={r.id}>{tr(r.name)}</option>)}</select>
+              <select className="field mt-1" value={f.room} onChange={set('room')}>{roomList.map((r) => <option key={r.id} value={r.id}>{tr(r.name)}</option>)}</select>
             </label>
             <label className="text-sm md:col-span-2">{t('f.special')}<textarea className="field mt-1 py-3" rows={3} value={f.special} onChange={set('special')} /></label>
             <button type="submit" disabled={busy} className="btn-gold md:col-span-2">{busy ? '…' : t('cta.requestBooking')}</button>
