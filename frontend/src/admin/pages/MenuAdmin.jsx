@@ -5,7 +5,6 @@ import { Plus, Search, Download, Trash2, Pencil, Upload } from 'lucide-react';
 import { apiClient } from '@/api/apiClient';
 import { useI18n } from '@/lib/i18n';
 import { useAdmin } from '../AdminContext';
-import { MENU } from '@/data/menu';
 import { audit, downloadCsv, inr, money } from '../lib/adminData';
 import MenuItemForm from '../components/MenuItemForm';
 import Confirm from '../components/Confirm';
@@ -82,26 +81,11 @@ export default function MenuAdmin() {
     refresh();
   };
 
-  /** Load the printed menu (src/data/menu.js) into the database once. */
+  /** Reload menu from database */
   const seed = async () => {
     setSeeding(true);
     try {
-      const created = [];
-      for (let c = 0; c < MENU.length; c += 1) {
-        const category = await apiClient.entities.MenuCategory.create({
-          name_en: MENU[c].name.en, name_hi: MENU[c].name.hi, sort: c, is_active: true,
-        });
-        created.push({ ...MENU[c], dbId: category.id });
-      }
-      const allItems = created.flatMap((c) => c.items.map((i) => ({
-        category_id: c.dbId, name_en: i.name, name_hi: '', desc: i.desc, price: i.price,
-        is_veg: true, is_available: true, tags: [], sort: c.items.indexOf(i),
-      })));
-      for (let i = 0; i < allItems.length; i += 40) {
-        await apiClient.entities.MenuItem.bulkCreate(allItems.slice(i, i + 40));
-      }
-      await audit(me, 'import', 'menu', 'MenuItem', '', `Seeded ${created.length} categories, ${allItems.length} dishes`);
-      refresh();
+      await refresh();
     } finally { setSeeding(false); }
   };
 
@@ -129,9 +113,9 @@ export default function MenuAdmin() {
 
       {items.length === 0 && !isLoading && (
         <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4">
-          <p className="text-sm text-amber-900">{L('Your database menu is empty. Load the printed menu to start editing.', 'डेटाबेस मेन्यू खाली है। मुद्रित मेन्यू लोड करके संपादन शुरू करें।')}</p>
+          <p className="text-sm text-amber-900">{L('Your database menu is empty or loading.', 'डेटाबेस मेन्यू खाली है या लोड हो रहा है।')}</p>
           <button onClick={seed} disabled={seeding} className="mt-3 flex items-center gap-2 rounded-xl bg-amber-600 px-4 py-2.5 text-sm font-semibold text-white disabled:opacity-60">
-            <Upload size={16} />{seeding ? L('Importing…', 'आयात हो रहा है…') : L('Import built-in menu', 'अंतर्निहित मेन्यू आयात करें')}
+            <Upload size={16} />{seeding ? L('Refreshing…', 'लोड हो रहा है…') : L('Refresh from database', 'डेटाबेस से रीलोड करें')}
           </button>
         </div>
       )}

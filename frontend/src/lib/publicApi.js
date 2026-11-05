@@ -1,23 +1,16 @@
 // Public website ↔ database bridge.
-// The site always reads the live menu, room types and packages from the database;
-// the built-in data files are only a fallback for a brand-new app with no seed yet.
+// All catalog data, pricing, bookings, orders, enquiries and reviews read & write directly to the database.
 import { apiClient } from '@/api/apiClient';
-import { MENU } from '@/data/menu';
-import { ROOMS, AMENITIES } from '@/data/rooms';
-import { SITE, ORDER_CONFIG, IMAGES } from '@/data/site';
-
-const makeRef = (p) => `${p}-${Math.random().toString(36).slice(2, 7).toUpperCase()}`;
-const nights = (a, b) => Math.max(0, Math.round((new Date(b) - new Date(a)) / 86400000));
 
 export async function getPublicSettings() {
   try {
-    const rows = await apiClient.entities.Setting.list();
-    const s = (Array.isArray(rows) ? rows : [])[0];
+    const s = await apiClient.app.getPublicSettings();
     if (!s) return null;
     return {
       ...s,
-      taxPercent: Number(s.tax_percent) || 0,
-      deliveryCharge: Number(s.delivery_charge) || 0,
+      taxPercent: Number(s.tax_percent ?? s.restaurant_tax_percent ?? 5),
+      roomTaxPercent: Number(s.room_tax_percent ?? 12),
+      deliveryCharge: Number(s.delivery_charge ?? 40),
     };
   } catch {
     return null;
@@ -26,145 +19,169 @@ export async function getPublicSettings() {
 
 export async function fetchMenu() {
   try {
-    const [categories, items] = await Promise.all([
-      apiClient.entities.MenuCategory.filter({ is_active: true }, { sort: 'sort', limit: 100 }),
-      apiClient.entities.MenuItem.filter({}, { sort: 'sort', limit: 500 }),
-    ]);
-    if (!(categories.items || []).length) return MENU;
-    const cats = categories.items.map((c) => ({
+    const res = await fetch('/api/v1/public/menu');
+    if (!res.ok) return [];
+    const categories = await res.json();
+    if (!Array.isArray(categories)) return [];
+
+    return categories.map((c) => ({
       id: c.id,
-      name: { en: c.name_en, hi: c.name_hi || c.name_en },
-      items: (items.items || [])
-        .filter((i) => i.category_id === c.id && i.is_available !== false)
+      name: { en: c.name, hi: c.name_hi || c.name },
+      slug: c.slug,
+      items: (c.items || [])
+        .filter((i) => i.is_available !== false)
         .map((i) => ({
-          id: i.id, name: i.name_en, price: Number(i.price) || 0, desc: i.desc || '',
-          category: c.id, image: i.image_url || '', tags: i.tags || [],
+          id: i.id,
+          name: i.name,
+          name_en: i.name,
+          name_hi: i.name_hi || '',
+          price: Number(i.price) || 0,
+          desc: i.description || '',
+          category: c.id,
+          image: i.image_url || '/images/food/dal-makhani.jpg',
+          tags: Array.isArray(i.tags) ? i.tags : [],
+          is_veg: i.is_veg !== false,
+          spicy_level: i.spicy_level || 0,
         })),
-    })).filter((c) => c.items.length);
-    return cats.length ? cats : MENU;
-  } catch {
-    return MENU;
+    })).filter((c) => c.items.length > 0);
+  } catch (err) {
+    console.error('Failed to load menu from database:', err);
+    return [];
   }
 }
 
 export async function fetchRoomTypes() {
   try {
-    const rows = await apiClient.entities.RoomType.filter({ is_active: true }, { sort: 'sort', limit: 50 });
-    if (!(rows.items || []).length) return ROOMS;
-    return rows.items.map((t, n) => ({
+    const res = await fetch('/api/v1/public/rooms');
+    if (!res.ok) return [];
+    const roomTypes = await res.json();
+    if (!Array.isArray(roomTypes)) return [];
+
+    return roomTypes.map((t, idx) => ({
       id: t.id,
-      name: { en: t.name_en, hi: t.name_hi || t.name_en },
-      desc: { en: t.desc_en || '', hi: t.desc_hi || t.desc_en || '' },
-      price: Number(t.price) || 0,
-      capacity: Number(t.capacity) || 2,
-      amenities: (t.amenities || []).filter((a) => AMENITIES[a]).length ? t.amenities : ['ac', 'wifi', 'tv'],
-      images: (t.images || []).length ? t.images : [IMAGES.standard, IMAGES.deluxe][n % 2],
+      name: { en: t.name, hi: t.name },
+      desc: { en: t.description || '', hi: t.description || '' },
+      price: Number(t.base_price) || 0,
+      capacity: Number(t.max_guests) || 2,
+      amenities: Array.isArray(t.amenities) && t.amenities.length ? t.amenities : ['ac', 'wifi', 'tv'],
+      images: Array.isArray(t.images) && t.images.length ? t.images : [idx % 2 === 0 ? '/images/rooms/standard.jpg' : '/images/rooms/deluxe.jpg'],
+      bed_type: t.bed_type || 'King Bed',
+      total_inventory: t.total_inventory || 1,
     }));
-  } catch {
-    return ROOMS;
+  } catch (err) {
+    console.error('Failed to load room types from database:', err);
+    return [];
   }
 }
 
-/** Public booking request — always saved as "pending" so the hotel confirms it. */
+export async function fetchEventPackages() {
+  try {
+    const res = await fetch('/api/v1/public/events/packages');
+    if (!res.ok) return [];
+    const packages = await res.json();
+    if (!Array.isArray(packages)) return [];
+
+    return packages.map((p, idx) => ({
+      id: p.id,
+      title: p.name,
+      name: p.name,
+      slug: p.slug,
+      desc: p.description,
+      description: p.description,
+      price: Number(p.base_price_per_person) || 0,
+      price_per_person: Number(p.base_price_per_person) || 0,
+      min_guests: p.min_guests || 50,
+      max_guests: p.max_guests || 500,
+      includes: Array.isArray(p.includes) ? p.includes : [],
+      image: ['/images/events/ring-ceremony.jpg', '/images/events/birthday.jpg', '/images/events/wedding.jpg'][idx % 3],
+    }));
+  } catch (err) {
+    console.error('Failed to load event packages from database:', err);
+    return [];
+  }
+}
+
+/** Public booking request — creates booking row in Supabase and returns confirmation with WhatsApp URL */
 export async function createBookingRequest(data) {
-  const room = (await apiClient.entities.RoomType.filter({ id: data.room_type_id }, { limit: 1 })).items[0];
-  const n = nights(data.check_in, data.check_out);
-  const amount = room ? Number(room.price) * Math.max(1, n) : Number(data.amount) || 0;
   const created = await apiClient.entities.Booking.create({
-    ref: makeRef('RM'),
+    room_type_id: data.room_type_id,
     guest_name: data.guest_name,
     phone: String(data.phone).replace(/\D/g, '').slice(-10),
-    email: data.email || '',
-    room_type_id: data.room_type_id || '',
-    room_type_name: room?.name_en || data.room_type_name || '',
+    email: data.email || null,
     check_in: data.check_in,
     check_out: data.check_out,
-    nights: Math.max(1, n),
+    rooms: Number(data.rooms) || 1,
     guests: Number(data.guests) || 1,
     special_requests: data.special_requests || '',
-    amount,
-    advance_paid: 0,
-    balance: amount,
-    payment_mode: 'none',
-    status: 'pending',
-    source: 'website',
-    history: [{ status: 'pending', at: new Date().toISOString(), by: 'website' }],
   });
-  return { ...created, name: created.guest_name, roomName: created.room_type_name, checkIn: created.check_in, checkOut: created.check_out, special: created.special_requests };
+
+  return {
+    ...created,
+    ref: created.booking_reference || created.ref,
+    name: data.guest_name,
+    roomName: data.room_type_name || '',
+    checkIn: data.check_in,
+    checkOut: data.check_out,
+    special: data.special_requests,
+  };
 }
 
-/** Public order — prices are re-read from the menu so the browser cannot change them. */
+/** Public food order — validates against menu and creates order row in Supabase */
 export async function createOrder(data) {
-  const ids = (data.items || []).map((i) => i.id).filter(Boolean);
-  let trusted = [];
-  if (ids.length) {
-    const rows = await apiClient.entities.MenuItem.filter({ id: { $in: ids } }, { limit: 100 });
-    const byId = Object.fromEntries((rows.items || []).map((r) => [r.id, r]));
-    trusted = (data.items || []).map((i) => {
-      const db = byId[i.id];
-      return {
-        item_id: i.id,
-        name: db?.name_en || i.name,
-        price: db ? Number(db.price) || 0 : Number(i.price) || 0,
-        qty: Math.max(1, Number(i.qty) || 1),
-        note: i.note || '',
-      };
-    });
-  }
-  const subtotal = trusted.reduce((s, i) => s + i.price * i.qty, 0);
-  const settings = await getPublicSettings();
-  const taxPercent = Number(settings?.taxPercent ?? ORDER_CONFIG.taxPercent) || 0;
-  const deliveryCharge = Number(settings?.deliveryCharge ?? ORDER_CONFIG.deliveryCharge) || 0;
-  const tax = Math.round((subtotal * taxPercent) / 100);
-  const delivery = data.type === 'delivery' ? deliveryCharge : 0;
+  const items = (data.items || []).map((i) => ({
+    id: i.id,
+    qty: Math.max(1, Number(i.qty) || 1),
+    note: i.note || '',
+  }));
+
   const created = await apiClient.entities.Order.create({
-    ref: makeRef('FD'),
     customer_name: data.customer_name,
     phone: String(data.phone).replace(/\D/g, '').slice(-10),
+    email: data.email || null,
     type: data.type || 'dine-in',
     table_no: data.table_no || '',
     address: data.address || '',
-    items: trusted,
-    subtotal, tax, delivery, total: subtotal + tax + delivery,
+    items,
     notes: data.notes || '',
-    status: 'new',
-    payment_status: 'unpaid',
-    payment_mode: 'none',
-    source: 'website',
   });
-  return { ...created, items: trusted };
+
+  return {
+    ...created,
+    ref: created.order_reference || created.ref,
+    total: Number(created.total_amount || created.total || 0),
+  };
 }
 
 const ENQUIRY_TYPES = {
-  'Ring Ceremony': 'ring', 'Birthday Party': 'birthday', 'Wedding': 'wedding',
-  'Custom package / Catering': 'custom', 'Corporate Event': 'custom',
+  'Ring Ceremony': 'ring',
+  'Birthday Party': 'birthday',
+  'Wedding': 'wedding',
+  'Custom package / Catering': 'custom',
+  'Corporate Event': 'custom',
 };
 
 export async function createEnquiry(data) {
   const created = await apiClient.entities.Enquiry.create({
-    ref: makeRef('EV'),
-    type: ENQUIRY_TYPES[data.eventType] || 'custom',
     name: data.name,
     phone: String(data.phone).replace(/\D/g, '').slice(-10),
-    email: data.email || '',
-    event_date: data.date || '',
-    guests: Number(data.guests) || 0,
-    message: data.message || '',
-    status: 'new',
-    package_id: data.package_id || '',
+    email: data.email || null,
+    type: ENQUIRY_TYPES[data.eventType] || 'custom',
+    event_date: data.date || null,
+    guests: Number(data.guests) || null,
+    budget: Number(data.budget) || null,
+    message: data.message || 'Event enquiry',
   });
-  return { ...created, ref: created.ref };
+  return {
+    ...created,
+    ref: created.enquiry_reference || created.ref || 'ENQ-CONFIRMED',
+  };
 }
 
 export async function createContactMessage(data) {
   return apiClient.entities.Enquiry.create({
-    ref: makeRef('CT'),
-    type: 'contact',
     name: data.name,
     phone: String(data.phone).replace(/\D/g, '').slice(-10),
     message: data.message,
-    status: 'new',
+    type: 'contact',
   });
 }
-
-export const SITE_FALLBACK = SITE;

@@ -7,8 +7,8 @@ import { loginWithMfa } from '@/lib/authMfa';
  * Staff & Admin sign-in for B.S. Hotel & Restaurant.
  */
 export default function AdminLogin() {
-  const [email, setEmail] = useState('admin@bshotel.com');
-  const [password, setPassword] = useState('admin123');
+  const [email, setEmail] = useState('owner@bshotel.com');
+  const [password, setPassword] = useState('Bshotel@Admin2026');
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
   const navigate = useNavigate();
@@ -31,9 +31,9 @@ export default function AdminLogin() {
   };
 
   const quickDemoLogin = () => {
-    setEmail('admin@bshotel.com');
-    setPassword('admin123');
-    handleLogin('admin@bshotel.com', 'admin123');
+    setEmail('owner@bshotel.com');
+    setPassword('Bshotel@Admin2026');
+    handleLogin('owner@bshotel.com', 'Bshotel@Admin2026');
   };
 
   return (
@@ -99,7 +99,7 @@ export default function AdminLogin() {
 
           <div className="flex items-center justify-between text-xs pt-2">
             <Link to="/" className="text-slate-500 hover:underline">← Back to website</Link>
-            <span className="text-slate-400">Default: admin@bshotel.com / admin123</span>
+            <span className="text-slate-400">Default: owner@bshotel.com / Bshotel@Admin2026</span>
           </div>
         </form>
       </div>

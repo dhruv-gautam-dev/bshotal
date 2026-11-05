@@ -65,8 +65,6 @@ async def check_room_availability(
         Booking.check_in_date < check_out,
         Booking.check_out_date > check_in,
     )
-    if for_update and db.bind and db.bind.dialect.name == "postgresql":
-        overlap_stmt = overlap_stmt.with_for_update()
 
     booked_rooms_count = (await db.execute(overlap_stmt)).scalar() or 0
     available_count = max(0, total_physical_rooms - booked_rooms_count)

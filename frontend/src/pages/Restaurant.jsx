@@ -1,10 +1,9 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { Search, ShoppingBag } from 'lucide-react';
 import PageHero from '@/components/site/PageHero';
 import CategoryRail from '@/components/site/CategoryRail';
 import MenuItemRow from '@/components/site/MenuItemRow';
-import { MENU } from '@/data/menu';
 import { useMenu } from '@/hooks/useSiteCatalog';
 import { useCart } from '@/lib/cart';
 import { useI18n } from '@/lib/i18n';
@@ -15,13 +14,20 @@ export default function Restaurant() {
   const { t, tr } = useI18n();
   const { count, subtotal } = useCart();
   const [search, setSearch] = useState('');
-  const [active, setActive] = useState(MENU[0].id);
-  // Live menu from the database — the owner's dashboard edits show up here.
   const { data: menu } = useMenu();
+  const menuList = menu || [];
+  const [active, setActive] = useState('');
+
+  useEffect(() => {
+    if (!active && menuList.length > 0) {
+      setActive(menuList[0].id);
+    }
+  }, [menuList, active]);
+
   useSeo('Delicee Restaurant Menu | Pure Veg Restaurant near Township Nagar Mathura', 'Full pure vegetarian menu of Delicee Restaurant at B.S. Hotel, NH-2 Mathura: kebabs, paneer, dal, Chinese, pizza, dosa, shakes. Order on WhatsApp.');
 
   const q = search.trim().toLowerCase();
-  const cats = menu.map((c) => ({ ...c, items: q ? c.items.filter((i) => i.name.toLowerCase().includes(q) || i.desc.toLowerCase().includes(q)) : c.items })).filter((c) => c.items.length);
+  const cats = menuList.map((c) => ({ ...c, items: q ? c.items.filter((i) => i.name.toLowerCase().includes(q) || i.desc.toLowerCase().includes(q)) : c.items })).filter((c) => c.items.length);
   const pick = (id) => { setActive(id); document.getElementById(`cat-${id}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' }); };
 
   return (

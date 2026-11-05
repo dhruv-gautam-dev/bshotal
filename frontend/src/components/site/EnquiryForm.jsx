@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { EVENTS } from '@/data/events';
+import { useEventPackages } from '@/hooks/useSiteCatalog';
 import { useI18n } from '@/lib/i18n';
 import { isValidPhone, openWhatsApp } from '@/lib/whatsapp';
 import { submitEnquiry, enquiryMessage } from '@/lib/services';
@@ -10,11 +10,20 @@ const Err = ({ m }) => (m ? <p className="mt-1 text-sm text-red-400" role="alert
 
 export default function EnquiryForm({ eventType }) {
   const { t } = useI18n();
-  const [f, setF] = useState({ name: '', phone: '', eventType: EVENTS[0].value, date: '', guests: '', message: '' });
+  const { data: packages } = useEventPackages();
+  const eventTypes = (packages || []).map((p) => p.title || p.name);
+  const defaultType = eventTypes[0] || 'Ring Ceremony';
+
+  const [f, setF] = useState({ name: '', phone: '', eventType: defaultType, date: '', guests: '', message: '' });
   const [errors, setErrors] = useState({});
   const [sent, setSent] = useState(null);
   const [busy, setBusy] = useState(false);
-  useEffect(() => { if (eventType) setF((p) => ({ ...p, eventType })); }, [eventType]);
+
+  useEffect(() => {
+    if (eventType) setF((p) => ({ ...p, eventType }));
+    else if (!f.eventType && defaultType) setF((p) => ({ ...p, eventType: defaultType }));
+  }, [eventType, defaultType]);
+
   const set = (k) => (e) => setF({ ...f, [k]: e.target.value });
 
   const submit = async (ev) => {
@@ -35,7 +44,18 @@ export default function EnquiryForm({ eventType }) {
     <form id="enquiry" onSubmit={submit} noValidate className="mx-auto grid max-w-3xl scroll-mt-24 gap-5 rounded-2xl border border-primary/30 bg-card p-6 md:grid-cols-2 md:p-8">
       <label className="text-sm">{t('f.name')}<input className="field mt-1" value={f.name} onChange={set('name')} /><Err m={errors.name} /></label>
       <label className="text-sm">{t('f.phone')}<input className="field mt-1" inputMode="tel" value={f.phone} onChange={set('phone')} /><Err m={errors.phone} /></label>
-      <label className="text-sm">Event type<select className="field mt-1" value={f.eventType} onChange={set('eventType')}>{EVENTS.map((e) => <option key={e.id}>{e.value}</option>)}<option>Custom package / Catering</option></select></label>
+      <label className="text-sm">Event type
+        <select className="field mt-1" value={f.eventType} onChange={set('eventType')}>
+          {eventTypes.length ? eventTypes.map((val) => <option key={val} value={val}>{val}</option>) : (
+            <>
+              <option value="Ring Ceremony">Ring Ceremony</option>
+              <option value="Birthday Party">Birthday Party</option>
+              <option value="Wedding">Wedding</option>
+            </>
+          )}
+          <option value="Custom package / Catering">Custom package / Catering</option>
+        </select>
+      </label>
       <label className="text-sm">{t('f.date')}<input className="field mt-1" type="date" min={today()} value={f.date} onChange={set('date')} /><Err m={errors.date} /></label>
       <label className="text-sm md:col-span-2">Expected guests<input className="field mt-1" type="number" min="1" value={f.guests} onChange={set('guests')} /></label>
       <label className="text-sm md:col-span-2">{t('f.message')}<textarea className="field mt-1 py-3" rows={3} value={f.message} onChange={set('message')} /></label>

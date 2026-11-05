@@ -1,7 +1,6 @@
-import { MENU } from '@/data/menu';
 import { useI18n } from '@/lib/i18n';
 
-export default function CategoryRail({ active, onPick, categories = MENU }) {
+export default function CategoryRail({ active, onPick, categories = [] }) {
   const { tr } = useI18n();
   return (
     <nav aria-label="Menu categories" className="sticky top-16 z-20 -mx-4 overflow-x-auto border-b border-primary/25 bg-background/95 px-4 backdrop-blur lg:top-20 lg:mx-0 lg:max-h-[calc(100vh-6rem)] lg:overflow-y-auto lg:border-0 lg:px-0">

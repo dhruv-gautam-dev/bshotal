@@ -1,556 +1,181 @@
-import { MENU } from '@/data/menu'
-import { ROOMS } from '@/data/rooms'
-import { EVENTS } from '@/data/events'
-import { REVIEWS } from '@/data/reviews'
-import { SITE, ORDER_CONFIG } from '@/data/site'
+/**
+ * Production API Client for B.S. Hotel & Restaurant.
+ * Communicates directly with the FastAPI backend connected to Supabase PostgreSQL & Storage.
+ * Static mock fallback stores are eliminated — all data and transactions are dynamic.
+ */
 
-// Local storage prefix for data persistence
-const STORAGE_PREFIX = 'bshotel_db_'
+const API_BASE = '/api/v1'
 
-function getStore(key, defaultData) {
-  if (typeof window === 'undefined') return defaultData
-  try {
-    const raw = window.localStorage.getItem(STORAGE_PREFIX + key)
-    if (!raw) {
-      window.localStorage.setItem(STORAGE_PREFIX + key, JSON.stringify(defaultData))
-      return defaultData
-    }
-    // Auto-migrate legacy media CDN URLs or old phone numbers if stored in browser
-    if (typeof raw === 'string' && (raw.includes('media.apiClient.com') || raw.includes('63776') || raw.includes('82735') || (key === 'Setting' && (!raw.includes(SITE.bookingsPhone) || !raw.includes(SITE.paymentsPhone))))) {
-      window.localStorage.setItem(STORAGE_PREFIX + key, JSON.stringify(defaultData))
-      return defaultData
-    }
-    return JSON.parse(raw)
-  } catch {
-    return defaultData
+function getToken() {
+  if (typeof window === 'undefined') return null
+  return window.localStorage.getItem('access_token')
+}
+
+function getRefreshToken() {
+  if (typeof window === 'undefined') return null
+  return window.localStorage.getItem('refresh_token')
+}
+
+function setToken(token) {
+  if (typeof window !== 'undefined' && token) {
+    window.localStorage.setItem('access_token', token)
   }
 }
 
-function setStore(key, data) {
-  if (typeof window === 'undefined') return
-  try {
-    window.localStorage.setItem(STORAGE_PREFIX + key, JSON.stringify(data))
-  } catch (err) {
-    console.error('Storage write error for', key, err)
+function clearTokens() {
+  if (typeof window !== 'undefined') {
+    window.localStorage.removeItem('access_token')
+    window.localStorage.removeItem('refresh_token')
+    window.localStorage.removeItem('auth_user')
   }
 }
 
-const nowIso = new Date().toISOString()
-const todayDateStr = nowIso.slice(0, 10)
-
-// Initial Menu Categories
-const initialCategories = MENU.map((c, idx) => ({
-  id: c.id,
-  name_en: c.name.en,
-  name_hi: c.name.hi || c.name.en,
-  sort: idx + 1,
-  is_active: true,
-}))
-
-// Initial Menu Items
-const initialMenuItems = MENU.flatMap((c, cIdx) =>
-  c.items.map((item, iIdx) => ({
-    id: item.id,
-    category_id: c.id,
-    name_en: item.name,
-    desc: item.desc || '',
-    price: item.price,
-    is_available: true,
-    tags: item.tags || [],
-    image_url: item.image || '',
-    sort: cIdx * 50 + iIdx + 1,
-  }))
-)
-
-// Initial Room Types
-const initialRoomTypes = ROOMS.map((r, idx) => ({
-  id: r.id,
-  name_en: r.name.en,
-  name_hi: r.name.hi || r.name.en,
-  desc_en: r.desc.en || '',
-  desc_hi: r.desc.hi || '',
-  price: r.price,
-  capacity: r.capacity || 2,
-  amenities: r.amenities || ['ac', 'wifi', 'tv'],
-  images: Array.isArray(r.images) ? r.images : [r.images],
-  is_active: true,
-  total_rooms: r.id === 'standard' ? 10 : r.id === 'deluxe' ? 8 : 4,
-  sort: idx + 1,
-}))
-
-// Initial Physical Rooms
-const initialRooms = [
-  { id: 'rm-101', number: '101', room_type_id: 'standard', floor: '1', status: 'available', is_active: true },
-  { id: 'rm-102', number: '102', room_type_id: 'standard', floor: '1', status: 'available', is_active: true },
-  { id: 'rm-103', number: '103', room_type_id: 'standard', floor: '1', status: 'available', is_active: true },
-  { id: 'rm-104', number: '104', room_type_id: 'standard', floor: '1', status: 'cleaning', is_active: true },
-  { id: 'rm-105', number: '105', room_type_id: 'standard', floor: '1', status: 'available', is_active: true },
-  { id: 'rm-201', number: '201', room_type_id: 'deluxe', floor: '2', status: 'occupied', is_active: true },
-  { id: 'rm-202', number: '202', room_type_id: 'deluxe', floor: '2', status: 'available', is_active: true },
-  { id: 'rm-203', number: '203', room_type_id: 'deluxe', floor: '2', status: 'available', is_active: true },
-  { id: 'rm-204', number: '204', room_type_id: 'deluxe', floor: '2', status: 'maintenance', is_active: true },
-  { id: 'rm-301', number: '301', room_type_id: 'family', floor: '3', status: 'available', is_active: true },
-  { id: 'rm-302', number: '302', room_type_id: 'family', floor: '3', status: 'available', is_active: true },
-]
-
-// Initial Settings
-const initialSettings = [
-  {
-    id: 'setting-1',
-    tax_percent: ORDER_CONFIG.taxPercent || 5,
-    delivery_charge: ORDER_CONFIG.deliveryCharge || 30,
-    phone1: SITE.phone1,
-    phone2: SITE.phone2,
-    phone_primary: SITE.phone1,
-    phone_bookings: SITE.phone1,
-    phone_payments: SITE.phone2,
-    address_en: SITE.address.en,
-    address: SITE.address.en,
-    hotel_name: SITE.name,
-    gst: '09AAACB1234F1Z5',
-  },
-]
-
-// Initial Bookings
-const initialBookings = [
-  {
-    id: 'bk-1',
-    ref: 'RM-DEMO1',
-    guest_name: 'Rahul Sharma',
-    phone: '9876543210',
-    email: 'rahul@example.com',
-    room_type_id: 'deluxe',
-    room_type_name: 'Deluxe Room',
-    check_in: todayDateStr,
-    check_out: new Date(Date.now() + 86400000 * 2).toISOString().slice(0, 10),
-    nights: 2,
-    guests: 2,
-    amount: 3600,
-    advance_paid: 1000,
-    balance: 2600,
-    payment_mode: 'upi',
-    status: 'pending',
-    source: 'website',
-    created_at: nowIso,
-    created_date: nowIso,
-  },
-  {
-    id: 'bk-2',
-    ref: 'RM-DEMO2',
-    guest_name: 'Vikram Singh',
-    phone: '9823456781',
-    email: 'vikram@example.com',
-    room_type_id: 'standard',
-    room_type_name: 'Standard AC Room',
-    check_in: todayDateStr,
-    check_out: new Date(Date.now() + 86400000).toISOString().slice(0, 10),
-    nights: 1,
-    guests: 1,
-    amount: 1400,
-    advance_paid: 1400,
-    balance: 0,
-    payment_mode: 'cash',
-    status: 'checked_in',
-    source: 'walk-in',
-    created_at: nowIso,
-    created_date: nowIso,
-  },
-]
-
-// Initial Orders
-const initialOrders = [
-  {
-    id: 'ord-1',
-    ref: 'FD-DEMO1',
-    customer_name: 'Priya Verma',
-    phone: '9812345678',
-    type: 'dine-in',
-    table_no: '4',
-    address: '',
-    items: [
-      { item_id: 'paneer-tikka', name: 'Paneer Tikka', price: 240, qty: 1 },
-      { item_id: 'dal-makhani', name: 'Dal Makhani', price: 210, qty: 1 },
-      { item_id: 'butter-naan', name: 'Butter Naan', price: 45, qty: 3 },
-    ],
-    subtotal: 585,
-    tax: 29,
-    delivery: 0,
-    total: 614,
-    notes: 'Less spicy please',
-    status: 'new',
-    payment_status: 'paid',
-    payment_mode: 'upi',
-    source: 'website',
-    created_at: nowIso,
-    created_date: nowIso,
-  },
-  {
-    id: 'ord-2',
-    ref: 'FD-DEMO2',
-    customer_name: 'Amit Kumar',
-    phone: '9877712345',
-    type: 'delivery',
-    table_no: '',
-    address: 'Near Township Nagar, NH-2 Baad',
-    items: [
-      { item_id: 'kadhai-paneer', name: 'Kadhai Paneer', price: 230, qty: 1 },
-      { item_id: 'jeera-rice', name: 'Jeera Rice', price: 140, qty: 1 },
-      { item_id: 'roti', name: 'Tandoori Roti', price: 20, qty: 4 },
-    ],
-    subtotal: 450,
-    tax: 23,
-    delivery: 30,
-    total: 503,
-    notes: 'Please ring bell upon arrival',
-    status: 'preparing',
-    payment_status: 'unpaid',
-    payment_mode: 'cash',
-    source: 'website',
-    created_at: nowIso,
-    created_date: nowIso,
-  },
-]
-
-// Initial Payments
-const initialPayments = [
-  {
-    id: 'pay-1',
-    booking_id: 'bk-1',
-    amount: 1000,
-    payment_mode: 'upi',
-    paid_at: nowIso,
-    created_at: nowIso,
-    created_date: nowIso,
-    status: 'completed',
-  },
-  {
-    id: 'pay-2',
-    order_id: 'ord-1',
-    amount: 614,
-    payment_mode: 'upi',
-    paid_at: nowIso,
-    created_at: nowIso,
-    created_date: nowIso,
-    status: 'completed',
-  },
-]
-
-// Initial Blocked Dates
-const initialBlockedDates = [
-  {
-    id: 'blk-1',
-    room_type_id: 'standard',
-    start_date: new Date(Date.now() + 86400000 * 5).toISOString().slice(0, 10),
-    end_date: new Date(Date.now() + 86400000 * 7).toISOString().slice(0, 10),
-    reason: 'Annual AC Maintenance',
-  },
-]
-
-// Initial Pricing Rules
-const initialPricingRules = [
-  {
-    id: 'rule-1',
-    room_type_id: 'deluxe',
-    start_date: new Date(Date.now() + 86400000 * 10).toISOString().slice(0, 10),
-    end_date: new Date(Date.now() + 86400000 * 15).toISOString().slice(0, 10),
-    price: 2400,
-    label: 'Weekend Tariff',
-  },
-]
-
-// Initial Reviews
-const initialReviews = REVIEWS.map((r, i) => ({
-  id: r.id || `rev-${i + 1}`,
-  name: r.name,
-  rating: r.rating || 5,
-  date: r.date || 'Recent',
-  text: r.text || r.comment || '',
-  tag: r.tag || 'Stay & Dining',
-  status: 'pending',
-  is_approved: true,
-}))
-
-// Initial Enquiries
-const initialEnquiries = [
-  {
-    id: 'enq-1',
-    ref: 'EV-DEMO1',
-    type: 'wedding',
-    name: 'Amit Patel',
-    phone: '9765432109',
-    email: 'amit@example.com',
-    event_date: new Date(Date.now() + 86400000 * 20).toISOString().slice(0, 10),
-    guests: 150,
-    message: 'Wedding reception catering inquiry with hall setup.',
-    status: 'new',
-    created_at: nowIso,
-    created_date: nowIso,
-  },
-]
-
-// Factory for Entity Storage with query support, sorting, and reactive subscriptions
-function createEntityStore(entityName, defaultSeed = []) {
-  const listeners = new Set()
-
-  function notify() {
-    listeners.forEach((cb) => {
-      try {
-        cb()
-      } catch (e) {
-        console.error('Entity listener error:', e)
-      }
+async function refreshAccessToken() {
+  const refresh = getRefreshToken()
+  if (!refresh) return null
+  try {
+    const res = await fetch(`${API_BASE}/auth/refresh`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ refresh_token: refresh }),
     })
+    if (res.ok) {
+      const data = await res.json()
+      if (data.access_token) {
+        setToken(data.access_token)
+        return data.access_token
+      }
+    }
+  } catch (e) {
+    console.warn('Token refresh failed:', e)
   }
-
-  return {
-    async list() {
-      return getStore(entityName, defaultSeed)
-    },
-    async filter(predicate = {}, options = {}) {
-      let list = getStore(entityName, defaultSeed)
-      if (typeof predicate === 'object' && Object.keys(predicate).length > 0) {
-        list = list.filter((item) => {
-          for (const [k, v] of Object.entries(predicate)) {
-            const itemVal = item[k]
-            if (v && typeof v === 'object') {
-              if ('$in' in v) {
-                if (!Array.isArray(v.$in) || !v.$in.includes(itemVal)) return false
-              }
-              if ('$lt' in v) {
-                if (!(itemVal < v.$lt)) return false
-              }
-              if ('$gt' in v) {
-                if (!(itemVal > v.$gt)) return false
-              }
-              if ('$lte' in v) {
-                if (!(itemVal <= v.$lte)) return false
-              }
-              if ('$gte' in v) {
-                if (!(itemVal >= v.$gte)) return false
-              }
-            } else if (itemVal !== v) {
-              return false
-            }
-          }
-          return true
-        })
-      }
-
-      if (options.sort) {
-        const isDesc = String(options.sort).startsWith('-')
-        const field = isDesc ? String(options.sort).slice(1) : String(options.sort)
-        list = [...list].sort((a, b) => {
-          const valA = a[field] ?? a[field === 'created_date' ? 'created_at' : field] ?? ''
-          const valB = b[field] ?? b[field === 'created_date' ? 'created_at' : field] ?? ''
-          if (valA < valB) return isDesc ? 1 : -1
-          if (valA > valB) return isDesc ? -1 : 1
-          return 0
-        })
-      }
-
-      if (options.limit) {
-        list = list.slice(0, options.limit)
-      }
-
-      return { items: list }
-    },
-    async get(id) {
-      const list = getStore(entityName, defaultSeed)
-      return list.find((i) => i.id === id) || null
-    },
-    async create(data) {
-      const list = getStore(entityName, defaultSeed)
-      const ts = new Date().toISOString()
-      const newItem = {
-        id: data.id || `${entityName.toLowerCase()}_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
-        created_at: ts,
-        created_date: ts,
-        ...data,
-      }
-      const updated = [newItem, ...list]
-      setStore(entityName, updated)
-      notify()
-      return newItem
-    },
-    async bulkCreate(items = []) {
-      const list = getStore(entityName, defaultSeed)
-      const ts = new Date().toISOString()
-      const createdItems = (Array.isArray(items) ? items : []).map((data, idx) => ({
-        id: data.id || `${entityName.toLowerCase()}_${Date.now()}_${idx}_${Math.random().toString(36).slice(2, 6)}`,
-        created_at: ts,
-        created_date: ts,
-        ...data,
-      }))
-      const updated = [...createdItems, ...list]
-      setStore(entityName, updated)
-      notify()
-      return createdItems
-    },
-    async bulkUpdate(updates = []) {
-      const list = getStore(entityName, defaultSeed)
-      const updateMap = new Map((Array.isArray(updates) ? updates : []).map((u) => [u.id, u]))
-      const updated = list.map((item) => {
-        if (updateMap.has(item.id)) {
-          return { ...item, ...updateMap.get(item.id), updated_at: new Date().toISOString() }
-        }
-        return item
-      })
-      setStore(entityName, updated)
-      notify()
-      return { success: true }
-    },
-    async update(id, data) {
-      const list = getStore(entityName, defaultSeed)
-      let found = null
-      const updated = list.map((item) => {
-        if (item.id === id) {
-          found = { ...item, ...data, updated_at: new Date().toISOString() }
-          return found
-        }
-        return item
-      })
-      if (!found) {
-        found = { id, ...data, created_at: new Date().toISOString(), created_date: new Date().toISOString() }
-        updated.push(found)
-      }
-      setStore(entityName, updated)
-      notify()
-      return found
-    },
-    async delete(id) {
-      const list = getStore(entityName, defaultSeed)
-      const updated = list.filter((i) => i.id !== id)
-      setStore(entityName, updated)
-      notify()
-      return { success: true }
-    },
-    subscribe(cb) {
-      if (typeof cb === 'function') {
-        listeners.add(cb)
-        return () => listeners.delete(cb)
-      }
-      return () => {}
-    },
-  }
+  clearTokens()
+  return null
 }
 
-// User and Auth helper
-const DEFAULT_ADMIN = {
-  id: 'admin-1',
-  email: 'admin@bshotel.com',
-  full_name: 'B.S. Hotel Manager',
-  role: 'admin',
-  staff_role: 'owner',
-  staff_active: true,
+async function request(path, options = {}) {
+  const url = path.startsWith('http') ? path : `${API_BASE}${path}`
+  let token = getToken()
+  const headers = new Headers(options.headers || {})
+
+  if (!(options.body instanceof FormData)) {
+    if (!headers.has('Content-Type')) {
+      headers.set('Content-Type', 'application/json')
+    }
+  }
+
+  if (token && !headers.has('Authorization')) {
+    headers.set('Authorization', `Bearer ${token}`)
+  }
+
+  let res = await fetch(url, { ...options, headers })
+
+  // Auto token refresh on 401
+  if (res.status === 401 && getRefreshToken()) {
+    const newToken = await refreshAccessToken()
+    if (newToken) {
+      headers.set('Authorization', `Bearer ${newToken}`)
+      res = await fetch(url, { ...options, headers })
+    }
+  }
+
+  if (!res.ok) {
+    let errorDetail = `Request failed (${res.status})`
+    try {
+      const errJson = await res.json()
+      errorDetail = errJson.detail || errJson.error || errJson.message || errorDetail
+    } catch {
+      // ignore
+    }
+    const error = new Error(errorDetail)
+    error.status = res.status
+    throw error
+  }
+
+  if (res.status === 204) return { success: true }
+  return await res.json()
 }
 
-// API base URL for FastAPI backend
-const API_BASE = (typeof import.meta !== 'undefined' && import.meta.env?.VITE_API_BASE_URL) || '/api/v1'
+function slugify(text) {
+  return String(text || '')
+    .toLowerCase()
+    .trim()
+    .replace(/[^\w\s-]/g, '')
+    .replace(/[\s_-]+/g, '-')
+    .replace(/^-+|-+$/g, '') || 'item-' + Date.now()
+}
 
+// -------------------------------------------------------------
+// Authentication
+// -------------------------------------------------------------
 export const auth = {
   async me() {
-    if (typeof window === 'undefined') return DEFAULT_ADMIN
-    const token = window.localStorage.getItem('access_token')
-    if (token && !token.startsWith('token_')) {
-      try {
-        const res = await fetch(`${API_BASE}/auth/me`, {
-          headers: { Authorization: `Bearer ${token}` },
-        })
-        if (res.ok) {
-          const u = await res.json()
-          const mapped = {
-            id: u.id,
-            email: u.email,
-            full_name: u.full_name,
-            role: u.role,
-            staff_role: u.role === 'owner' ? 'owner' : (u.role === 'manager' ? 'manager' : 'staff'),
-            staff_active: u.is_active,
-          }
-          window.localStorage.setItem(STORAGE_PREFIX + 'auth_user', JSON.stringify(mapped))
-          return mapped
-        }
-      } catch {
-        // Fallback to local session
-      }
-    }
+    const token = getToken()
+    if (!token) return null
     try {
-      const stored = window.localStorage.getItem(STORAGE_PREFIX + 'auth_user')
-      if (stored) return JSON.parse(stored)
-      if (token) return DEFAULT_ADMIN
-      return null
+      const u = await request('/auth/me')
+      const role = u.role?.toLowerCase()
+      const staff_role = (role === 'admin' || role === 'owner')
+        ? 'owner'
+        : (role === 'manager' ? 'manager' : 'staff')
+      const user = {
+        id: u.id,
+        email: u.email,
+        full_name: u.full_name,
+        role: u.role,
+        staff_role,
+        staff_active: u.is_active,
+      }
+      if (typeof window !== 'undefined') {
+        window.localStorage.setItem('auth_user', JSON.stringify(user))
+      }
+      return user
     } catch {
+      clearTokens()
       return null
     }
   },
-  async login(email, password) {
-    try {
-      const res = await fetch(`${API_BASE}/auth/login`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ username: email, password }),
-      })
-      if (res.ok) {
-        const data = await res.json()
-        const user = {
-          id: data.user.id,
-          email: data.user.email,
-          full_name: data.user.full_name,
-          role: data.user.role,
-          staff_role: data.user.role === 'owner' ? 'owner' : (data.user.role === 'manager' ? 'manager' : 'staff'),
-          staff_active: data.user.is_active,
-        }
-        if (typeof window !== 'undefined') {
-          window.localStorage.setItem(STORAGE_PREFIX + 'auth_user', JSON.stringify(user))
-          window.localStorage.setItem('access_token', data.access_token)
-          if (data.refresh_token) {
-            window.localStorage.setItem('refresh_token', data.refresh_token)
-          }
-        }
-        return { user, access_token: data.access_token }
-      }
-    } catch {
-      // Backend unavailable; fallback to offline demo
-    }
 
+  async login(email, password) {
+    const data = await request('/auth/login', {
+      method: 'POST',
+      body: JSON.stringify({ username: email, password }),
+    })
+    setToken(data.access_token)
+    if (data.refresh_token && typeof window !== 'undefined') {
+      window.localStorage.setItem('refresh_token', data.refresh_token)
+    }
+    const u = data.user
+    const role = u.role?.toLowerCase()
+    const staff_role = (role === 'admin' || role === 'owner')
+      ? 'owner'
+      : (role === 'manager' ? 'manager' : 'staff')
     const user = {
-      id: 'admin-' + Date.now(),
-      email: email || 'admin@bshotel.com',
-      full_name: 'B.S. Hotel Administrator',
-      role: 'admin',
-      staff_role: 'owner',
-      staff_active: true,
+      id: u.id,
+      email: u.email,
+      full_name: u.full_name,
+      role: u.role,
+      staff_role,
+      staff_active: u.is_active,
     }
     if (typeof window !== 'undefined') {
-      window.localStorage.setItem(STORAGE_PREFIX + 'auth_user', JSON.stringify(user))
-      window.localStorage.setItem('access_token', 'token_' + Date.now())
+      window.localStorage.setItem('auth_user', JSON.stringify(user))
     }
-    return { user, access_token: 'token_' + Date.now() }
+    return { user, access_token: data.access_token }
   },
+
   async logout() {
-    const token = typeof window !== 'undefined' ? window.localStorage.getItem('access_token') : null
-    if (token && !token.startsWith('token_')) {
-      try {
-        await fetch(`${API_BASE}/auth/logout`, {
-          method: 'POST',
-          headers: { Authorization: `Bearer ${token}` },
-        })
-      } catch {
-        // ignore
-      }
+    try {
+      await request('/auth/logout', { method: 'POST' })
+    } catch {
+      // ignore
     }
-    if (typeof window !== 'undefined') {
-      window.localStorage.removeItem(STORAGE_PREFIX + 'auth_user')
-      window.localStorage.removeItem('access_token')
-      window.localStorage.removeItem('refresh_token')
-      window.localStorage.removeItem('token')
-    }
+    clearTokens()
     return { success: true }
   },
-  setToken(token) {
-    if (typeof window !== 'undefined' && token) {
-      window.localStorage.setItem('access_token', token)
-    }
-  },
+
+  getToken,
+  setToken,
   redirectToLogin(returnUrl) {
     if (typeof window !== 'undefined') {
       window.location.href = `/admin/login${returnUrl ? `?return=${encodeURIComponent(returnUrl)}` : ''}`
@@ -558,115 +183,941 @@ export const auth = {
   },
 }
 
-// Map of all known entities
-const entityStores = {
-  Setting: createEntityStore('Setting', initialSettings),
-  MenuCategory: createEntityStore('MenuCategory', initialCategories),
-  MenuItem: createEntityStore('MenuItem', initialMenuItems),
-  RoomType: createEntityStore('RoomType', initialRoomTypes),
-  Room: createEntityStore('Room', initialRooms),
-  Booking: createEntityStore('Booking', initialBookings),
-  Order: createEntityStore('Order', initialOrders),
-  Payment: createEntityStore('Payment', initialPayments),
-  Enquiry: createEntityStore('Enquiry', initialEnquiries),
-  EventPackage: createEntityStore('EventPackage', EVENTS),
-  Review: createEntityStore('Review', initialReviews),
-  BlockedDate: createEntityStore('BlockedDate', initialBlockedDates),
-  PricingRule: createEntityStore('PricingRule', initialPricingRules),
-  AuditLog: createEntityStore('AuditLog', []),
-  Customer: createEntityStore('Customer', []),
-  User: createEntityStore('User', [DEFAULT_ADMIN]),
+// -------------------------------------------------------------
+// Dynamic Database Entities Bridge
+// -------------------------------------------------------------
+export const entities = {
+  // --- Master Settings ---
+  Setting: {
+    async list() {
+      try {
+        const s = await request(getToken() ? '/admin/settings' : '/public/settings')
+        if (!s) return []
+        const mapped = {
+          ...s,
+          hotel_name: s.hotel_name,
+          phone: s.bookings_phone,
+          phone1: s.bookings_phone,
+          whatsapp: s.whatsapp_number,
+          tax_percent: Number(s.restaurant_tax_percent ?? 5),
+          room_tax_percent: Number(s.room_tax_percent ?? 12),
+          delivery_charge: Number(s.delivery_charge ?? 40),
+          cancellation_policy: s.cancellation_policy,
+          house_rules: s.house_rules,
+          google_maps_url: s.google_maps_url,
+        }
+        return [mapped]
+      } catch {
+        return []
+      }
+    },
+    async get() {
+      const rows = await this.list()
+      return rows[0] || null
+    },
+    async update(id, values) {
+      const payload = { ...values }
+      if (payload.tax_percent !== undefined) {
+        payload.restaurant_tax_percent = Number(payload.tax_percent)
+      }
+      if (payload.delivery_charge !== undefined) {
+        payload.delivery_charge = Number(payload.delivery_charge)
+      }
+      if (payload.phone !== undefined) {
+        payload.bookings_phone = payload.phone
+      }
+      if (payload.whatsapp !== undefined) {
+        payload.whatsapp_number = payload.whatsapp
+      }
+      return await request('/admin/settings', {
+        method: 'PUT',
+        body: JSON.stringify(payload),
+      })
+    },
+    async create(values) {
+      return this.update(null, values)
+    },
+  },
+
+  // --- Menu Categories ---
+  MenuCategory: {
+    async list() {
+      const endpoint = getToken() ? '/admin/menu/categories' : '/public/menu'
+      const rows = await request(endpoint).catch(() => [])
+      const list = Array.isArray(rows) ? rows : (rows.items || [])
+      return list.map((c) => ({
+        ...c,
+        name_en: c.name || c.name_en,
+        name_hi: c.name_hi || '',
+        sort: c.display_order ?? c.sort ?? 0,
+      }))
+    },
+    async filter(predicate = {}, options = {}) {
+      let list = await this.list()
+      if (predicate.is_active !== undefined) {
+        list = list.filter((c) => c.is_active === predicate.is_active)
+      }
+      return { items: list }
+    },
+    async get(id) {
+      const list = await this.list()
+      return list.find((c) => c.id === id) || null
+    },
+    async create(data) {
+      return await request('/admin/menu/categories', {
+        method: 'POST',
+        body: JSON.stringify({
+          name: data.name_en || data.name,
+          name_hi: data.name_hi || null,
+          slug: data.slug || slugify(data.name_en || data.name),
+          description: data.description || null,
+          display_order: Number(data.sort ?? data.display_order ?? 0),
+          is_active: data.is_active !== false,
+        }),
+      })
+    },
+    async update(id, data) {
+      return await request(`/admin/menu/categories/${id}`, {
+        method: 'PUT',
+        body: JSON.stringify({
+          name: data.name_en || data.name,
+          name_hi: data.name_hi,
+          description: data.description,
+          display_order: data.sort !== undefined ? Number(data.sort) : data.display_order,
+          is_active: data.is_active,
+        }),
+      })
+    },
+    async delete(id) {
+      return await request(`/admin/menu/categories/${id}`, { method: 'DELETE' })
+    },
+  },
+
+  // --- Menu Items ---
+  MenuItem: {
+    async list() {
+      const rows = await request('/admin/menu/items').catch(() => [])
+      const list = Array.isArray(rows) ? rows : (rows.items || [])
+      return list.map((i) => ({
+        ...i,
+        name_en: i.name,
+        name_hi: i.name_hi || '',
+        desc: i.description || '',
+        price: Number(i.price),
+        sort: i.display_order ?? 0,
+        is_available: i.is_available !== false,
+        tags: Array.isArray(i.tags) ? i.tags : [],
+      }))
+    },
+    async filter(predicate = {}, options = {}) {
+      let list = await this.list()
+      if (predicate.category_id) {
+        list = list.filter((i) => i.category_id === predicate.category_id)
+      }
+      if (predicate.is_available !== undefined) {
+        list = list.filter((i) => i.is_available === predicate.is_available)
+      }
+      if (predicate.id && predicate.id.$in) {
+        list = list.filter((i) => predicate.id.$in.includes(i.id))
+      }
+      return { items: list }
+    },
+    async get(id) {
+      const list = await this.list()
+      return list.find((i) => i.id === id) || null
+    },
+    async create(data) {
+      return await request('/admin/menu/items', {
+        method: 'POST',
+        body: JSON.stringify({
+          category_id: data.category_id,
+          name: data.name_en || data.name,
+          name_hi: data.name_hi || null,
+          description: data.desc || data.description || null,
+          price: Number(data.price),
+          is_veg: data.is_veg !== false,
+          is_available: data.is_available !== false,
+          image_url: data.image_url || null,
+          tags: Array.isArray(data.tags) ? data.tags : [],
+          display_order: Number(data.sort ?? data.display_order ?? 0),
+        }),
+      })
+    },
+    async update(id, data) {
+      const payload = { ...data }
+      if (payload.name_en) payload.name = payload.name_en
+      if (payload.desc !== undefined) payload.description = payload.desc
+      if (payload.sort !== undefined) payload.display_order = Number(payload.sort)
+      if (payload.price !== undefined) payload.price = Number(payload.price)
+      return await request(`/admin/menu/items/${id}`, {
+        method: 'PUT',
+        body: JSON.stringify(payload),
+      })
+    },
+    async delete(id) {
+      return await request(`/admin/menu/items/${id}`, { method: 'DELETE' })
+    },
+    async bulkUpdate(updates) {
+      return await request('/admin/menu/bulk-price-update', {
+        method: 'POST',
+        body: JSON.stringify(updates),
+      }).catch(async () => {
+        // Fallback: update individually
+        for (const u of updates) {
+          if (u.id) await this.update(u.id, u)
+        }
+      })
+    },
+    async bulkCreate(items) {
+      const results = []
+      for (const item of items) {
+        results.push(await this.create(item))
+      }
+      return results
+    },
+  },
+
+  // --- Room Types ---
+  RoomType: {
+    async list() {
+      const endpoint = getToken() ? '/admin/rooms/types' : '/public/rooms'
+      const rows = await request(endpoint).catch(() => [])
+      const list = Array.isArray(rows) ? rows : (rows.items || [])
+      return list.map((rt) => ({
+        ...rt,
+        name_en: rt.name,
+        desc_en: rt.description,
+        price: Number(rt.base_price),
+        capacity: rt.max_guests,
+        sort: rt.display_order ?? 0,
+        amenities: Array.isArray(rt.amenities) ? rt.amenities : [],
+        images: Array.isArray(rt.images) ? rt.images : [],
+      }))
+    },
+    async filter(predicate = {}, options = {}) {
+      let list = await this.list()
+      if (predicate.is_active !== undefined) {
+        list = list.filter((r) => r.is_active === predicate.is_active)
+      }
+      if (predicate.id) {
+        list = list.filter((r) => r.id === predicate.id)
+      }
+      return { items: list }
+    },
+    async get(id) {
+      const list = await this.list()
+      return list.find((r) => r.id === id) || null
+    },
+    async create(data) {
+      return await request('/admin/rooms/types', {
+        method: 'POST',
+        body: JSON.stringify({
+          name: data.name_en || data.name,
+          slug: data.slug || slugify(data.name_en || data.name),
+          description: data.desc_en || data.description || '',
+          base_price: Number(data.price || data.base_price),
+          max_guests: Number(data.capacity || data.max_guests || 2),
+          bed_type: data.bed_type || 'King Bed',
+          amenities: Array.isArray(data.amenities) ? data.amenities : ['ac', 'wifi', 'tv'],
+          images: Array.isArray(data.images) ? data.images : [],
+          total_inventory: Number(data.total_rooms || data.total_inventory || 1),
+          display_order: Number(data.sort ?? data.display_order ?? 0),
+          is_active: data.is_active !== false,
+        }),
+      })
+    },
+    async update(id, data) {
+      const payload = { ...data }
+      if (payload.name_en) payload.name = payload.name_en
+      if (payload.desc_en !== undefined) payload.description = payload.desc_en
+      if (payload.price !== undefined) payload.base_price = Number(payload.price)
+      if (payload.capacity !== undefined) payload.max_guests = Number(payload.capacity)
+      if (payload.sort !== undefined) payload.display_order = Number(payload.sort)
+      return await request(`/admin/rooms/types/${id}`, {
+        method: 'PUT',
+        body: JSON.stringify(payload),
+      })
+    },
+    async delete(id) {
+      return await request(`/admin/rooms/types/${id}`, { method: 'DELETE' })
+    },
+  },
+
+  // --- Physical Rooms Inventory ---
+  Room: {
+    async list() {
+      const rows = await request('/admin/rooms/inventory').catch(() => [])
+      const list = Array.isArray(rows) ? rows : (rows.items || [])
+      return list.map((r) => ({
+        ...r,
+        number: r.room_number,
+        floor: String(r.floor),
+      }))
+    },
+    async filter(predicate = {}, options = {}) {
+      let list = await this.list()
+      if (predicate.room_type_id) {
+        list = list.filter((r) => r.room_type_id === predicate.room_type_id)
+      }
+      if (predicate.is_active !== undefined) {
+        list = list.filter((r) => r.is_active === predicate.is_active)
+      }
+      if (predicate.status) {
+        list = list.filter((r) => r.status === predicate.status)
+      }
+      return { items: list }
+    },
+    async create(data) {
+      return await request('/admin/rooms/inventory', {
+        method: 'POST',
+        body: JSON.stringify({
+          room_number: String(data.number || data.room_number),
+          room_type_id: data.room_type_id,
+          floor: Number(data.floor) || 1,
+          status: data.status || 'available',
+          notes: data.notes || null,
+          is_active: data.is_active !== false,
+        }),
+      })
+    },
+    async update(id, data) {
+      const payload = { ...data }
+      if (payload.number) payload.room_number = String(payload.number)
+      if (payload.floor) payload.floor = Number(payload.floor)
+      return await request(`/admin/rooms/inventory/${id}`, {
+        method: 'PUT',
+        body: JSON.stringify(payload),
+      })
+    },
+  },
+
+  // --- Blocked Dates ---
+  BlockedDate: {
+    async list() {
+      const rows = await request('/admin/rooms/blocked-dates').catch(() => [])
+      return Array.isArray(rows) ? rows : (rows.items || [])
+    },
+    async filter(predicate = {}) {
+      const list = await this.list()
+      return { items: list }
+    },
+    async create(data) {
+      return await request('/admin/rooms/blocked-dates', {
+        method: 'POST',
+        body: JSON.stringify({
+          room_type_id: data.room_type_id,
+          start_date: data.start_date,
+          end_date: data.end_date,
+          reason: data.reason || 'Maintenance',
+        }),
+      })
+    },
+    async delete(id) {
+      return await request(`/admin/rooms/blocked-dates/${id}`, { method: 'DELETE' })
+    },
+  },
+
+  // --- Pricing Rules ---
+  PricingRule: {
+    async list() {
+      const rows = await request('/admin/rooms/pricing-rules').catch(() => [])
+      return Array.isArray(rows) ? rows : (rows.items || [])
+    },
+    async filter() {
+      const list = await this.list()
+      return { items: list }
+    },
+    async create(data) {
+      return await request('/admin/rooms/pricing-rules', {
+        method: 'POST',
+        body: JSON.stringify({
+          room_type_id: data.room_type_id,
+          rule_type: data.rule_type || 'custom',
+          name: data.name || 'Special Rate',
+          start_date: data.start_date,
+          end_date: data.end_date,
+          price: Number(data.price),
+          is_active: true,
+        }),
+      })
+    },
+    async delete(id) {
+      return await request(`/admin/rooms/pricing-rules/${id}`, { method: 'DELETE' })
+    },
+  },
+
+  // --- Room Bookings ---
+  Booking: {
+    async list() {
+      const res = await request('/admin/bookings?page=1&limit=300').catch(() => ({ items: [] }))
+      const list = res.items || (Array.isArray(res) ? res : [])
+      return list.map((b) => ({
+        ...b,
+        ref: b.booking_reference,
+        phone: b.guest_phone,
+        email: b.guest_email || '',
+        check_in: b.check_in_date,
+        check_out: b.check_out_date,
+        guests: b.num_guests,
+        amount: Number(b.total_amount),
+        advance_paid: Number(b.advance_paid || 0),
+        balance: Number(b.total_amount) - Number(b.advance_paid || 0),
+        status: b.booking_status,
+        room_id: b.assigned_room_id,
+        created_date: b.created_at,
+      }))
+    },
+    async filter(predicate = {}) {
+      let list = await this.list()
+      if (predicate.status) {
+        list = list.filter((b) => b.status === predicate.status)
+      }
+      return { items: list }
+    },
+    async get(id) {
+      const b = await request(`/admin/bookings/${id}`)
+      return {
+        ...b,
+        ref: b.booking_reference,
+        phone: b.guest_phone,
+        email: b.guest_email || '',
+        check_in: b.check_in_date,
+        check_out: b.check_out_date,
+        guests: b.num_guests,
+        amount: Number(b.total_amount),
+        advance_paid: Number(b.advance_paid || 0),
+        balance: Number(b.total_amount) - Number(b.advance_paid || 0),
+        status: b.booking_status,
+        room_id: b.assigned_room_id,
+        created_date: b.created_at,
+      }
+    },
+    async create(data) {
+      const token = getToken()
+      if (token) {
+        // Admin booking creation
+        return await request('/admin/bookings', {
+          method: 'POST',
+          body: JSON.stringify({
+            room_type_id: data.room_type_id,
+            assigned_room_id: data.room_id || null,
+            guest_name: data.guest_name,
+            guest_phone: data.phone || data.guest_phone,
+            guest_email: data.email || null,
+            check_in_date: data.check_in || data.check_in_date,
+            check_out_date: data.check_out || data.check_out_date,
+            num_rooms: Number(data.num_rooms || 1),
+            num_guests: Number(data.guests || data.num_guests || 1),
+            base_amount: Number(data.amount || data.base_amount || 0),
+            total_amount: Number(data.amount || data.total_amount || 0),
+            advance_paid: Number(data.advance_paid || 0),
+            payment_status: data.payment_status || 'unpaid',
+            booking_status: data.status || 'confirmed',
+            source: data.source || 'admin',
+            special_requests: data.special_requests || null,
+          }),
+        })
+      }
+      // Public guest booking request
+      return await request('/public/bookings', {
+        method: 'POST',
+        body: JSON.stringify({
+          room_type_id: data.room_type_id,
+          guest_name: data.guest_name,
+          guest_phone: data.phone || data.guest_phone,
+          guest_email: data.email || null,
+          check_in_date: data.check_in,
+          check_out_date: data.check_out,
+          num_rooms: Number(data.rooms || data.num_rooms || 1),
+          num_guests: Number(data.guests || data.num_guests || 1),
+          special_requests: data.special_requests || null,
+        }),
+      })
+    },
+    async update(id, data) {
+      if (data.status) {
+        return await request(`/admin/bookings/${id}/status`, {
+          method: 'PATCH',
+          body: JSON.stringify({
+            booking_status: data.status,
+            cancellation_reason: data.cancellation_reason || null,
+          }),
+        })
+      }
+      return await request(`/admin/bookings/${id}`, {
+        method: 'PUT',
+        body: JSON.stringify(data),
+      })
+    },
+    async delete(id) {
+      return await request(`/admin/bookings/${id}/status`, {
+        method: 'PATCH',
+        body: JSON.stringify({ booking_status: 'cancelled', cancellation_reason: 'Deleted by admin' }),
+      })
+    },
+  },
+
+  // --- Food Orders ---
+  Order: {
+    async list() {
+      const res = await request('/admin/orders?page=1&limit=300').catch(() => ({ items: [] }))
+      const list = res.items || (Array.isArray(res) ? res : [])
+      return list.map((o) => ({
+        ...o,
+        ref: o.order_reference,
+        phone: o.customer_phone,
+        type: o.order_type,
+        table_no: o.table_number,
+        address: o.delivery_address,
+        total: Number(o.total_amount),
+        subtotal: Number(o.subtotal || 0),
+        tax: Number(o.tax_amount || 0),
+        delivery: Number(o.delivery_fee || 0),
+        notes: o.kitchen_notes,
+        created_date: o.created_at,
+        items: (o.items || []).map((i) => ({
+          item_id: i.menu_item_id,
+          name: i.item_name,
+          price: Number(i.unit_price),
+          qty: i.quantity,
+          note: i.special_instructions,
+        })),
+      }))
+    },
+    async filter(predicate = {}) {
+      let list = await this.list()
+      if (predicate.status) {
+        list = list.filter((o) => o.status === predicate.status)
+      }
+      return { items: list }
+    },
+    async get(id) {
+      const o = await request(`/admin/orders/${id}`)
+      return {
+        ...o,
+        ref: o.order_reference,
+        phone: o.customer_phone,
+        type: o.order_type,
+        table_no: o.table_number,
+        address: o.delivery_address,
+        total: Number(o.total_amount),
+        subtotal: Number(o.subtotal || 0),
+        tax: Number(o.tax_amount || 0),
+        delivery: Number(o.delivery_fee || 0),
+        notes: o.kitchen_notes,
+        created_date: o.created_at,
+        items: (o.items || []).map((i) => ({
+          item_id: i.menu_item_id,
+          name: i.item_name,
+          price: Number(i.unit_price),
+          qty: i.quantity,
+          note: i.special_instructions,
+        })),
+      }
+    },
+    async create(data) {
+      const token = getToken()
+      const itemsPayload = (data.items || []).map((i) => ({
+        menu_item_id: i.item_id || i.id,
+        quantity: Number(i.qty || i.quantity || 1),
+        special_instructions: i.note || null,
+      }))
+
+      if (token) {
+        return await request('/admin/orders', {
+          method: 'POST',
+          body: JSON.stringify({
+            customer_name: data.customer_name,
+            customer_phone: data.phone || data.customer_phone,
+            customer_email: data.email || null,
+            order_type: data.type || 'dine-in',
+            table_number: data.table_no || null,
+            delivery_address: data.address || null,
+            items: itemsPayload,
+            status: data.status || 'accepted',
+            payment_status: data.payment_status || 'unpaid',
+            payment_mode: data.payment_mode || null,
+            kitchen_notes: data.notes || null,
+          }),
+        })
+      }
+
+      return await request('/public/orders', {
+        method: 'POST',
+        body: JSON.stringify({
+          customer_name: data.customer_name,
+          customer_phone: data.phone || data.customer_phone,
+          customer_email: data.email || null,
+          order_type: data.type === 'delivery' ? 'delivery' : (data.type === 'pickup' ? 'pickup' : 'dine-in'),
+          table_number: data.table_no || null,
+          delivery_address: data.address || null,
+          items: itemsPayload,
+          kitchen_notes: data.notes || null,
+        }),
+      })
+    },
+    async update(id, data) {
+      return await request(`/admin/orders/${id}/status`, {
+        method: 'PATCH',
+        body: JSON.stringify({
+          status: data.status,
+          payment_status: data.payment_status || null,
+          payment_mode: data.payment_mode || null,
+          cancellation_reason: data.cancellation_reason || null,
+        }),
+      })
+    },
+    async delete(id) {
+      return await this.update(id, { status: 'cancelled', cancellation_reason: 'Deleted by admin' })
+    },
+  },
+
+  // --- Payments ---
+  Payment: {
+    async list() {
+      const res = await request('/admin/payments?page=1&limit=300').catch(() => ({ items: [] }))
+      const list = res.items || (Array.isArray(res) ? res : [])
+      return list.map((p) => ({
+        ...p,
+        amount: Number(p.amount),
+        created_date: p.created_at,
+      }))
+    },
+    async filter(predicate = {}) {
+      let list = await this.list()
+      if (predicate.booking_id) {
+        list = list.filter((p) => p.booking_id === predicate.booking_id)
+      }
+      return { items: list }
+    },
+    async create(data) {
+      if (data.booking_id) {
+        return await request(`/admin/bookings/${data.booking_id}/payments`, {
+          method: 'POST',
+          body: JSON.stringify({
+            amount: Number(data.amount),
+            mode: data.mode || 'cash',
+            transaction_reference: data.reference || data.txn_id || null,
+            notes: data.notes || null,
+          }),
+        })
+      }
+      return await request('/admin/payments', {
+        method: 'POST',
+        body: JSON.stringify({
+          booking_id: data.booking_id || null,
+          order_id: data.order_id || null,
+          amount: Number(data.amount),
+          mode: data.mode || 'cash',
+          status: data.status || 'captured',
+          transaction_reference: data.reference || data.txn_id || null,
+        }),
+      })
+    },
+  },
+
+  // --- Enquiries ---
+  Enquiry: {
+    async list() {
+      const res = await request('/admin/enquiries?page=1&limit=300').catch(() => ({ items: [] }))
+      const list = res.items || (Array.isArray(res) ? res : [])
+      return list.map((e) => ({
+        ...e,
+        ref: e.enquiry_reference,
+        name: e.customer_name,
+        phone: e.customer_phone,
+        email: e.customer_email || '',
+        guests: e.guest_count,
+        type: e.event_type,
+        created_date: e.created_at,
+      }))
+    },
+    async filter() {
+      const list = await this.list()
+      return { items: list }
+    },
+    async create(data) {
+      return await request('/public/events/enquiry', {
+        method: 'POST',
+        body: JSON.stringify({
+          customer_name: data.name,
+          customer_phone: data.phone,
+          customer_email: data.email || null,
+          event_type: data.type === 'contact' ? 'contact' : (data.type || 'custom'),
+          event_date: data.event_date || null,
+          guest_count: Number(data.guests) || null,
+          budget: Number(data.budget) || null,
+          message: data.message || 'Customer enquiry',
+        }),
+      })
+    },
+    async update(id, data) {
+      return await request(`/admin/enquiries/${id}`, {
+        method: 'PUT',
+        body: JSON.stringify({
+          status: data.status,
+          admin_notes: data.admin_notes,
+        }),
+      })
+    },
+    async delete(id) {
+      return await request(`/admin/enquiries/${id}`, { method: 'DELETE' })
+    },
+  },
+
+  // --- Customer Reviews ---
+  Review: {
+    async list() {
+      const token = getToken()
+      if (token) {
+        const res = await request('/admin/reviews?page=1&limit=100').catch(() => ({ items: [] }))
+        const list = res.items || (Array.isArray(res) ? res : [])
+        return list.map((r) => ({
+          ...r,
+          name: r.guest_name,
+          city: r.guest_city,
+          created_date: r.created_at,
+        }))
+      }
+      const list = await request('/public/reviews').catch(() => [])
+      return (Array.isArray(list) ? list : []).map((r) => ({
+        ...r,
+        name: r.guest_name,
+        city: r.guest_city,
+        created_date: r.created_at,
+      }))
+    },
+    async filter(predicate = {}) {
+      let list = await this.list()
+      if (predicate.status) {
+        list = list.filter((r) => r.status === predicate.status)
+      }
+      return { items: list }
+    },
+    async create(data) {
+      return await request('/public/reviews', {
+        method: 'POST',
+        body: JSON.stringify({
+          guest_name: data.name,
+          guest_city: data.city || null,
+          rating: Number(data.rating),
+          comment: data.comment,
+          review_type: data.review_type || 'hotel',
+        }),
+      })
+    },
+    async update(id, data) {
+      return await request(`/admin/reviews/${id}`, {
+        method: 'PATCH',
+        body: JSON.stringify({
+          status: data.status,
+          is_featured: data.is_featured,
+        }),
+      })
+    },
+    async delete(id) {
+      return await request(`/admin/reviews/${id}`, { method: 'DELETE' })
+    },
+  },
+
+  // --- Event Packages ---
+  EventPackage: {
+    async list() {
+      const endpoint = getToken() ? '/admin/enquiries/packages' : '/public/events/packages'
+      const rows = await request(endpoint).catch(() => [])
+      const list = Array.isArray(rows) ? rows : (rows.items || [])
+      return list.map((p) => ({
+        ...p,
+        title: p.name,
+        price: Number(p.base_price_per_person || 0),
+        desc: p.description,
+        sort: p.display_order ?? 0,
+        includes: Array.isArray(p.includes) ? p.includes : [],
+      }))
+    },
+    async filter() {
+      const list = await this.list()
+      return { items: list }
+    },
+    async create(data) {
+      return await request('/admin/enquiries/packages', {
+        method: 'POST',
+        body: JSON.stringify({
+          name: data.title || data.name,
+          slug: slugify(data.title || data.name),
+          description: data.description || data.desc || '',
+          base_price_per_person: Number(data.price || data.base_price_per_person || 0),
+          includes: Array.isArray(data.includes) ? data.includes : [],
+          min_guests: Number(data.min_guests || 50),
+          max_guests: Number(data.max_guests || 500),
+          display_order: Number(data.sort ?? data.display_order ?? 0),
+          is_active: data.is_active !== false,
+        }),
+      })
+    },
+    async update(id, data) {
+      const payload = { ...data }
+      if (payload.title) payload.name = payload.title
+      if (payload.desc) payload.description = payload.desc
+      if (payload.price !== undefined) payload.base_price_per_person = Number(payload.price)
+      return await request(`/admin/enquiries/packages/${id}`, {
+        method: 'PUT',
+        body: JSON.stringify(payload),
+      })
+    },
+    async delete(id) {
+      return await request(`/admin/enquiries/packages/${id}`, { method: 'DELETE' })
+    },
+  },
+
+  // --- Staff & Admin Users ---
+  User: {
+    async list() {
+      const rows = await request('/admin/staff').catch(() => [])
+      const list = Array.isArray(rows) ? rows : []
+      return list.map((u) => ({
+        ...u,
+        staff_role: u.role === 'owner' ? 'owner' : (u.role === 'manager' ? 'manager' : 'staff'),
+        staff_active: u.is_active,
+      }))
+    },
+    async get(id) {
+      const list = await this.list()
+      return list.find((u) => u.id === id) || null
+    },
+    async create(data) {
+      const role = data.staff_role === 'owner' ? 'owner' : (data.staff_role === 'manager' ? 'manager' : 'staff')
+      return await request('/admin/staff', {
+        method: 'POST',
+        body: JSON.stringify({
+          email: data.email,
+          phone: data.phone || '+919999999999',
+          full_name: data.full_name,
+          role,
+          password: data.password || 'StaffTemp@2026',
+          is_active: data.is_active !== false,
+        }),
+      })
+    },
+    async update(id, data) {
+      const payload = {}
+      if (data.staff_role) payload.role = data.staff_role
+      if (data.full_name) payload.full_name = data.full_name
+      if (data.phone) payload.phone = data.phone
+      if (data.staff_active !== undefined) payload.is_active = data.staff_active
+      return await request(`/admin/staff/${id}`, {
+        method: 'PUT',
+        body: JSON.stringify(payload),
+      })
+    },
+    async delete(id) {
+      return await request(`/admin/staff/${id}`, { method: 'DELETE' })
+    },
+  },
+
+  // --- Customers ---
+  Customer: {
+    async list() {
+      const res = await request('/admin/customers?page=1&limit=300').catch(() => ({ items: [] }))
+      return res.items || (Array.isArray(res) ? res : [])
+    },
+    async filter() {
+      const list = await this.list()
+      return { items: list }
+    },
+    async get(id) {
+      return await request(`/admin/customers/${id}`)
+    },
+    async update(id, data) {
+      return await request(`/admin/customers/${id}`, {
+        method: 'PUT',
+        body: JSON.stringify(data),
+      })
+    },
+  },
+
+  // --- Audit Logs ---
+  AuditLog: {
+    async list() {
+      const res = await request('/admin/audit?page=1&limit=300').catch(() => ({ items: [] }))
+      const list = res.items || (Array.isArray(res) ? res : [])
+      return list.map((a) => ({
+        ...a,
+        created_date: a.created_at,
+      }))
+    },
+    async filter() {
+      const list = await this.list()
+      return { items: list }
+    },
+    async create() {
+      // Backend creates audit logs automatically during transactions
+      return { success: true }
+    },
+  },
 }
 
 // Proxy wrapper so accessing ANY entity never returns undefined
-const entitiesProxy = new Proxy(entityStores, {
+const entitiesProxy = new Proxy(entities, {
   get(target, prop) {
-    if (typeof prop === 'string' && !target[prop]) {
-      target[prop] = createEntityStore(prop, [])
+    if (typeof prop === 'string' && target[prop]) {
+      return target[prop]
     }
-    return target[prop]
+    // Generic fallback for any unlisted entity
+    return {
+      async list() { return [] },
+      async filter() { return { items: [] } },
+      async get() { return null },
+      async create(data) { return { id: 'temp-' + Date.now(), ...data } },
+      async update(id, data) { return { id, ...data } },
+      async delete() { return { success: true } },
+    }
   },
 })
 
+// -------------------------------------------------------------
+// Helper Exports
+// -------------------------------------------------------------
 export const users = {
   async inviteUser(email, role = 'staff') {
     const cleanEmail = (email || '').trim().toLowerCase()
     if (!cleanEmail) throw new Error('Email is required')
-    const list = await entityStores.User.list()
+    const list = await entities.User.list()
     const existing = list.find((u) => u.email?.toLowerCase() === cleanEmail)
     const targetRole = role === 'owner' ? 'owner' : (role === 'manager' ? 'manager' : 'staff')
     if (existing) {
-      return await entityStores.User.update(existing.id, {
-        staff_role: targetRole,
-        staff_active: true,
-      })
+      return await entities.User.update(existing.id, { staff_role: targetRole, staff_active: true })
     }
     const namePart = cleanEmail.split('@')[0]
     const formattedName = namePart.charAt(0).toUpperCase() + namePart.slice(1)
-    return await entityStores.User.create({
+    return await entities.User.create({
       email: cleanEmail,
       full_name: formattedName,
-      role: targetRole === 'owner' ? 'admin' : 'staff',
       staff_role: targetRole,
-      staff_active: true,
+      is_active: true,
     })
   },
-  async list() {
-    return await entityStores.User.list()
-  },
-  async get(id) {
-    return await entityStores.User.get(id)
-  },
-  async update(id, data) {
-    return await entityStores.User.update(id, data)
-  },
-  async delete(id) {
-    return await entityStores.User.delete(id)
-  },
+  list: () => entities.User.list(),
+  get: (id) => entities.User.get(id),
+  update: (id, data) => entities.User.update(id, data),
+  delete: (id) => entities.User.delete(id),
 }
 
 export const apiClient = {
   auth,
   users,
   async upload(file, bucket = 'room-photos') {
-    const token = typeof window !== 'undefined' ? window.localStorage.getItem('access_token') : null
     const formData = new FormData()
     formData.append('file', file)
     formData.append('bucket', bucket)
-
-    try {
-      const res = await fetch(`${API_BASE}/admin/uploads`, {
-        method: 'POST',
-        headers: {
-          ...(token && !token.startsWith('token_') ? { Authorization: `Bearer ${token}` } : {}),
-        },
-        body: formData,
-      })
-
-      if (res.ok) {
-        return await res.json()
-      }
-      const err = await res.json().catch(() => ({}))
-      throw new Error(err.error || err.detail || 'Upload failed')
-    } catch (err) {
-      console.warn('Backend storage upload unavailable, falling back to object URL preview:', err)
-      return {
-        url: URL.createObjectURL(file),
-        filename: file.name,
-        bucket,
-      }
-    }
+    return await request('/admin/uploads', {
+      method: 'POST',
+      body: formData,
+    })
   },
   app: {
     async getPublicSettings() {
-      return {
-        id: 'bs-hotel-settings',
-        public_settings: {
-          hotel_name: SITE.name,
-          phone: SITE.phone1,
-          whatsapp: SITE.whatsapp,
-        },
-      }
+      return await entities.Setting.get()
     },
   },
   entities: entitiesProxy,

@@ -2,17 +2,20 @@ import { Link, useNavigate } from 'react-router-dom';
 import RoomCard from '@/components/site/RoomCard';
 import SectionHeading from '@/components/site/SectionHeading';
 import Reveal from '@/components/site/Reveal';
-import { ROOMS } from '@/data/rooms';
+import { useRoomTypes } from '@/hooks/useSiteCatalog';
 import { useI18n } from '@/lib/i18n';
 
 export default function RoomsPreview() {
   const { t } = useI18n();
   const nav = useNavigate();
+  const { data: rooms } = useRoomTypes();
+  const list = rooms || [];
+
   return (
     <section className="mx-auto max-w-7xl px-4 py-20 md:py-28">
       <SectionHeading title={t('rooms.title')} sub={t('rooms.sub')} />
       <div className="grid gap-6 md:grid-cols-3">
-        {ROOMS.map((r, i) => (
+        {list.slice(0, 3).map((r, i) => (
           <Reveal key={r.id} delay={i * 0.1}>
             <RoomCard room={r} onDetails={() => nav('/rooms')} onBook={() => nav(`/booking?room=${r.id}`)} />
           </Reveal>
