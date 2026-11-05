@@ -7,6 +7,7 @@ import { useI18n } from '@/lib/i18n';
 import { isValidPhone } from '@/lib/whatsapp';
 import { submitBooking } from '@/lib/services';
 import useSeo from '@/lib/useSeo';
+import DatePicker from '@/components/ui/date-picker';
 
 const today = () => new Date().toISOString().slice(0, 10);
 const Err = ({ m }) => (m ? <p className="mt-1 text-sm text-red-400" role="alert">{m}</p> : null);
@@ -60,8 +61,16 @@ export default function Booking() {
             <label className="text-sm">{t('f.name')}<input className="field mt-1" value={f.name} onChange={set('name')} autoComplete="name" /><Err m={errors.name} /></label>
             <label className="text-sm">{t('f.phone')}<input className="field mt-1" inputMode="tel" value={f.phone} onChange={set('phone')} autoComplete="tel" placeholder="98765 43210" /><Err m={errors.phone} /></label>
             <label className="text-sm md:col-span-2">{t('f.email')}<input className="field mt-1" type="email" value={f.email} onChange={set('email')} /><Err m={errors.email} /></label>
-            <label className="text-sm">{t('f.checkIn')}<input className="field mt-1" type="date" min={today()} value={f.checkIn} onChange={set('checkIn')} /><Err m={errors.checkIn} /></label>
-            <label className="text-sm">{t('f.checkOut')}<input className="field mt-1" type="date" min={f.checkIn || today()} value={f.checkOut} onChange={set('checkOut')} /><Err m={errors.checkOut} /></label>
+            <div className="space-y-1">
+              <span className="text-sm font-medium">{t('f.checkIn')}</span>
+              <DatePicker min={today()} value={f.checkIn} onChange={set('checkIn')} placeholder={t('f.checkIn')} className="field mt-1" />
+              <Err m={errors.checkIn} />
+            </div>
+            <div className="space-y-1">
+              <span className="text-sm font-medium">{t('f.checkOut')}</span>
+              <DatePicker min={f.checkIn || today()} value={f.checkOut} onChange={set('checkOut')} placeholder={t('f.checkOut')} className="field mt-1" />
+              <Err m={errors.checkOut} />
+            </div>
             <label className="text-sm">{t('f.guests')}<input className="field mt-1" type="number" min="1" max="10" value={f.guests} onChange={set('guests')} /><Err m={errors.guests} /></label>
             <label className="text-sm">{t('f.roomType')}
               <select className="field mt-1" value={f.room} onChange={set('room')}>{roomList.map((r) => <option key={r.id} value={r.id}>{tr(r.name)}</option>)}</select>

@@ -17,7 +17,7 @@ router = APIRouter(prefix="/enquiries", tags=["Admin Enquiries"])
 @router.get("", response_model=PaginatedResponse[EnquiryOut])
 async def list_enquiries(
     page: int = Query(1, ge=1),
-    limit: int = Query(20, ge=1, le=100),
+    limit: int = Query(50, ge=1, le=500),
     status_filter: str | None = Query(None, alias="status"),
     event_type: str | None = None,
     db: AsyncSession = Depends(get_db),

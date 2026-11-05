@@ -3,6 +3,7 @@ import { X, Loader2 } from 'lucide-react';
 import { apiClient } from '@/api/apiClient';
 import { useI18n } from '@/lib/i18n';
 import { checkAvailability, rateForStay, money, todayISO, nightsBetween } from '../lib/adminData';
+import DatePicker from '@/components/ui/date-picker';
 
 const empty = { name: '', phone: '', email: '', roomTypeId: '', checkIn: todayISO(), checkOut: '', guests: 2, source: 'phone', special: '', amount: '', advance: 0, payment_mode: 'none', notes: '' };
 const ref = () => `RM-${Math.random().toString(36).slice(2, 7).toUpperCase()}`;
@@ -116,8 +117,14 @@ export default function BookingForm({ open, onClose, onSaved }) {
               {types.map((t) => <option key={t.id} value={t.id}>{t.name_en} · ₹{t.price}</option>)}
             </select>
           </label>
-          <label className="text-sm font-medium text-slate-700">{L('Check-in', 'चेक-इन')}<input className={input} type="date" value={f.checkIn} onChange={set('checkIn')} required /></label>
-          <label className="text-sm font-medium text-slate-700">{L('Check-out', 'चेक-आउट')}<input className={input} type="date" min={f.checkIn} value={f.checkOut} onChange={set('checkOut')} required /></label>
+          <div className="space-y-1">
+            <span className="text-sm font-medium text-slate-700">{L('Check-in', 'चेक-इन')}</span>
+            <DatePicker variant="admin" value={f.checkIn} onChange={set('checkIn')} placeholder={L('Select check-in', 'चेक-इन चुनें')} />
+          </div>
+          <div className="space-y-1">
+            <span className="text-sm font-medium text-slate-700">{L('Check-out', 'चेक-आउट')}</span>
+            <DatePicker variant="admin" min={f.checkIn} value={f.checkOut} onChange={set('checkOut')} placeholder={L('Select check-out', 'चेक-आउट चुनें')} />
+          </div>
           <label className="text-sm font-medium text-slate-700">{L('Guests', 'मेहमान')}<input className={input} type="number" min="1" value={f.guests} onChange={set('guests')} /></label>
           <label className="text-sm font-medium text-slate-700">{L('Source', 'स्रोत')}
             <select className={input} value={f.source} onChange={set('source')}>

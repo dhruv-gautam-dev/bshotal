@@ -15,7 +15,7 @@ router = APIRouter(prefix="/customers", tags=["Admin Customers"])
 @router.get("", response_model=PaginatedResponse[CustomerOut])
 async def list_customers(
     page: int = Query(1, ge=1),
-    limit: int = Query(20, ge=1, le=100),
+    limit: int = Query(50, ge=1, le=500),
     search: str | None = None,
     is_vip: bool | None = None,
     db: AsyncSession = Depends(get_db),

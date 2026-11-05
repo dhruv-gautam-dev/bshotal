@@ -15,7 +15,7 @@ router = APIRouter(prefix="/audit", tags=["Admin Audit Logs (Owner)"])
 @router.get("", response_model=PaginatedResponse[AuditLogOut])
 async def list_audit_logs(
     page: int = Query(1, ge=1),
-    limit: int = Query(25, ge=1, le=100),
+    limit: int = Query(50, ge=1, le=500),
     entity_type: str | None = None,
     action: str | None = None,
     db: AsyncSession = Depends(get_db),

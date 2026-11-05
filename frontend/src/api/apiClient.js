@@ -549,8 +549,14 @@ export const entities = {
   // --- Room Bookings ---
   Booking: {
     async list() {
-      const res = await request('/admin/bookings?page=1&limit=300').catch(() => ({ items: [] }))
-      const list = res.items || (Array.isArray(res) ? res : [])
+      const res = await request('/admin/bookings?page=1&limit=100').catch((err) => {
+        console.error('Failed to fetch admin bookings:', err);
+        return { items: [] };
+      });
+      const list = res?.items || (Array.isArray(res) ? res : []);
+      const roomTypes = await apiClient.entities.RoomType.list().catch(() => []);
+      const rtMap = Object.fromEntries(roomTypes.map((rt) => [rt.id, rt.name_en || rt.name]));
+
       return list.map((b) => ({
         ...b,
         ref: b.booking_reference,
@@ -559,23 +565,28 @@ export const entities = {
         check_in: b.check_in_date,
         check_out: b.check_out_date,
         guests: b.num_guests,
-        amount: Number(b.total_amount),
+        amount: Number(b.total_amount || 0),
         advance_paid: Number(b.advance_paid || 0),
-        balance: Number(b.total_amount) - Number(b.advance_paid || 0),
+        balance: Math.max(0, Number(b.total_amount || 0) - Number(b.advance_paid || 0)),
         status: b.booking_status,
         room_id: b.assigned_room_id,
+        room_type_name: b.room_type?.name || rtMap[b.room_type_id] || b.room_type_name || 'Standard Room',
+        nights: b.check_in_date && b.check_out_date ? Math.max(1, Math.round((new Date(b.check_out_date) - new Date(b.check_in_date)) / 86400000)) : 1,
         created_date: b.created_at,
-      }))
+      }));
     },
     async filter(predicate = {}) {
-      let list = await this.list()
+      let list = await this.list();
       if (predicate.status) {
-        list = list.filter((b) => b.status === predicate.status)
+        list = list.filter((b) => b.status === predicate.status);
       }
-      return { items: list }
+      return { items: list };
     },
     async get(id) {
-      const b = await request(`/admin/bookings/${id}`)
+      const b = await request(`/admin/bookings/${id}`);
+      const roomTypes = await apiClient.entities.RoomType.list().catch(() => []);
+      const rtMap = Object.fromEntries(roomTypes.map((rt) => [rt.id, rt.name_en || rt.name]));
+
       return {
         ...b,
         ref: b.booking_reference,
@@ -584,13 +595,15 @@ export const entities = {
         check_in: b.check_in_date,
         check_out: b.check_out_date,
         guests: b.num_guests,
-        amount: Number(b.total_amount),
+        amount: Number(b.total_amount || 0),
         advance_paid: Number(b.advance_paid || 0),
-        balance: Number(b.total_amount) - Number(b.advance_paid || 0),
+        balance: Math.max(0, Number(b.total_amount || 0) - Number(b.advance_paid || 0)),
         status: b.booking_status,
         room_id: b.assigned_room_id,
+        room_type_name: b.room_type?.name || rtMap[b.room_type_id] || b.room_type_name || 'Standard Room',
+        nights: b.check_in_date && b.check_out_date ? Math.max(1, Math.round((new Date(b.check_out_date) - new Date(b.check_in_date)) / 86400000)) : 1,
         created_date: b.created_at,
-      }
+      };
     },
     async create(data) {
       const token = getToken()
@@ -660,7 +673,7 @@ export const entities = {
   // --- Food Orders ---
   Order: {
     async list() {
-      const res = await request('/admin/orders?page=1&limit=300').catch(() => ({ items: [] }))
+      const res = await request('/admin/orders?page=1&limit=100').catch(() => ({ items: [] }))
       const list = res.items || (Array.isArray(res) ? res : [])
       return list.map((o) => ({
         ...o,
@@ -775,7 +788,7 @@ export const entities = {
   // --- Payments ---
   Payment: {
     async list() {
-      const res = await request('/admin/payments?page=1&limit=300').catch(() => ({ items: [] }))
+      const res = await request('/admin/payments?page=1&limit=100').catch(() => ({ items: [] }))
       const list = res.items || (Array.isArray(res) ? res : [])
       return list.map((p) => ({
         ...p,
@@ -819,7 +832,7 @@ export const entities = {
   // --- Enquiries ---
   Enquiry: {
     async list() {
-      const res = await request('/admin/enquiries?page=1&limit=300').catch(() => ({ items: [] }))
+      const res = await request('/admin/enquiries?page=1&limit=100').catch(() => ({ items: [] }))
       const list = res.items || (Array.isArray(res) ? res : [])
       return list.map((e) => ({
         ...e,
@@ -1018,7 +1031,7 @@ export const entities = {
   // --- Customers ---
   Customer: {
     async list() {
-      const res = await request('/admin/customers?page=1&limit=300').catch(() => ({ items: [] }))
+      const res = await request('/admin/customers?page=1&limit=100').catch(() => ({ items: [] }))
       return res.items || (Array.isArray(res) ? res : [])
     },
     async filter() {
@@ -1039,7 +1052,7 @@ export const entities = {
   // --- Audit Logs ---
   AuditLog: {
     async list() {
-      const res = await request('/admin/audit?page=1&limit=300').catch(() => ({ items: [] }))
+      const res = await request('/admin/audit?page=1&limit=100').catch(() => ({ items: [] }))
       const list = res.items || (Array.isArray(res) ? res : [])
       return list.map((a) => ({
         ...a,

@@ -5,6 +5,7 @@ import { apiClient } from '@/api/apiClient';
 import { useI18n } from '@/lib/i18n';
 import { downloadCsv, inr, money, printHtml, todayISO } from '../lib/adminData';
 import { RevenueChart, BarList } from '../components/Charts';
+import DatePicker from '@/components/ui/date-picker';
 
 const startOfMonth = () => `${todayISO().slice(0, 7)}-01`;
 
@@ -104,9 +105,15 @@ export default function Reports() {
         </div>
       </div>
 
-      <div className="flex flex-wrap items-center gap-2 rounded-2xl border border-slate-200 bg-white p-3 text-sm">
-        <label className="flex items-center gap-2">{L('From', 'से')}<input type="date" value={from} onChange={(e) => setFrom(e.target.value)} className={input} /></label>
-        <label className="flex items-center gap-2">{L('To', 'तक')}<input type="date" value={to} onChange={(e) => setTo(e.target.value)} className={input} /></label>
+      <div className="flex flex-wrap items-center gap-3 rounded-2xl border border-slate-200 bg-white p-3 text-sm">
+        <div className="flex items-center gap-2">
+          <span className="text-xs font-medium text-slate-500">{L('From', 'से')}:</span>
+          <DatePicker variant="admin" value={from} onChange={(e) => setFrom(e.target.value)} className="w-44 min-h-[38px] py-1.5" />
+        </div>
+        <div className="flex items-center gap-2">
+          <span className="text-xs font-medium text-slate-500">{L('To', 'तक')}:</span>
+          <DatePicker variant="admin" min={from} value={to} onChange={(e) => setTo(e.target.value)} className="w-44 min-h-[38px] py-1.5" />
+        </div>
       </div>
 
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">

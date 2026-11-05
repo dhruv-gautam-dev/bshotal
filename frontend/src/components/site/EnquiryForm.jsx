@@ -4,6 +4,7 @@ import { useI18n } from '@/lib/i18n';
 import { isValidPhone, openWhatsApp } from '@/lib/whatsapp';
 import { submitEnquiry, enquiryMessage } from '@/lib/services';
 import { MessageCircle } from 'lucide-react';
+import DatePicker from '@/components/ui/date-picker';
 
 const today = () => new Date().toISOString().slice(0, 10);
 const Err = ({ m }) => (m ? <p className="mt-1 text-sm text-red-400" role="alert">{m}</p> : null);
@@ -56,7 +57,11 @@ export default function EnquiryForm({ eventType }) {
           <option value="Custom package / Catering">Custom package / Catering</option>
         </select>
       </label>
-      <label className="text-sm">{t('f.date')}<input className="field mt-1" type="date" min={today()} value={f.date} onChange={set('date')} /><Err m={errors.date} /></label>
+      <div className="space-y-1">
+        <span className="text-sm font-medium">{t('f.date')}</span>
+        <DatePicker min={today()} value={f.date} onChange={set('date')} placeholder={t('f.date')} className="field mt-1" />
+        <Err m={errors.date} />
+      </div>
       <label className="text-sm md:col-span-2">Expected guests<input className="field mt-1" type="number" min="1" value={f.guests} onChange={set('guests')} /></label>
       <label className="text-sm md:col-span-2">{t('f.message')}<textarea className="field mt-1 py-3" rows={3} value={f.message} onChange={set('message')} /></label>
       <button type="submit" disabled={busy} className="btn-gold md:col-span-2">{busy ? 'Sending…' : t('cta.enquire')}</button>

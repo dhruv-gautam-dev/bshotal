@@ -16,7 +16,7 @@ router = APIRouter(prefix="/payments", tags=["Admin Payments"])
 @router.get("", response_model=PaginatedResponse[PaymentOut])
 async def list_payments(
     page: int = Query(1, ge=1),
-    limit: int = Query(20, ge=1, le=100),
+    limit: int = Query(50, ge=1, le=500),
     status_filter: str | None = Query(None, alias="status"),
     mode: str | None = None,
     db: AsyncSession = Depends(get_db),

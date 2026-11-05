@@ -32,7 +32,7 @@ router = APIRouter(prefix="/bookings", tags=["Admin Bookings"])
 @router.get("", response_model=PaginatedResponse[BookingOut])
 async def list_bookings(
     page: int = Query(1, ge=1),
-    limit: int = Query(20, ge=1, le=100),
+    limit: int = Query(50, ge=1, le=500),
     status_filter: str | None = Query(None, alias="status"),
     room_type_id: str | None = None,
     search: str | None = None,

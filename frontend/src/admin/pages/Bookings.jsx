@@ -8,6 +8,7 @@ import { BOOKING_STATUS, inr, downloadCsv } from '../lib/adminData';
 import StatusPill from '../components/StatusPill';
 import Empty from '../components/Empty';
 import BookingForm from '../components/BookingForm';
+import DatePicker from '@/components/ui/date-picker';
 
 export default function Bookings() {
   const { L } = useI18n();
@@ -22,10 +23,21 @@ export default function Bookings() {
 
   useEffect(() => { setOpen(params.get('new') === '1'); }, [params]);
 
-  const { data: bookings = [], isLoading } = useQuery({
+  const { data: rawBookings = [], isLoading } = useQuery({
     queryKey: ['admin-bookings'],
-    queryFn: async () => (await apiClient.entities.Booking.filter({}, { sort: '-created_date', limit: 300 })).items,
+    queryFn: async () => {
+      try {
+        const res = await apiClient.entities.Booking.filter({}, { sort: '-created_date', limit: 100 });
+        return Array.isArray(res?.items) ? res.items : (Array.isArray(res) ? res : []);
+      } catch (err) {
+        console.error('Failed to load admin bookings:', err);
+        return [];
+      }
+    },
+    refetchInterval: 6000, // Live poll so website bookings appear on dashboard automatically
   });
+
+  const bookings = Array.isArray(rawBookings) ? rawBookings : [];
 
   const rows = useMemo(() => {
     const term = q.trim().toLowerCase();
@@ -75,8 +87,14 @@ export default function Bookings() {
           <option value="">{L('All statuses', 'सभी स्थिति')}</option>
           {Object.entries(BOOKING_STATUS).map(([k, v]) => <option key={k} value={k}>{L(v.en, v.hi)}</option>)}
         </select>
-        <label className="flex items-center gap-2 text-xs text-slate-500">{L('From', 'से')}<input type="date" value={from} onChange={(e) => setFrom(e.target.value)} className={`${input} w-full`} /></label>
-        <label className="flex items-center gap-2 text-xs text-slate-500">{L('To', 'तक')}<input type="date" value={to} onChange={(e) => setTo(e.target.value)} className={`${input} w-full`} /></label>
+        <div className="flex flex-col gap-1">
+          <span className="text-xs text-slate-500 font-medium">{L('From', 'से')}</span>
+          <DatePicker variant="admin" value={from} onChange={(e) => setFrom(e.target.value)} placeholder={L('From date', 'शुरुआती तारीख')} />
+        </div>
+        <div className="flex flex-col gap-1">
+          <span className="text-xs text-slate-500 font-medium">{L('To', 'तक')}</span>
+          <DatePicker variant="admin" value={to} onChange={(e) => setTo(e.target.value)} min={from} placeholder={L('To date', 'अंतिम तारीख')} />
+        </div>
         <p className="self-center text-xs text-slate-500">{rows.length} {L('results', 'परिणाम')}</p>
       </div>
 
