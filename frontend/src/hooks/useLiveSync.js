@@ -148,7 +148,8 @@ export function useLiveSync() {
     const connectSSE = () => {
       if (!isMounted) return;
       try {
-        const url = '/api/v1/public/live/stream';
+        const apiHost = import.meta.env.VITE_API_URL || '';
+        const url = `${apiHost}/api/v1/public/live/stream`;
         eventSource = new EventSource(url);
 
         eventSource.addEventListener('menu_updated', (e) => {

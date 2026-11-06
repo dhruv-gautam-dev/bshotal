@@ -62,14 +62,14 @@ export default function RoomCard({ room, onDetails, onBook }) {
   if (!room) return null;
 
   const roomName = typeof room.name === 'object' ? tr(room.name) : (room.name_en || room.name || 'Room');
-  const imageSrc = (Array.isArray(room.images) && room.images[0]) || room.image || '/images/standard.png';
+  const imageSrc = (Array.isArray(room.images) && room.images[0]) || room.image || '/images/standard.webp';
   const capacity = room.capacity || room.max_guests || 2;
   const price = Number(room.price || room.base_price || 0);
 
   return (
     <article className="overflow-hidden rounded-2xl border border-primary/25 bg-card">
       <button type="button" onClick={onDetails} className="block w-full" aria-label={`${t('cta.details')}: ${roomName}`}>
-        <Image src={imageSrc} alt={roomName} className="aspect-[3/2] w-full" />
+        <Image src={imageSrc} alt={roomName} loading="lazy" decoding="async" className="aspect-[3/2] w-full" />
       </button>
       <div className="space-y-3 p-5">
         <h3 className="text-2xl font-semibold">{roomName}</h3>

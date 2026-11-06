@@ -2,6 +2,8 @@
 // All catalog data, pricing, bookings, orders, enquiries and reviews read & write directly to the database.
 import { apiClient } from '@/api/apiClient';
 
+const API_HOST = import.meta.env.VITE_API_URL || '';
+
 export async function getPublicSettings() {
   try {
     const s = await apiClient.app.getPublicSettings();
@@ -19,7 +21,7 @@ export async function getPublicSettings() {
 
 export async function fetchMenu() {
   try {
-    const res = await fetch('/api/v1/public/menu');
+    const res = await fetch(`${API_HOST}/api/v1/public/menu`);
     if (!res.ok) return [];
     const categories = await res.json();
     if (!Array.isArray(categories)) return [];
@@ -38,7 +40,7 @@ export async function fetchMenu() {
           price: Number(i.price) || 0,
           desc: i.description || '',
           category: c.id,
-          image: i.image_url || '/images/food.png',
+          image: i.image_url || '/images/food.webp',
           tags: Array.isArray(i.tags) ? i.tags : [],
           is_veg: i.is_veg !== false,
           spicy_level: i.spicy_level || 0,
@@ -52,12 +54,12 @@ export async function fetchMenu() {
 
 export async function fetchRoomTypes() {
   try {
-    const res = await fetch('/api/v1/public/rooms');
+    const res = await fetch(`${API_HOST}/api/v1/public/rooms`);
     if (!res.ok) return [];
     const roomTypes = await res.json();
     if (!Array.isArray(roomTypes)) return [];
 
-    const defaultRoomImages = ['/images/standard.png', '/images/deluxe.png', '/images/family.png'];
+    const defaultRoomImages = ['/images/standard.webp', '/images/deluxe.webp', '/images/family.webp'];
 
     return roomTypes.map((t, idx) => ({
       id: t.id,
@@ -80,12 +82,12 @@ export async function fetchRoomTypes() {
 
 export async function fetchEventPackages() {
   try {
-    const res = await fetch('/api/v1/public/events/packages');
+    const res = await fetch(`${API_HOST}/api/v1/public/events/packages`);
     if (!res.ok) return [];
     const packages = await res.json();
     if (!Array.isArray(packages)) return [];
 
-    const defaultEventImages = ['/images/ring.png', '/images/birthday.png', '/images/wedding.png'];
+    const defaultEventImages = ['/images/ring.webp', '/images/birthday.webp', '/images/wedding.webp'];
     const eventValues = ['Ring Ceremony / Engagement', 'Birthday Party', 'Wedding'];
 
     return packages.map((p, idx) => {
@@ -94,13 +96,13 @@ export async function fetchEventPackages() {
       let val = eventValues[idx % eventValues.length];
 
       if (lower.includes('ring') || lower.includes('engagement')) {
-        img = '/images/ring.png';
+        img = '/images/ring.webp';
         val = 'Ring Ceremony / Engagement';
       } else if (lower.includes('birthday')) {
-        img = '/images/birthday.png';
+        img = '/images/birthday.webp';
         val = 'Birthday Party';
       } else if (lower.includes('wedding') || lower.includes('marriage')) {
-        img = '/images/wedding.png';
+        img = '/images/wedding.webp';
         val = 'Wedding';
       }
 

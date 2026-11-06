@@ -39,12 +39,12 @@ export const ORDER_CONFIG = {
 };
 
 export const IMAGES = {
-  hero: '/images/hero.png',
-  standard: '/images/standard.png',
-  deluxe: '/images/deluxe.png',
-  family: '/images/family.png',
-  food: '/images/food.png',
-  ring: '/images/ring.png',
-  birthday: '/images/birthday.png',
-  wedding: '/images/wedding.png',
+  hero: '/images/hero.webp',
+  standard: '/images/standard.webp',
+  deluxe: '/images/deluxe.webp',
+  family: '/images/family.webp',
+  food: '/images/food.webp',
+  ring: '/images/ring.webp',
+  birthday: '/images/birthday.webp',
+  wedding: '/images/wedding.webp',
 };

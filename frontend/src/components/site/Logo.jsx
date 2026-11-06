@@ -1,7 +1,7 @@
 // Brand logo. Single source of truth for the asset + its two crops.
 // The artwork carries generous dark padding, so each variant zooms to the exact
 // region it needs (measured from the source) and blends over the dark UI.
-const SRC = '/images/logo.png';
+const SRC = '/images/logo.webp';
 
 const VARIANTS = {
   // Lotus emblem + BS monogram only

@@ -8,14 +8,14 @@ export default function EventStory({ event, index, onEnquire }) {
   const { t, tr } = useI18n();
   const eventName = typeof event.name === 'object' ? tr(event.name) : (event.name || event.title);
   const eventDesc = typeof event.desc === 'object' ? tr(event.desc) : (event.desc || event.description);
-  const eventImage = event.image || '/images/ring.png';
+  const eventImage = event.image || '/images/ring.webp';
   const includesList = Array.isArray(event.includes) ? event.includes : [];
 
   return (
     <section id={event.id} className={`scroll-mt-20 border-b border-primary/20 py-14 ${index % 2 ? 'bg-card/40' : ''}`}>
       <div className={`mx-auto grid max-w-7xl items-center gap-8 px-4 md:grid-cols-2 ${index % 2 ? 'md:[&>*:first-child]:order-2' : ''}`}>
         <Reveal>
-          <Image src={eventImage} alt={eventName} className="aspect-[3/2] w-full rounded-2xl border border-primary/30" />
+          <Image src={eventImage} alt={eventName} loading="lazy" decoding="async" className="aspect-[3/2] w-full rounded-2xl border border-primary/30" />
         </Reveal>
         <Reveal delay={0.1}>
           <h2 className="text-4xl font-semibold">{eventName}</h2>

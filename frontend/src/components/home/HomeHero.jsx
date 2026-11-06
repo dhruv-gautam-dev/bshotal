@@ -8,7 +8,7 @@ export default function HomeHero() {
   const { t, tr } = useI18n();
   return (
     <section className="relative flex min-h-[88vh] items-end overflow-hidden pt-16">
-      <Image src={IMAGES.hero} alt="B.S. Hotel entrance at dusk" className="absolute inset-0 h-full w-full" loading="eager" />
+      <Image src={IMAGES.hero} alt="B.S. Hotel entrance at dusk" className="absolute inset-0 h-full w-full object-cover" loading="eager" fetchPriority="high" decoding="sync" />
       <div className="absolute inset-0 bg-gradient-to-t from-background via-background/70 to-background/20" />
       <div className="relative mx-auto w-full max-w-7xl px-4 pb-24 md:pb-28">
         <p className="mb-4 text-xs font-semibold uppercase tracking-[0.3em] text-primary">{t('hero.eyebrow')}</p>

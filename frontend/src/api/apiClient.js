@@ -4,7 +4,8 @@
  * Static mock fallback stores are eliminated — all data and transactions are dynamic.
  */
 
-const API_BASE = '/api/v1'
+const API_HOST = import.meta.env.VITE_API_URL || ''
+const API_BASE = `${API_HOST}/api/v1`
 
 function getToken() {
   if (typeof window === 'undefined') return null

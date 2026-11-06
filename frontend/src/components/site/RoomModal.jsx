@@ -12,7 +12,7 @@ export default function RoomModal({ room, onClose }) {
   if (!room) return null;
   const roomName = typeof room.name === 'object' ? tr(room.name) : (room.name_en || room.name || 'Room');
   const roomDesc = typeof room.desc === 'object' ? tr(room.desc) : (room.desc_en || room.description || room.desc || '');
-  const imageSrc = (Array.isArray(room.images) && room.images[0]) || room.image || '/images/standard.png';
+  const imageSrc = (Array.isArray(room.images) && room.images[0]) || room.image || '/images/standard.webp';
   const capacity = room.capacity || room.max_guests || 2;
   const price = Number(room.price || room.base_price || 0);
 
