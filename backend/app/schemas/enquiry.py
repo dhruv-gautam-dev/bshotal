@@ -8,7 +8,7 @@ from app.schemas.common import BaseSchema
 
 class EnquiryCreatePublic(BaseSchema):
     customer_name: str = Field(..., min_length=2, max_length=100)
-    customer_phone: str = Field(..., pattern=r"^(\+91[\-\s]?)?[6-9]\d{9}$")
+    customer_phone: str = Field(..., pattern=r"^(\+?[1-9]\d{6,14}|[6-9]\d{9})$")
     customer_email: EmailStr | None = None
     event_type: str = Field("custom", pattern="^(ring|birthday|wedding|custom|contact)$")
     event_date: date | None = None

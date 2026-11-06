@@ -7,7 +7,7 @@ from app.schemas.common import BaseSchema
 
 
 class CustomerBase(BaseSchema):
-    phone: str = Field(..., pattern=r"^(\+91[\-\s]?)?[6-9]\d{9}$")
+    phone: str = Field(..., pattern=r"^(\+?[1-9]\d{6,14}|[6-9]\d{9})$")
     name: str = Field(..., min_length=2, max_length=100)
     email: EmailStr | None = None
     address: str | None = None

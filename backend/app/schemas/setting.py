@@ -11,6 +11,7 @@ class SettingBase(BaseSchema):
     tagline: str
     bookings_phone: str
     payments_phone: str
+    enquiries_phone: str | None = None
     whatsapp_number: str
     email: EmailStr
     address: str
@@ -39,6 +40,7 @@ class SettingUpdate(BaseSchema):
     tagline: str | None = None
     bookings_phone: str | None = None
     payments_phone: str | None = None
+    enquiries_phone: str | None = None
     whatsapp_number: str | None = None
     email: EmailStr | None = None
     address: str | None = None

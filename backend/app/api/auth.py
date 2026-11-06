@@ -1,3 +1,4 @@
+import re
 from datetime import UTC, datetime, timedelta
 
 from fastapi import APIRouter, Depends, HTTPException, Request, status
@@ -42,9 +43,20 @@ async def login(req: Request, credentials: LoginRequest, db: AsyncSession = Depe
             detail="Too many failed login attempts. Account temporarily locked for 10 minutes.",
         )
 
-    # Allow login by email OR phone
+    # Allow login by email OR phone (supports spaces, dashes, or local formats)
+    clean_username = credentials.username.strip()
+    clean_phone = re.sub(r"[\s\-]", "", clean_username)
+    phone_variants = [clean_username, clean_phone]
+    if clean_phone.startswith("+91") and len(clean_phone) == 13:
+        phone_variants.append(clean_phone[3:])
+    elif not clean_phone.startswith("+") and len(clean_phone) == 10:
+        phone_variants.append(f"+91{clean_phone}")
+
     stmt = select(User).where(
-        or_(User.email == credentials.username.lower(), User.phone == credentials.username),
+        or_(
+            User.email == clean_username.lower(),
+            User.phone.in_(phone_variants),
+        ),
         User.is_deleted == False,
     )
     res = await db.execute(stmt)
@@ -90,6 +102,7 @@ async def login(req: Request, credentials: LoginRequest, db: AsyncSession = Depe
             "phone": user.phone,
             "full_name": user.full_name,
             "role": user.role,
+            "is_active": user.is_active,
             "force_password_change": user.force_password_change,
         },
     )
@@ -151,6 +164,7 @@ async def refresh_token(data: RefreshTokenRequest, db: AsyncSession = Depends(ge
             "phone": user.phone,
             "full_name": user.full_name,
             "role": user.role,
+            "is_active": user.is_active,
             "force_password_change": user.force_password_change,
         },
     )

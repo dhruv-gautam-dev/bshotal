@@ -7,9 +7,11 @@ import { isValidPhone, openWhatsApp, waLink } from '@/lib/whatsapp';
 import { submitContact } from '@/lib/services';
 import useSeo from '@/lib/useSeo';
 import PhoneInput from '@/components/ui/phone-input';
+import { useSiteSettings } from '@/hooks/useSiteCatalog';
 
 export default function Contact() {
   const { t, tr } = useI18n();
+  const { bookingsPhone, bookingsTel, enquiriesPhone, enquiriesTel, whatsappNumber } = useSiteSettings();
   const [f, setF] = useState({ name: '', phone: '', message: '' });
   const [err, setErr] = useState('');
   const [sent, setSent] = useState(null);
@@ -39,21 +41,27 @@ export default function Contact() {
       <PageHero title={t('nav.contact')} sub="We are happy to help with rooms, food and events." />
       <section className="mx-auto grid max-w-6xl gap-10 px-4 py-12 md:grid-cols-2">
         <div>
-          <a className={row} href={`tel:${SITE.tel1}`}>
+          <a className={row} href={`tel:${bookingsTel}`}>
             <Phone className="mt-1 shrink-0 text-primary" size={20} />
             <div>
-              <span className="font-medium text-foreground">{SITE.phone1}</span>
-              <span className="block text-xs text-muted-foreground">{t('nav.bookings') || 'Bookings'} & Inquiries</span>
+              <span className="font-medium text-foreground">{bookingsPhone}</span>
+              <span className="block text-xs text-muted-foreground">{t('nav.rooms') || 'Room Bookings & Reservations'}</span>
             </div>
           </a>
-          <a className={row} href={`tel:${SITE.tel2}`}>
+          <a className={row} href={`tel:${enquiriesTel}`}>
             <Phone className="mt-1 shrink-0 text-primary" size={20} />
             <div>
-              <span className="font-medium text-foreground">{SITE.phone2}</span>
-              <span className="block text-xs text-muted-foreground">Payments, Accounts & Billing</span>
+              <span className="font-medium text-foreground">{enquiriesPhone}</span>
+              <span className="block text-xs text-muted-foreground">Event Enquiries, Restaurant & Support</span>
             </div>
           </a>
-          <a className={row} href={waLink()} target="_blank" rel="noopener noreferrer"><MessageCircle className="mt-1 text-primary" size={20} />WhatsApp</a>
+          <a className={row} href={waLink('', whatsappNumber)} target="_blank" rel="noopener noreferrer">
+            <MessageCircle className="mt-1 text-primary" size={20} />
+            <div>
+              <span className="font-medium text-foreground">WhatsApp Direct</span>
+              <span className="block text-xs text-muted-foreground">Instant chat, quotes & confirmations</span>
+            </div>
+          </a>
           <p className={row}><MapPin className="mt-1 shrink-0 text-primary" size={20} />{tr(SITE.address)}</p>
           <p className={row}><Clock className="mt-1 shrink-0 text-primary" size={20} />{tr(SITE.hours)}</p>
           <iframe title="Map" src={SITE.mapEmbed} loading="lazy" className="mt-4 h-72 w-full rounded-2xl border border-primary/30" />

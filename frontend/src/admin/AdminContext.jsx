@@ -19,10 +19,10 @@ export function AdminProvider({ children }) {
       .then((user) => {
         if (!alive) return;
         if (!user) { setStatus('anon'); return; }
-        const role = user.role?.toLowerCase();
+        const role = (user.role || '').toLowerCase();
         const staff_role = (role === 'admin' || role === 'owner')
           ? 'owner'
-          : (user.staff_role || role || 'none');
+          : (role === 'manager' ? 'manager' : (role === 'staff' ? 'staff' : (user.staff_role || 'staff')));
         const allowed = user.is_active !== false && user.staff_active !== false && staff_role !== 'none';
         setMe({ id: user.id, email: user.email, full_name: user.full_name, role: user.role, staff_role, allowed });
         setStatus(allowed ? 'ready' : 'denied');

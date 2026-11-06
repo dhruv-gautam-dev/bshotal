@@ -3,9 +3,11 @@ import { Phone } from 'lucide-react';
 import { Image } from '@/components/ui/image';
 import { IMAGES, SITE } from '@/data/site';
 import { useI18n } from '@/lib/i18n';
+import { useSiteSettings } from '@/hooks/useSiteCatalog';
 
 export default function HomeHero() {
   const { t, tr } = useI18n();
+  const { bookingsTel } = useSiteSettings();
   return (
     <section className="relative flex min-h-[88vh] items-end overflow-hidden pt-16">
       <Image src={IMAGES.hero} alt="B.S. Hotel entrance at dusk" className="absolute inset-0 h-full w-full object-cover" loading="eager" fetchPriority="high" decoding="sync" />
@@ -18,7 +20,7 @@ export default function HomeHero() {
         <div className="mt-8 flex flex-wrap gap-3">
           <Link to="/booking" className="btn-gold">{t('cta.bookRoom')}</Link>
           <Link to="/restaurant" className="btn-outline bg-background/40">{t('cta.orderFood')}</Link>
-          <a href={`tel:${SITE.tel1}`} className="btn-outline bg-background/40"><Phone size={18} />{t('cta.callUs')}</a>
+          <a href={`tel:${bookingsTel}`} className="btn-outline bg-background/40"><Phone size={18} />{t('cta.callUs')}</a>
         </div>
       </div>
     </section>

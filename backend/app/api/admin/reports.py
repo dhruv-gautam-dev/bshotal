@@ -7,7 +7,7 @@ from fastapi import APIRouter, Depends, Query, Response
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.deps import get_db, require_owner
+from app.core.deps import get_db, require_manager, require_owner
 from app.models.booking import Booking
 from app.models.order import Order
 from app.models.user import User
@@ -20,7 +20,7 @@ async def get_financial_summary(
     start_date: date = Query(default_factory=lambda: date.today() - timedelta(days=30)),
     end_date: date = Query(default_factory=date.today),
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(require_owner),
+    current_user: User = Depends(require_manager),
 ):
     # Total room booking revenue
     b_res = await db.execute(
@@ -83,7 +83,7 @@ async def export_financial_report_csv(
     start_date: date = Query(default_factory=lambda: date.today() - timedelta(days=30)),
     end_date: date = Query(default_factory=date.today),
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(require_owner),
+    current_user: User = Depends(require_manager),
 ):
     output = io.StringIO()
     writer = csv.writer(output)

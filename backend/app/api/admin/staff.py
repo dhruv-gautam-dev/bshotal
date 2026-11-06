@@ -29,25 +29,51 @@ async def create_staff_user(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(require_owner),
 ):
+    clean_email = data.email.strip().lower()
+    clean_phone = data.phone.strip()
+
     # Check duplicate email/phone
     exist_stmt = select(User).where(
-        (User.email == data.email.lower()) | (User.phone == data.phone), User.is_deleted == False
+        (User.email == clean_email) | (User.phone == clean_phone)
     )
     exist = (await db.execute(exist_stmt)).scalar_one_or_none()
     if exist:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="A user with this email or phone already exists",
-        )
+        if exist.is_deleted:
+            # Reactivate soft-deleted user with new credentials and role
+            exist.is_deleted = False
+            exist.email = clean_email
+            exist.phone = clean_phone
+            exist.full_name = data.full_name.strip()
+            exist.role = data.role
+            exist.is_active = data.is_active
+            exist.hashed_password = get_password_hash(data.password)
+            exist.force_password_change = False
+            await db.commit()
+            await db.refresh(exist)
+
+            await log_audit_event(
+                db,
+                action="create_staff",
+                entity_type="user",
+                entity_id=exist.id,
+                details={"name": exist.full_name, "role": exist.role, "email": exist.email, "reactivated": True},
+                user=current_user,
+            )
+            return exist
+        else:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="A user with this email or phone already exists",
+            )
 
     user = User(
-        email=data.email.lower(),
-        phone=data.phone,
-        full_name=data.full_name,
+        email=clean_email,
+        phone=clean_phone,
+        full_name=data.full_name.strip(),
         role=data.role,
         is_active=data.is_active,
         hashed_password=get_password_hash(data.password),
-        force_password_change=True,  # Force change on first login
+        force_password_change=False,
     )
     db.add(user)
     await db.commit()
@@ -77,13 +103,47 @@ async def update_staff_user(
 
     update_dict = data.model_dump(exclude_unset=True)
     if update_dict.get("password"):
-        user.hashed_password = get_password_hash(update_dict.pop("password"))
+        pwd = update_dict.pop("password")
+        if pwd and len(str(pwd).strip()) >= 6:
+            user.hashed_password = get_password_hash(str(pwd).strip())
+            user.force_password_change = False
+
+    # Check duplicate email
+    if update_dict.get("email"):
+        clean_email = update_dict["email"].strip().lower()
+        if clean_email != user.email:
+            email_check = (
+                await db.execute(
+                    select(User).where(User.email == clean_email, User.id != user_id, User.is_deleted == False)
+                )
+            ).scalar_one_or_none()
+            if email_check:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="Email is already used by another account",
+                )
+            user.email = clean_email
+        update_dict.pop("email", None)
+
+    # Check duplicate phone
+    if update_dict.get("phone"):
+        clean_phone = update_dict["phone"].strip()
+        if clean_phone != user.phone:
+            phone_check = (
+                await db.execute(
+                    select(User).where(User.phone == clean_phone, User.id != user_id, User.is_deleted == False)
+                )
+            ).scalar_one_or_none()
+            if phone_check:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="Phone is already used by another account",
+                )
+            user.phone = clean_phone
+        update_dict.pop("phone", None)
 
     for k, v in update_dict.items():
-        if k == "email" and v:
-            setattr(user, k, v.lower())
-        else:
-            setattr(user, k, v)
+        setattr(user, k, v)
 
     await db.commit()
     await db.refresh(user)
@@ -93,7 +153,11 @@ async def update_staff_user(
         action="update_staff",
         entity_type="user",
         entity_id=user.id,
-        details={"updated_fields": list(update_dict.keys())},
+        details={
+            "name": user.full_name,
+            "role": user.role,
+            "updated_fields": list(data.model_dump(exclude_unset=True).keys()),
+        },
         user=current_user,
     )
     return user
@@ -121,7 +185,7 @@ async def deactivate_staff_user(
         action="delete_staff",
         entity_type="user",
         entity_id=user.id,
-        details={"name": user.full_name},
+        details={"name": user.full_name, "email": user.email, "role": user.role},
         user=current_user,
     )
     return MessageResponse(message=f"Account for {user.full_name} deactivated")

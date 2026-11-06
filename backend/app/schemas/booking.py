@@ -20,7 +20,7 @@ class BookingHistoryOut(BaseSchema):
 class BookingCreatePublic(BaseSchema):
     room_type_id: str
     guest_name: str = Field(..., min_length=2, max_length=100)
-    guest_phone: str = Field(..., pattern=r"^(\+91[\-\s]?)?[6-9]\d{9}$")
+    guest_phone: str = Field(..., pattern=r"^(\+?[1-9]\d{6,14}|[6-9]\d{9})$")
     guest_email: EmailStr | None = None
     check_in_date: date
     check_out_date: date

@@ -4,6 +4,14 @@ from typing import Any
 from app.schemas.common import BaseSchema
 
 
+class AuditLogCreate(BaseSchema):
+    action: str
+    entity_type: str = "general"
+    entity_id: str = ""
+    details: dict[str, Any] | None = None
+    summary: str | None = None
+
+
 class AuditLogOut(BaseSchema):
     id: str
     user_id: str | None = None

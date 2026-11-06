@@ -159,7 +159,7 @@ export default function Overview() {
       <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
         <Link to="/admin/bookings?new=1" className="flex min-h-[52px] items-center justify-center gap-2 rounded-xl bg-slate-900 px-3 text-sm font-semibold text-white"><CalendarPlus size={16} />{L('New booking', 'नई बुकिंग')}</Link>
         <Link to="/admin/orders?new=1" className="flex min-h-[52px] items-center justify-center gap-2 rounded-xl bg-amber-500 px-3 text-sm font-semibold text-white"><UtensilsCrossed size={16} />{L('New order', 'नया ऑर्डर')}</Link>
-        <Link to="/admin/rooms?tab=blocks" className="flex min-h-[52px] items-center justify-center gap-2 rounded-xl border border-slate-300 bg-white px-3 text-sm font-semibold text-slate-700"><Ban size={16} />{L('Block dates', 'तारीखें बंद करें')}</Link>
+        {/* <Link to="/admin/rooms?tab=blocks" className="flex min-h-[52px] items-center justify-center gap-2 rounded-xl border border-slate-300 bg-white px-3 text-sm font-semibold text-slate-700"><Ban size={16} />{L('Block dates', 'तारीखें बंद करें')}</Link> */}
         <Link to="/admin/menu?new=1" className="flex min-h-[52px] items-center justify-center gap-2 rounded-xl border border-slate-300 bg-white px-3 text-sm font-semibold text-slate-700"><PlusCircle size={16} />{L('Add dish', 'डिश जोड़ें')}</Link>
       </div>
 

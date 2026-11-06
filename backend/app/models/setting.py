@@ -20,6 +20,14 @@ class Setting(TimeStampedModel):
     whatsapp_number: Mapped[str] = mapped_column(String(20), default="+919149224039")
     email: Mapped[str] = mapped_column(String(100), default="info@bshotel.in")
 
+    @property
+    def enquiries_phone(self) -> str:
+        return self.payments_phone
+
+    @enquiries_phone.setter
+    def enquiries_phone(self, val: str):
+        self.payments_phone = val
+
     address: Mapped[str] = mapped_column(
         String(255), default="Near Township Nagar, NH-2, Mathura, Uttar Pradesh"
     )

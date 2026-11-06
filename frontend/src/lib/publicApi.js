@@ -4,22 +4,43 @@ import { apiClient } from '@/api/apiClient';
 import { ROOMS } from '@/data/rooms';
 import { MENU } from '@/data/menu';
 import { EVENTS } from '@/data/events';
+import { SITE } from '@/data/site';
 
 import { API_HOST } from '@/lib/apiConfig';
 
 const cleanPhone = (p) => {
   if (!p) return '';
-  const digits = String(p).replace(/[\s-]/g, '').replace(/^(\+91|91|0)/, '').replace(/\D/g, '').slice(0, 10);
-  return digits.length === 10 ? `+91${digits}` : String(p).trim();
+  const trimmed = String(p).trim();
+  if (trimmed.startsWith('+')) {
+    return trimmed.replace(/[^\d+]/g, '');
+  }
+  const digits = trimmed.replace(/\D/g, '').slice(-10);
+  return digits.length === 10 ? `+91${digits}` : trimmed;
 };
 
 export async function getPublicSettings() {
   try {
     const s = await apiClient.app.getPublicSettings();
     if (!s) return null;
+
+    if (s.whatsapp_number) {
+      SITE.whatsapp = String(s.whatsapp_number).replace(/\D/g, '');
+    }
+    if (s.bookings_phone) {
+      SITE.phone1 = s.bookings_phone;
+      SITE.tel1 = s.bookings_phone.replace(/[^\d+]/g, '');
+      SITE.bookingsPhone = s.bookings_phone;
+    }
+    if (s.enquiries_phone || s.payments_phone) {
+      const p = s.enquiries_phone || s.payments_phone;
+      SITE.phone2 = p;
+      SITE.tel2 = p.replace(/[^\d+]/g, '');
+      SITE.paymentsPhone = p;
+    }
+
     return {
       ...s,
-      taxPercent: Number(s.tax_percent ?? s.restaurant_tax_percent ?? 5),
+      taxPercent: Number(s.restaurant_tax_percent ?? s.tax_percent ?? 5),
       roomTaxPercent: Number(s.room_tax_percent ?? 12),
       deliveryCharge: Number(s.delivery_charge ?? 40),
     };

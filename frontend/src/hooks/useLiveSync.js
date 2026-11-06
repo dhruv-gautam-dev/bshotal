@@ -83,6 +83,7 @@ export function useLiveSync() {
     const handleSettingsUpdate = async () => {
       queryClient.invalidateQueries({ queryKey: ['public-settings'] });
       queryClient.invalidateQueries({ queryKey: ['admin-settings'] });
+      queryClient.invalidateQueries({ queryKey: ['admin-settings-dashboard'] });
       try {
         const s = await getPublicSettings();
         if (s) dispatch(setSettingsData(s));

@@ -126,49 +126,70 @@ export const auth = {
     if (!token) return null
     try {
       const u = await request('/auth/me')
-      const role = u.role?.toLowerCase()
+      const role = (u.role || '').toLowerCase()
       const staff_role = (role === 'admin' || role === 'owner')
         ? 'owner'
-        : (role === 'manager' ? 'manager' : 'staff')
+        : (role === 'manager' ? 'manager' : (role === 'staff' ? 'staff' : 'staff'))
       const user = {
         id: u.id,
         email: u.email,
+        phone: u.phone,
         full_name: u.full_name,
         role: u.role,
         staff_role,
-        staff_active: u.is_active,
+        staff_active: u.is_active !== false,
+        is_active: u.is_active !== false,
       }
       if (typeof window !== 'undefined') {
         window.localStorage.setItem('auth_user', JSON.stringify(user))
       }
       return user
-    } catch {
-      clearTokens()
+    } catch (err) {
+      console.warn('auth.me request notice:', err)
+      if (err?.status === 401) {
+        clearTokens()
+        return null
+      }
+      if (typeof window !== 'undefined') {
+        try {
+          const cached = JSON.parse(window.localStorage.getItem('auth_user') || 'null')
+          if (cached && cached.id) {
+            return {
+              ...cached,
+              staff_active: cached.is_active !== false && cached.staff_active !== false,
+              is_active: cached.is_active !== false,
+            }
+          }
+        } catch {}
+      }
       return null
     }
   },
 
   async login(email, password) {
+    const cleanIdentifier = String(email || '').trim()
     const data = await request('/auth/login', {
       method: 'POST',
-      body: JSON.stringify({ username: email, password }),
+      body: JSON.stringify({ username: cleanIdentifier, password }),
     })
     setToken(data.access_token)
     if (data.refresh_token && typeof window !== 'undefined') {
       window.localStorage.setItem('refresh_token', data.refresh_token)
     }
-    const u = data.user
-    const role = u.role?.toLowerCase()
+    const u = data.user || {}
+    const role = (u.role || '').toLowerCase()
     const staff_role = (role === 'admin' || role === 'owner')
       ? 'owner'
-      : (role === 'manager' ? 'manager' : 'staff')
+      : (role === 'manager' ? 'manager' : (role === 'staff' ? 'staff' : 'staff'))
     const user = {
       id: u.id,
       email: u.email,
+      phone: u.phone,
       full_name: u.full_name,
       role: u.role,
       staff_role,
-      staff_active: u.is_active,
+      staff_active: u.is_active !== false,
+      is_active: u.is_active !== false,
     }
     if (typeof window !== 'undefined') {
       window.localStorage.setItem('auth_user', JSON.stringify(user))
@@ -208,8 +229,13 @@ export const entities = {
         const mapped = {
           ...s,
           hotel_name: s.hotel_name,
+          bookings_phone: s.bookings_phone,
+          payments_phone: s.payments_phone,
+          enquiries_phone: s.enquiries_phone || s.payments_phone,
+          whatsapp_number: s.whatsapp_number,
           phone: s.bookings_phone,
           phone1: s.bookings_phone,
+          phone2: s.payments_phone,
           whatsapp: s.whatsapp_number,
           tax_percent: Number(s.restaurant_tax_percent ?? 5),
           room_tax_percent: Number(s.room_tax_percent ?? 12),
@@ -229,16 +255,19 @@ export const entities = {
     },
     async update(id, values) {
       const payload = { ...values }
-      if (payload.tax_percent !== undefined) {
+      if (payload.tax_percent !== undefined && payload.restaurant_tax_percent === undefined) {
         payload.restaurant_tax_percent = Number(payload.tax_percent)
       }
       if (payload.delivery_charge !== undefined) {
         payload.delivery_charge = Number(payload.delivery_charge)
       }
-      if (payload.phone !== undefined) {
+      if (payload.enquiries_phone !== undefined) {
+        payload.payments_phone = payload.enquiries_phone
+      }
+      if (payload.phone !== undefined && payload.bookings_phone === undefined) {
         payload.bookings_phone = payload.phone
       }
-      if (payload.whatsapp !== undefined) {
+      if (payload.whatsapp !== undefined && payload.whatsapp_number === undefined) {
         payload.whatsapp_number = payload.whatsapp
       }
       return await request('/admin/settings', {
@@ -1179,25 +1208,30 @@ export const entities = {
       return list.find((u) => u.id === id) || null
     },
     async create(data) {
-      const role = data.staff_role === 'owner' ? 'owner' : (data.staff_role === 'manager' ? 'manager' : 'staff')
+      const role = data.role || (data.staff_role === 'owner' ? 'owner' : (data.staff_role === 'manager' ? 'manager' : 'staff'))
       return await request('/admin/staff', {
         method: 'POST',
         body: JSON.stringify({
           email: data.email,
-          phone: data.phone || '+919999999999',
+          phone: data.phone,
           full_name: data.full_name,
           role,
-          password: data.password || 'StaffTemp@2026',
-          is_active: data.is_active !== false,
+          password: data.password || 'StaffPass@2026',
+          is_active: data.is_active !== undefined ? Boolean(data.is_active) : (data.staff_active !== false),
         }),
       })
     },
     async update(id, data) {
       const payload = {}
-      if (data.staff_role) payload.role = data.staff_role
-      if (data.full_name) payload.full_name = data.full_name
-      if (data.phone) payload.phone = data.phone
-      if (data.staff_active !== undefined) payload.is_active = data.staff_active
+      if (data.role) payload.role = data.role
+      else if (data.staff_role) payload.role = data.staff_role === 'owner' ? 'owner' : (data.staff_role === 'manager' ? 'manager' : 'staff')
+      if (data.full_name !== undefined) payload.full_name = data.full_name
+      if (data.email !== undefined) payload.email = data.email
+      if (data.phone !== undefined) payload.phone = data.phone
+      if (data.password) payload.password = data.password
+      if (data.is_active !== undefined) payload.is_active = Boolean(data.is_active)
+      else if (data.staff_active !== undefined) payload.is_active = Boolean(data.staff_active)
+
       return await request(`/admin/staff/${id}`, {
         method: 'PUT',
         body: JSON.stringify(payload),
@@ -1231,21 +1265,48 @@ export const entities = {
 
   // --- Audit Logs ---
   AuditLog: {
-    async list() {
-      const res = await request('/admin/audit?page=1&limit=100').catch(() => ({ items: [] }))
+    async list(params = {}) {
+      const qs = new URLSearchParams()
+      qs.set('page', params.page || 1)
+      qs.set('limit', params.limit || 100)
+      if (params.entity_type) qs.set('entity_type', params.entity_type)
+      if (params.action) qs.set('action', params.action)
+      if (params.q) qs.set('q', params.q)
+
+      const res = await request(`/admin/audit?${qs.toString()}`).catch(() => ({ items: [] }))
       const list = res.items || (Array.isArray(res) ? res : [])
       return list.map((a) => ({
         ...a,
         created_date: a.created_at,
+        actor_name: a.user_name || 'System / Guest',
+        actor_role: a.user_role || 'system',
+        actor_email: a.user_name || 'System',
+        area: a.entity_type,
+        entity: a.entity_type,
+        record_id: a.entity_id,
+        summary: a.details?.summary || (a.action ? `${a.action} on ${a.entity_type}` : 'System activity'),
       }))
     },
-    async filter() {
-      const list = await this.list()
+    async filter(filterObj = {}, options = {}) {
+      const merged = { ...filterObj, ...options }
+      const list = await this.list(merged)
       return { items: list }
     },
-    async create() {
-      // Backend creates audit logs automatically during transactions
-      return { success: true }
+    async create(data) {
+      return await request('/admin/audit', {
+        method: 'POST',
+        body: JSON.stringify({
+          action: data.action || 'activity',
+          entity_type: data.area || data.entity || 'general',
+          entity_id: String(data.record_id || data.entity_id || ''),
+          details: {
+            summary: data.summary,
+            actor_email: data.actor_email,
+            actor_role: data.actor_role,
+            ...(data.details || {}),
+          },
+        }),
+      }).catch(() => ({ success: true }))
     },
   },
 }

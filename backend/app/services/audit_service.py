@@ -29,5 +29,7 @@ async def log_audit_event(
     db.add(audit)
     try:
         await db.commit()
+        await db.refresh(audit)
     except Exception:
         await db.rollback()
+    return audit

@@ -159,7 +159,20 @@ export async function prefetchAdminData(queryClient, dispatch) {
       staleTime: 1000 * 60 * 3,
     });
 
-    // 5. Admin Settings
+    // 5. Admin Settings & Master Contact Numbers
+    queryClient.prefetchQuery({
+      queryKey: ['admin-settings-dashboard'],
+      queryFn: async () => {
+        const settings = await getSettings();
+        let users = [];
+        let logs = [];
+        try { users = await apiClient.entities.User.list(); } catch { users = []; }
+        try { logs = (await apiClient.entities.AuditLog.filter({}, { sort: '-created_date', limit: 100 })).items; } catch { logs = []; }
+        if (dispatch && settings) dispatch(setSettingsData(settings));
+        return { settings, users: Array.isArray(users) ? users : [], logs: Array.isArray(logs) ? logs : [] };
+      },
+      staleTime: 1000 * 60 * 10,
+    });
     queryClient.prefetchQuery({
       queryKey: ['admin-settings'],
       queryFn: async () => {

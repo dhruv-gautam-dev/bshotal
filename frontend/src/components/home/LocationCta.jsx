@@ -3,9 +3,11 @@ import { MapPin, Phone } from 'lucide-react';
 import SectionHeading from '@/components/site/SectionHeading';
 import { SITE } from '@/data/site';
 import { useI18n } from '@/lib/i18n';
+import { useSiteSettings } from '@/hooks/useSiteCatalog';
 
 export default function LocationCta() {
   const { t, tr } = useI18n();
+  const { bookingsPhone, bookingsTel } = useSiteSettings();
   return (
     <>
       <section className="mx-auto grid max-w-7xl gap-8 px-4 py-20 md:grid-cols-2 md:py-28">
@@ -21,7 +23,7 @@ export default function LocationCta() {
         <p className="mx-auto mt-2 max-w-lg px-4 text-muted-foreground">{t('cta.finalSub')}</p>
         <div className="mt-6 flex flex-wrap justify-center gap-3 px-4">
           <Link to="/booking" className="btn-gold">{t('cta.bookRoom')}</Link>
-          <a href={`tel:${SITE.tel1}`} className="btn-outline"><Phone size={18} />{SITE.phone1}</a>
+          <a href={`tel:${bookingsTel}`} className="btn-outline"><Phone size={18} />{bookingsPhone}</a>
         </div>
       </section>
     </>

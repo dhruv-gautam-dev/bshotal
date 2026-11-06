@@ -199,7 +199,18 @@ async def create_manual_order(
         action="create",
         entity_type="order",
         entity_id=order.id,
-        details={"ref": order.order_reference, "amount": str(order.total_amount)},
+        details={
+            "ref": order.order_reference,
+            "order_reference": order.order_reference,
+            "customer_name": order.customer_name,
+            "phone": order.customer_phone,
+            "order_type": order.order_type,
+            "table_number": order.table_number,
+            "amount": str(order.total_amount),
+            "total_amount": str(order.total_amount),
+            "status": order.status,
+            "items_count": len(data.items),
+        },
         user=current_user,
     )
     await broadcaster.broadcast(
@@ -291,7 +302,17 @@ async def change_order_status(
         action="status_change",
         entity_type="order",
         entity_id=order.id,
-        details={"status": update_data.status},
+        details={
+            "ref": updated.order_reference,
+            "order_reference": updated.order_reference,
+            "customer_name": updated.customer_name,
+            "phone": updated.customer_phone,
+            "order_type": updated.order_type,
+            "table_number": updated.table_number,
+            "amount": str(updated.total_amount),
+            "new_status": update_data.status,
+            "status": update_data.status,
+        },
         user=current_user,
     )
     return await get_order_detail(updated.id, db, current_user)

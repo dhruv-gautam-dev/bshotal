@@ -7,6 +7,8 @@ from sqlalchemy.orm import selectinload
 
 from app.core.deps import get_db, require_manager, require_staff
 from app.models.booking import Booking, BookingHistory
+from app.models.room import Room
+from app.models.room_type import RoomType
 from app.models.user import User
 from app.schemas.booking import (
     BookingCreateAdmin,
@@ -153,12 +155,37 @@ async def create_admin_booking(
     db.add(history)
     await db.commit()
 
+    # Extract room number and room type for rich audit log
+    room_number = None
+    if booking.assigned_room_id:
+        r = await db.get(Room, booking.assigned_room_id)
+        if r:
+            room_number = r.room_number
+    rt = await db.get(RoomType, booking.room_type_id)
+    room_type_name = rt.name if rt else None
+
     await log_audit_event(
         db,
         action="create",
         entity_type="booking",
         entity_id=booking.id,
-        details={"ref": booking.booking_reference, "guest": booking.guest_name},
+        details={
+            "ref": booking.booking_reference,
+            "booking_reference": booking.booking_reference,
+            "customer_name": booking.guest_name,
+            "guest_name": booking.guest_name,
+            "guest_phone": booking.guest_phone,
+            "phone": booking.guest_phone,
+            "room_number": room_number,
+            "room_type": room_type_name,
+            "check_in": str(booking.check_in_date),
+            "check_out": str(booking.check_out_date),
+            "num_rooms": booking.num_rooms,
+            "num_guests": booking.num_guests,
+            "total_amount": str(booking.total_amount),
+            "advance_paid": str(booking.advance_paid),
+            "status": booking.booking_status,
+        },
         user=current_user,
     )
 
@@ -184,12 +211,35 @@ async def update_booking_details(
         setattr(booking, field, val)
 
     await db.commit()
+
+    room_number = None
+    if booking.assigned_room_id:
+        r = await db.get(Room, booking.assigned_room_id)
+        if r:
+            room_number = r.room_number
+    rt = await db.get(RoomType, booking.room_type_id)
+    room_type_name = rt.name if rt else None
+
     await log_audit_event(
         db,
         action="update",
         entity_type="booking",
         entity_id=booking.id,
-        details=data.model_dump(exclude_unset=True),
+        details={
+            "ref": booking.booking_reference,
+            "booking_reference": booking.booking_reference,
+            "customer_name": booking.guest_name,
+            "guest_name": booking.guest_name,
+            "guest_phone": booking.guest_phone,
+            "phone": booking.guest_phone,
+            "room_number": room_number,
+            "room_type": room_type_name,
+            "check_in": str(booking.check_in_date),
+            "check_out": str(booking.check_out_date),
+            "status": booking.booking_status,
+            "updated_fields": list(data.model_dump(exclude_unset=True).keys()),
+            **data.model_dump(exclude_unset=True),
+        },
         user=current_user,
     )
     await broadcaster.broadcast("booking_updated", {"action": "update", "id": booking.id})
@@ -209,12 +259,35 @@ async def change_booking_status(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Booking not found")
 
     updated = await update_booking_status(db, booking, update_data, user_id=current_user.id)
+
+    room_number = None
+    if updated.assigned_room_id:
+        r = await db.get(Room, updated.assigned_room_id)
+        if r:
+            room_number = r.room_number
+    rt = await db.get(RoomType, updated.room_type_id)
+    room_type_name = rt.name if rt else None
+
     await log_audit_event(
         db,
         action="status_change",
         entity_type="booking",
         entity_id=booking.id,
-        details={"new_status": update_data.status, "reason": update_data.cancellation_reason},
+        details={
+            "ref": updated.booking_reference,
+            "booking_reference": updated.booking_reference,
+            "customer_name": updated.guest_name,
+            "guest_name": updated.guest_name,
+            "guest_phone": updated.guest_phone,
+            "phone": updated.guest_phone,
+            "room_number": room_number,
+            "room_type": room_type_name,
+            "check_in": str(updated.check_in_date),
+            "check_out": str(updated.check_out_date),
+            "new_status": update_data.status,
+            "status": update_data.status,
+            "reason": update_data.cancellation_reason,
+        },
         user=current_user,
     )
     await broadcaster.broadcast("booking_updated", {"action": "status_change", "id": updated.id, "status": update_data.status})
@@ -231,12 +304,30 @@ async def record_booking_payment(
 ):
     payment_in.booking_id = booking_id
     payment = await record_payment(db, payment_in, user_id=current_user.id)
+
+    booking = await db.get(Booking, booking_id)
+    room_number = None
+    if booking and booking.assigned_room_id:
+        r = await db.get(Room, booking.assigned_room_id)
+        if r:
+            room_number = r.room_number
+
     await log_audit_event(
         db,
         action="payment_recorded",
         entity_type="booking",
         entity_id=booking_id,
-        details={"amount": str(payment.amount), "mode": payment.mode},
+        details={
+            "ref": booking.booking_reference if booking else None,
+            "booking_reference": booking.booking_reference if booking else None,
+            "customer_name": booking.guest_name if booking else None,
+            "guest_name": booking.guest_name if booking else None,
+            "guest_phone": booking.guest_phone if booking else None,
+            "phone": booking.guest_phone if booking else None,
+            "room_number": room_number,
+            "amount": str(payment.amount),
+            "mode": payment.mode,
+        },
         user=current_user,
     )
     await broadcaster.broadcast("booking_updated", {"action": "payment", "id": booking_id})
