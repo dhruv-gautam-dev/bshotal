@@ -21,6 +21,7 @@ from app.schemas.menu import (
     MenuItemUpdate,
 )
 from app.services.audit_service import log_audit_event
+from app.services.notification_service import broadcaster
 
 router = APIRouter(prefix="/menu", tags=["Admin Menu Management"])
 
@@ -50,6 +51,7 @@ async def create_category(
     db.add(cat)
     await db.commit()
     await db.refresh(cat)
+    await broadcaster.broadcast("menu_updated", {"action": "create_category", "id": cat.id})
     return cat
 
 
@@ -67,6 +69,7 @@ async def update_category(
         setattr(cat, k, v)
     await db.commit()
     await db.refresh(cat)
+    await broadcaster.broadcast("menu_updated", {"action": "update_category", "id": cat.id})
     return cat
 
 
@@ -81,6 +84,7 @@ async def delete_category(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Category not found")
     cat.is_deleted = True
     await db.commit()
+    await broadcaster.broadcast("menu_updated", {"action": "delete_category", "id": category_id})
     return MessageResponse(message="Category deleted")
 
 
@@ -110,6 +114,7 @@ async def create_menu_item(
     db.add(item)
     await db.commit()
     await db.refresh(item)
+    await broadcaster.broadcast("menu_updated", {"action": "create_item", "id": item.id, "price": str(item.price)})
     return item
 
 
@@ -133,6 +138,7 @@ async def update_menu_item(
 
     await db.commit()
     await db.refresh(item)
+    await broadcaster.broadcast("menu_updated", {"action": "update_item", "id": item.id, "price": str(item.price), "is_available": item.is_available})
     return item
 
 
@@ -145,6 +151,7 @@ async def delete_menu_item(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Menu item not found")
     item.is_deleted = True
     await db.commit()
+    await broadcaster.broadcast("menu_updated", {"action": "delete_item", "id": item_id})
     return MessageResponse(message="Menu item deleted")
 
 
@@ -169,6 +176,7 @@ async def bulk_update_prices(
             it.price = max(Decimal("0.00"), (it.price + data.value).quantize(Decimal("1.00")))
 
     await db.commit()
+    await broadcaster.broadcast("menu_updated", {"action": "bulk_price_update"})
     await log_audit_event(
         db,
         action="bulk_price_update",

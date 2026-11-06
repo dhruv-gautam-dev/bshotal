@@ -194,5 +194,9 @@ export const MENU = RAW.map((c) => ({
 
 export const ALL_ITEMS = MENU.flatMap((c) => c.items);
 
-const FEATURED_NAMES = ['Dal Makhani', 'Shahi Paneer', 'Paneer Tikka', 'Malai Kofta', 'Chole Bhature', 'Masala Dosa', 'Vegetable Biryani With Raita', 'Hara Bhara Kebab'];
+const FEATURED_NAMES = [
+  'Dal Makhani', 'Shahi Paneer', 'Paneer Tikka', 'Malai Kofta',
+  'Chole Bhature', 'Masala Dosa', 'Vegetable Biryani With Raita', 'Hara Bhara Kebab',
+  'Dahi Ke Kebab', 'Pav Bhaji', 'Paneer Butter Masala', 'Tandoori Soya Chaap',
+];
 export const FEATURED = FEATURED_NAMES.map((n) => ALL_ITEMS.find((i) => i.name === n)).filter(Boolean);

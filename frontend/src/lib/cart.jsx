@@ -18,8 +18,23 @@ export function CartProvider({ children }) {
   const setNote = (id, note) => setItems((prev) => prev.map((i) => (i.id === id ? { ...i, note } : i)));
   const clear = () => setItems([]);
 
+  const syncPrices = (latestMenu) => {
+    if (!Array.isArray(latestMenu) || latestMenu.length === 0) return;
+    const flatItems = latestMenu.flatMap((c) => c.items || []);
+    const priceMap = new Map(flatItems.map((i) => [i.id, Number(i.price)]));
+    setItems((prev) =>
+      prev.map((it) => {
+        const latestPrice = priceMap.get(it.id);
+        if (latestPrice !== undefined && Number(it.price) !== latestPrice) {
+          return { ...it, price: latestPrice };
+        }
+        return it;
+      })
+    );
+  };
+
   const value = useMemo(() => ({
-    items, add, setQty, setNote, clear,
+    items, add, setQty, setNote, clear, syncPrices,
     count: items.reduce((s, i) => s + i.qty, 0),
     subtotal: items.reduce((s, i) => s + i.qty * i.price, 0),
     qtyOf: (id) => items.find((i) => i.id === id)?.qty || 0,

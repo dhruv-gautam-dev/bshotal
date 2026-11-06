@@ -22,6 +22,7 @@ from app.services.booking_service import (
     get_or_create_customer,
     update_booking_status,
 )
+from app.services.notification_service import broadcaster
 from app.services.payment_service import record_payment
 from app.utils.pagination import paginate_list
 from app.utils.pdf import generate_booking_invoice_pdf
@@ -161,6 +162,9 @@ async def create_admin_booking(
         user=current_user,
     )
 
+    await broadcaster.broadcast("booking_updated", {"action": "create", "id": booking.id})
+    await broadcaster.broadcast("rooms_updated", {"action": "booking_inventory_changed"})
+
     # Return refreshed booking with relations
     return await get_booking_detail(booking.id, db, current_user)
 
@@ -188,6 +192,8 @@ async def update_booking_details(
         details=data.model_dump(exclude_unset=True),
         user=current_user,
     )
+    await broadcaster.broadcast("booking_updated", {"action": "update", "id": booking.id})
+    await broadcaster.broadcast("rooms_updated", {"action": "booking_inventory_changed"})
     return await get_booking_detail(booking.id, db, current_user)
 
 
@@ -211,6 +217,8 @@ async def change_booking_status(
         details={"new_status": update_data.status, "reason": update_data.cancellation_reason},
         user=current_user,
     )
+    await broadcaster.broadcast("booking_updated", {"action": "status_change", "id": updated.id, "status": update_data.status})
+    await broadcaster.broadcast("rooms_updated", {"action": "booking_inventory_changed"})
     return await get_booking_detail(updated.id, db, current_user)
 
 
@@ -231,6 +239,7 @@ async def record_booking_payment(
         details={"amount": str(payment.amount), "mode": payment.mode},
         user=current_user,
     )
+    await broadcaster.broadcast("booking_updated", {"action": "payment", "id": booking_id})
     return payment
 
 

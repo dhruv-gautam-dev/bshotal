@@ -12,7 +12,7 @@ from app.models.menu import MenuItem
 from app.models.order import Order, OrderItem
 from app.models.user import User
 from app.schemas.common import PaginatedResponse
-from app.schemas.order import OrderCreateAdmin, OrderOut, OrderStatusUpdate
+from app.schemas.order import OrderCreateAdmin, OrderOut, OrderStatusUpdate, OrderUpdateAdmin
 from app.services.audit_service import log_audit_event
 from app.services.booking_service import get_or_create_customer
 from app.services.notification_service import broadcaster
@@ -200,6 +200,61 @@ async def create_manual_order(
         entity_type="order",
         entity_id=order.id,
         details={"ref": order.order_reference, "amount": str(order.total_amount)},
+        user=current_user,
+    )
+    await broadcaster.broadcast(
+        "order_updated",
+        {
+            "action": "create",
+            "id": order.id,
+            "order_reference": order.order_reference,
+            "status": order.status,
+            "total_amount": str(order.total_amount),
+        },
+    )
+    return await get_order_detail(order.id, db, current_user)
+
+
+@router.put("/{order_id}", response_model=OrderOut)
+async def update_order_details(
+    order_id: str,
+    data: OrderUpdateAdmin,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(require_staff),
+):
+    stmt = (
+        select(Order)
+        .where(Order.id == order_id)
+        .options(selectinload(Order.items), selectinload(Order.payments))
+    )
+    res = await db.execute(stmt)
+    order = res.scalar_one_or_none()
+    if not order or order.is_deleted:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Order not found")
+
+    for field, val in data.model_dump(exclude_unset=True).items():
+        setattr(order, field, val)
+
+    await db.commit()
+
+    # Broadcast updated values to SSE clients if status or total changed
+    await broadcaster.broadcast(
+        "order_updated",
+        {
+            "id": order.id,
+            "order_reference": order.order_reference,
+            "status": order.status,
+            "total_amount": str(order.total_amount),
+            "payment_status": order.payment_status,
+        },
+    )
+
+    await log_audit_event(
+        db,
+        action="update",
+        entity_type="order",
+        entity_id=order.id,
+        details=data.model_dump(exclude_unset=True),
         user=current_user,
     )
     return await get_order_detail(order.id, db, current_user)

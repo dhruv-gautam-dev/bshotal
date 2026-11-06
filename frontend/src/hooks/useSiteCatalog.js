@@ -7,7 +7,9 @@ export function useMenu() {
   return useQuery({
     queryKey: ['public-menu'],
     queryFn: fetchMenu,
-    staleTime: 5_000,
+    staleTime: 3_000,
+    refetchInterval: 6_000,
+    refetchOnWindowFocus: true,
   });
 }
 
@@ -16,7 +18,9 @@ export function useRoomTypes() {
   return useQuery({
     queryKey: ['public-rooms'],
     queryFn: fetchRoomTypes,
-    staleTime: 5_000,
+    staleTime: 3_000,
+    refetchInterval: 6_000,
+    refetchOnWindowFocus: true,
   });
 }
 
@@ -25,7 +29,9 @@ export function useEventPackages() {
   return useQuery({
     queryKey: ['public-events-packages'],
     queryFn: fetchEventPackages,
-    staleTime: 5_000,
+    staleTime: 10_000,
+    refetchInterval: 15_000,
+    refetchOnWindowFocus: true,
   });
 }
 
@@ -34,6 +40,8 @@ export function useOrderConfig() {
     queryKey: ['public-settings'],
     queryFn: getPublicSettings,
     staleTime: 5_000,
+    refetchInterval: 10_000,
+    refetchOnWindowFocus: true,
   });
   return {
     taxPercent: data?.taxPercent ?? ORDER_CONFIG.taxPercent,

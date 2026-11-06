@@ -1,5 +1,7 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Link, NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
+import { useQueryClient } from '@tanstack/react-query';
+import { useDispatch } from 'react-redux';
 import {
   LayoutDashboard, CalendarCheck, UtensilsCrossed, BedDouble, MessageSquare,
   Star, Users, BarChart3, Settings, LogOut, Menu, X, Globe, KeyRound,
@@ -7,6 +9,7 @@ import {
 import { apiClient } from '@/api/apiClient';
 import { useI18n } from '@/lib/i18n';
 import { useAdmin } from './AdminContext';
+import { prefetchAdminData, prefetchOnHover } from '@/lib/prefetch';
 
 export default function AdminLayout() {
   const { me, can } = useAdmin();
@@ -14,6 +17,13 @@ export default function AdminLayout() {
   const [open, setOpen] = useState(false);
   const navigate = useNavigate();
   const location = useLocation();
+  const queryClient = useQueryClient();
+  const dispatch = useDispatch();
+
+  useEffect(() => {
+    // Immediately prefetch all admin modules in background so tab switching is instantaneous
+    prefetchAdminData(queryClient, dispatch);
+  }, [queryClient, dispatch]);
 
   const NAV = [
     ['/admin', LayoutDashboard, L('Overview', 'अवलोकन'), 'overview', true],
@@ -49,7 +59,15 @@ export default function AdminLayout() {
       </div>
       <nav className="flex-1 space-y-1 overflow-y-auto p-3">
         {NAV.map(([to, Icon, label, , end]) => (
-          <NavLink key={to} to={to} end={end} className={linkCls} onClick={() => setOpen(false)}>
+          <NavLink
+            key={to}
+            to={to}
+            end={end}
+            className={linkCls}
+            onClick={() => setOpen(false)}
+            onMouseEnter={() => prefetchOnHover(to, queryClient, dispatch)}
+            onTouchStart={() => prefetchOnHover(to, queryClient, dispatch)}
+          >
             <Icon size={18} /> <span>{label}</span>
           </NavLink>
         ))}

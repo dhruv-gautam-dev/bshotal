@@ -703,11 +703,32 @@ export const entities = {
       })
     },
     async update(id, data) {
+      const payload = { ...data };
+      if (payload.amount !== undefined && payload.total_amount === undefined) {
+        payload.total_amount = Number(payload.amount);
+        payload.base_amount = Number(payload.amount);
+      }
+      if (payload.check_in && !payload.check_in_date) {
+        payload.check_in_date = payload.check_in;
+      }
+      if (payload.check_out && !payload.check_out_date) {
+        payload.check_out_date = payload.check_out;
+      }
+      if (payload.guests && !payload.num_guests) {
+        payload.num_guests = Number(payload.guests);
+      }
+      if (payload.phone && !payload.guest_phone) {
+        payload.guest_phone = payload.phone;
+      }
+      if (payload.name && !payload.guest_name) {
+        payload.guest_name = payload.name;
+      }
+
       if (data.status || data.booking_status) {
         const statusVal = data.status || data.booking_status;
         const reasonVal = data.cancellation_reason || data.cancel_reason || null;
         const assignedRoom = data.assigned_room_id !== undefined ? data.assigned_room_id : (data.room_id !== undefined ? data.room_id : undefined);
-        return await request(`/admin/bookings/${id}/status`, {
+        await request(`/admin/bookings/${id}/status`, {
           method: 'PATCH',
           body: JSON.stringify({
             status: statusVal,
@@ -718,10 +739,15 @@ export const entities = {
           }),
         });
       }
-      return await request(`/admin/bookings/${id}`, {
-        method: 'PUT',
-        body: JSON.stringify(data),
-      });
+
+      const otherKeys = Object.keys(payload).filter((k) => !['status', 'booking_status', 'cancellation_reason', 'cancel_reason', 'assigned_room_id', 'room_id'].includes(k));
+      if (otherKeys.length > 0) {
+        return await request(`/admin/bookings/${id}`, {
+          method: 'PUT',
+          body: JSON.stringify(payload),
+        });
+      }
+      return await request(`/admin/bookings/${id}`);
     },
     async delete(id) {
       return await request(`/admin/bookings/${id}/status`, {
@@ -831,15 +857,37 @@ export const entities = {
       })
     },
     async update(id, data) {
-      return await request(`/admin/orders/${id}/status`, {
-        method: 'PATCH',
-        body: JSON.stringify({
-          status: data.status,
-          payment_status: data.payment_status || null,
-          payment_mode: data.payment_mode || null,
-          cancellation_reason: data.cancellation_reason || null,
-        }),
-      })
+      const payload = { ...data };
+      if (payload.total !== undefined && payload.total_amount === undefined) {
+        payload.total_amount = Number(payload.total);
+      }
+      if (payload.phone && !payload.customer_phone) {
+        payload.customer_phone = payload.phone;
+      }
+      if (payload.name && !payload.customer_name) {
+        payload.customer_name = payload.name;
+      }
+
+      if (data.status) {
+        await request(`/admin/orders/${id}/status`, {
+          method: 'PATCH',
+          body: JSON.stringify({
+            status: data.status,
+            payment_status: data.payment_status || null,
+            payment_mode: data.payment_mode || null,
+            cancellation_reason: data.cancellation_reason || null,
+          }),
+        });
+      }
+
+      const otherKeys = Object.keys(payload).filter((k) => !['status', 'cancellation_reason'].includes(k));
+      if (otherKeys.length > 0) {
+        return await request(`/admin/orders/${id}`, {
+          method: 'PUT',
+          body: JSON.stringify(payload),
+        });
+      }
+      return await request(`/admin/orders/${id}`);
     },
     async delete(id) {
       return await this.update(id, { status: 'cancelled', cancellation_reason: 'Deleted by admin' })

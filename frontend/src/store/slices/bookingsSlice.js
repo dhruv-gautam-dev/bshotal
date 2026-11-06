@@ -20,17 +20,34 @@ export const bookingsSlice = createSlice({
     setSelectedBooking: (state, action) => {
       state.selectedBooking = action.payload;
     },
-    // Instant optimistic update for booking status, room assignment, or notes
+    // Instant optimistic update for booking status, room assignment, price, or notes
     updateBookingOptimistic: (state, action) => {
       const { id, ...updates } = action.payload || {};
       if (!id) return;
       
+      const normUpdates = { ...updates };
+      if (normUpdates.amount !== undefined) {
+        normUpdates.total_amount = Number(normUpdates.amount);
+      } else if (normUpdates.total_amount !== undefined) {
+        normUpdates.amount = Number(normUpdates.total_amount);
+      }
+
+      const applyUpdates = (b) => {
+        const next = { ...b, ...normUpdates };
+        if (normUpdates.amount !== undefined || normUpdates.advance_paid !== undefined) {
+          const tot = Number(next.amount ?? next.total_amount ?? 0);
+          const adv = Number(next.advance_paid ?? 0);
+          next.balance = Math.max(0, tot - adv);
+        }
+        return next;
+      };
+
       const index = state.items.findIndex((b) => b.id === id);
       if (index !== -1) {
-        state.items[index] = { ...state.items[index], ...updates };
+        state.items[index] = applyUpdates(state.items[index]);
       }
       if (state.selectedBooking && state.selectedBooking.id === id) {
-        state.selectedBooking = { ...state.selectedBooking, ...updates };
+        state.selectedBooking = applyUpdates(state.selectedBooking);
       }
     },
     addBookingOptimistic: (state, action) => {

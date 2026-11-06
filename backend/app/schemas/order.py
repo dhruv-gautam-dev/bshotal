@@ -49,6 +49,25 @@ class OrderCreateAdmin(BaseSchema):
     kitchen_notes: str | None = None
 
 
+class OrderUpdateAdmin(BaseSchema):
+    customer_name: str | None = None
+    customer_phone: str | None = None
+    customer_email: EmailStr | None = None
+    order_type: str | None = None
+    table_number: str | None = None
+    delivery_address: str | None = None
+    subtotal: Decimal | None = None
+    tax_amount: Decimal | None = None
+    delivery_fee: Decimal | None = None
+    discount_amount: Decimal | None = None
+    total_amount: Decimal | None = None
+    status: str | None = None
+    payment_status: str | None = None
+    payment_mode: str | None = None
+    kitchen_notes: str | None = None
+    cancellation_reason: str | None = None
+
+
 class OrderStatusUpdate(BaseSchema):
     status: str = Field(
         ..., pattern="^(new|accepted|preparing|ready|out_for_delivery|served|completed|cancelled)$"

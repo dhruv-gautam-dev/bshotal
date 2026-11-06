@@ -5,7 +5,11 @@ from app.core.deps import get_db
 from app.models.room_type import RoomType
 from app.schemas.booking import BookingCreatePublic, BookingPublicResponse
 from app.services.booking_service import create_public_booking
-from app.services.notification_service import build_whatsapp_booking_url, create_notification
+from app.services.notification_service import (
+    broadcaster,
+    build_whatsapp_booking_url,
+    create_notification,
+)
 
 router = APIRouter(prefix="/bookings", tags=["Public Bookings"])
 
@@ -35,6 +39,9 @@ async def submit_public_booking(
         category="booking",
         reference_id=booking.id,
     )
+
+    await broadcaster.broadcast("booking_updated", {"action": "create", "id": booking.id})
+    await broadcaster.broadcast("rooms_updated", {"action": "booking_inventory_changed"})
 
     return BookingPublicResponse(
         booking_reference=booking.booking_reference,

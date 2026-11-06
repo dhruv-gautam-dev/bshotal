@@ -31,6 +31,7 @@ export default function Orders() {
   const [tab, setTab] = useState('board');
   const [openForm, setOpenForm] = useState(params.get('new') === '1');
   const [active, setActive] = useState(null);
+  const [orderPriceModal, setOrderPriceModal] = useState({ open: false, total: '' });
   const [settings, setSettings] = useState(null);
   const qc = useQueryClient();
   const dispatch = useDispatch();
@@ -100,6 +101,40 @@ export default function Orders() {
       qc.invalidateQueries({ queryKey: ['admin-orders'] });
     } catch (err) {
       alert(err.message || 'Failed to update payment status');
+      qc.invalidateQueries({ queryKey: ['admin-orders'] });
+    }
+  };
+
+  const handleOrderPriceUpdate = async (e) => {
+    e.preventDefault();
+    const newTotal = Number(orderPriceModal.total);
+    if (isNaN(newTotal) || newTotal < 0) {
+      alert(L('Please enter a valid amount', 'कृपया सही राशि डालें'));
+      return;
+    }
+
+    // 1. Instant optimistic update to Redux store
+    dispatch(updateOrderOptimistic({ id: active.id, total: newTotal, total_amount: newTotal }));
+
+    // 2. Instant update in local active modal state
+    setActive((prev) => prev ? { ...prev, total: newTotal, total_amount: newTotal } : prev);
+
+    // 3. Instant update in React Query cache
+    qc.setQueryData(['admin-orders'], (old) => {
+      const list = Array.isArray(old?.items) ? old.items : (Array.isArray(old) ? old : []);
+      const updated = list.map((item) => (item.id === active.id ? { ...item, total: newTotal, total_amount: newTotal } : item));
+      return Array.isArray(old?.items) ? { ...old, items: updated } : updated;
+    });
+
+    setOrderPriceModal({ open: false, total: '' });
+
+    // 4. Save to backend asynchronously
+    try {
+      await apiClient.entities.Order.update(active.id, { total: newTotal, total_amount: newTotal });
+      audit(me, 'update_price', 'orders', 'Order', active.id, `Updated total of ${active.ref} to ₹${newTotal}`).catch(() => {});
+      qc.invalidateQueries({ queryKey: ['admin-orders'] });
+    } catch (err) {
+      alert(err.message || 'Failed to update order price');
       qc.invalidateQueries({ queryKey: ['admin-orders'] });
     }
   };
@@ -250,7 +285,19 @@ export default function Orders() {
               <p className="flex justify-between text-slate-500"><span>{L('Subtotal', 'सबटोटल')}</span><span>{inr(active.subtotal)}</span></p>
               <p className="flex justify-between text-slate-500"><span>{L('Tax', 'टैक्स')}</span><span>{inr(active.tax)}</span></p>
               {active.delivery > 0 && <p className="flex justify-between text-slate-500"><span>{L('Delivery', 'डिलीवरी')}</span><span>{inr(active.delivery)}</span></p>}
-              <p className="flex justify-between font-bold"><span>{L('Total', 'कुल')}</span><span>{inr(active.total)}</span></p>
+              <div className="flex justify-between items-center font-bold">
+                <span>{L('Total', 'कुल')}</span>
+                <span className="flex items-center gap-1.5">
+                  <span>{inr(active.total)}</span>
+                  <button
+                    type="button"
+                    onClick={() => setOrderPriceModal({ open: true, total: String(active.total || 0) })}
+                    className="text-xs font-semibold text-amber-700 underline hover:text-amber-800 ml-1"
+                  >
+                    {L('Edit', 'बदलें')}
+                  </button>
+                </span>
+              </div>
             </div>
             {active.notes && <p className="mt-2 rounded-lg bg-amber-50 px-3 py-2 text-sm text-amber-900">{active.notes}</p>}
 
@@ -271,6 +318,61 @@ export default function Orders() {
       )}
 
       <OrderForm open={openForm} onClose={() => { setOpenForm(false); setParams({}); }} onSaved={() => qc.invalidateQueries({ queryKey: ['admin-orders'] })} />
+
+      {/* Edit Order Total Price Modal */}
+      {orderPriceModal.open && active && (
+        <div className="fixed inset-0 z-[70] flex items-center justify-center bg-slate-900/50 p-4 backdrop-blur-xs">
+          <form
+            onSubmit={handleOrderPriceUpdate}
+            className="w-full max-w-sm rounded-2xl bg-white p-5 shadow-2xl space-y-4"
+          >
+            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+              <h3 className="font-semibold text-slate-900">{L('Edit Order Total', 'ऑर्डर की कुल कीमत बदलें')}</h3>
+              <button
+                type="button"
+                onClick={() => setOrderPriceModal({ open: false, total: '' })}
+                className="text-slate-400 hover:text-slate-600"
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            <div className="space-y-1">
+              <label className="text-xs font-semibold uppercase tracking-wider text-slate-500">
+                {L('Order Total Amount (₹)', 'ऑर्डर की कुल राशि (₹)')}
+              </label>
+              <input
+                type="number"
+                min="0"
+                step="1"
+                required
+                value={orderPriceModal.total}
+                onChange={(e) => setOrderPriceModal((prev) => ({ ...prev, total: e.target.value }))}
+                className="h-10 w-full rounded-xl border border-slate-300 px-3 text-base font-semibold outline-none focus:border-amber-500 focus:ring-2 focus:ring-amber-200"
+              />
+              <p className="text-[11px] text-slate-400">
+                {L('Order: ', 'ऑर्डर: ')} {active.ref} · {active.customer_name}
+              </p>
+            </div>
+
+            <div className="flex gap-2 pt-2">
+              <button
+                type="button"
+                onClick={() => setOrderPriceModal({ open: false, total: '' })}
+                className="flex-1 rounded-xl border border-slate-300 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50"
+              >
+                {L('Cancel', 'रद्द')}
+              </button>
+              <button
+                type="submit"
+                className="flex-1 rounded-xl bg-amber-600 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-amber-700 transition"
+              >
+                {L('Update Price', 'कीमत अपडेट करें')}
+              </button>
+            </div>
+          </form>
+        </div>
+      )}
     </div>
   );
 }

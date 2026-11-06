@@ -18,6 +18,7 @@ from app.schemas.pricing_rule import PricingRuleCreate, PricingRuleOut
 from app.schemas.room import RoomCreate, RoomOut, RoomUpdate
 from app.schemas.room_type import RoomTypeCreate, RoomTypeOut, RoomTypeUpdate
 from app.services.availability import check_room_availability, format_date_ranges
+from app.services.notification_service import broadcaster
 
 router = APIRouter(prefix="/rooms", tags=["Admin Rooms & Inventory"])
 
@@ -44,6 +45,7 @@ async def create_room_type(
     db.add(rt)
     await db.commit()
     await db.refresh(rt)
+    await broadcaster.broadcast("rooms_updated", {"action": "create_room_type", "id": rt.id})
     return rt
 
 
@@ -61,6 +63,7 @@ async def update_room_type(
         setattr(rt, k, v)
     await db.commit()
     await db.refresh(rt)
+    await broadcaster.broadcast("rooms_updated", {"action": "update_room_type", "id": rt.id})
     return rt
 
 
@@ -75,6 +78,7 @@ async def delete_room_type(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Room type not found")
     rt.is_deleted = True
     await db.commit()
+    await broadcaster.broadcast("rooms_updated", {"action": "delete_room_type", "id": room_type_id})
     return MessageResponse(message="Room type deleted")
 
 
@@ -148,6 +152,7 @@ async def create_room(
         try:
             await db.commit()
             await db.refresh(existing_room)
+            await broadcaster.broadcast("rooms_updated", {"action": "create_room", "room_number": room_num})
             return existing_room
         except Exception as ex:
             await db.rollback()
@@ -165,6 +170,7 @@ async def create_room(
         db.add(room)
         await db.commit()
         await db.refresh(room)
+        await broadcaster.broadcast("rooms_updated", {"action": "create_room", "room_number": room_num})
         return room
     except IntegrityError as ex:
         await db.rollback()
@@ -201,6 +207,7 @@ async def update_room(
 
     await db.commit()
     await db.refresh(room)
+    await broadcaster.broadcast("rooms_updated", {"action": "update_room", "id": room_id})
     return room
 
 
@@ -215,6 +222,7 @@ async def delete_room(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Room not found")
     room.is_deleted = True
     await db.commit()
+    await broadcaster.broadcast("rooms_updated", {"action": "delete_room", "id": room_id})
     return MessageResponse(message=f"Room {room.room_number} deleted successfully")
 
 
@@ -321,6 +329,7 @@ async def create_blocked_date(
     db.add(block)
     await db.commit()
     await db.refresh(block)
+    await broadcaster.broadcast("rooms_updated", {"action": "blocked_date_create", "id": block.id})
     return block
 
 
@@ -335,6 +344,7 @@ async def delete_blocked_date(
         )
     block.is_deleted = True
     await db.commit()
+    await broadcaster.broadcast("rooms_updated", {"action": "blocked_date_delete", "id": block_id})
     return MessageResponse(message="Blocked date removed")
 
 
@@ -362,6 +372,7 @@ async def create_pricing_rule(
     db.add(rule)
     await db.commit()
     await db.refresh(rule)
+    await broadcaster.broadcast("rooms_updated", {"action": "pricing_rule_create", "id": rule.id})
     return rule
 
 
@@ -374,6 +385,7 @@ async def delete_pricing_rule(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Pricing rule not found")
     rule.is_deleted = True
     await db.commit()
+    await broadcaster.broadcast("rooms_updated", {"action": "pricing_rule_delete", "id": rule_id})
     return MessageResponse(message="Pricing rule deleted")
 
 

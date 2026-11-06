@@ -7,6 +7,7 @@ from app.models.setting import Setting
 from app.models.user import User
 from app.schemas.setting import SettingOut, SettingUpdate
 from app.services.audit_service import log_audit_event
+from app.services.notification_service import broadcaster
 
 router = APIRouter(prefix="/settings", tags=["Admin Settings"])
 
@@ -42,6 +43,8 @@ async def update_admin_settings(
 
     await db.commit()
     await db.refresh(setting)
+
+    await broadcaster.broadcast("settings_updated", {"action": "update"})
 
     await log_audit_event(
         db,

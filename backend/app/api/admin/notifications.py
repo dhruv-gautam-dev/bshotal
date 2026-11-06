@@ -76,7 +76,7 @@ async def sse_notifications_stream(request: Request, current_user: User = Depend
                 try:
                     data = await asyncio.wait_for(queue.get(), timeout=20.0)
                     yield data
-                except TimeoutError:
+                except (TimeoutError, asyncio.TimeoutError):
                     # Keep-alive heartbeat
                     yield ": ping\n\n"
         finally:

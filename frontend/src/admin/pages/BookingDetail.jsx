@@ -34,6 +34,7 @@ export default function BookingDetail() {
   const [notes, setNotes] = useState(null);
   const [cancelOpen, setCancelOpen] = useState(false);
   const [delOpen, setDelOpen] = useState(false);
+  const [priceModal, setPriceModal] = useState({ open: false, amount: '' });
 
   // Redux state selectors for instant state updates
   const reduxSelected = useSelector((state) => state.bookings.selectedBooking);
@@ -277,6 +278,50 @@ export default function BookingDetail() {
     setEdit(null);
   };
 
+  const handlePriceUpdate = async (e) => {
+    e.preventDefault();
+    const newAmount = Number(priceModal.amount);
+    if (isNaN(newAmount) || newAmount < 0) {
+      alert(L('Please enter a valid amount', 'कृपया सही राशि डालें'));
+      return;
+    }
+    const advance = Number(b.advance_paid || 0);
+    const balance = Math.max(0, newAmount - advance);
+    const updatedFields = {
+      amount: newAmount,
+      total_amount: newAmount,
+      base_amount: newAmount,
+      balance,
+    };
+
+    // 1. Instant optimistic update to Redux store
+    dispatch(updateBookingOptimistic({ id, ...updatedFields }));
+
+    // 2. Instant update in React Query cache
+    qc.setQueryData(['admin-booking', id], (old) => old ? {
+      ...old,
+      booking: { ...old.booking, ...updatedFields },
+    } : old);
+    qc.setQueryData(['admin-bookings'], (old) => {
+      const list = Array.isArray(old?.items) ? old.items : (Array.isArray(old) ? old : []);
+      const updated = list.map((item) => (item.id === id ? { ...item, ...updatedFields } : item));
+      return Array.isArray(old?.items) ? { ...old, items: updated } : updated;
+    });
+
+    setPriceModal({ open: false, amount: '' });
+
+    // 3. Save to backend
+    try {
+      await apiClient.entities.Booking.update(id, updatedFields);
+      audit(me, 'update_price', 'bookings', 'Booking', id, `Updated price of ${b.ref} to ₹${newAmount}`).catch(() => {});
+      refetch();
+      qc.invalidateQueries({ queryKey: ['admin-bookings'] });
+    } catch (err) {
+      alert(err.message || 'Failed to update price');
+      refetch();
+    }
+  };
+
   const invoice = () => {
     const s = data.settings || {};
     const rows = [
@@ -350,7 +395,19 @@ export default function BookingDetail() {
             </dd>
           </div>
           <div><dt className="text-xs text-slate-500">{L('Guests', 'मेहमान')}</dt><dd className="font-medium">{b.guests} · {b.nights} {L('nights', 'रात')}</dd></div>
-          <div><dt className="text-xs text-slate-500">{L('Total', 'कुल')}</dt><dd className="font-medium">{inr(b.amount)}</dd></div>
+          <div>
+            <dt className="text-xs text-slate-500">{L('Total', 'कुल')}</dt>
+            <dd className="font-medium flex items-center gap-1.5 flex-wrap">
+              <span>{inr(b.amount)}</span>
+              <button
+                type="button"
+                onClick={() => setPriceModal({ open: true, amount: String(b.amount || 0) })}
+                className="text-xs font-semibold text-amber-700 underline hover:text-amber-800"
+              >
+                {L('Edit price', 'कीमत बदलें')}
+              </button>
+            </dd>
+          </div>
           <div><dt className="text-xs text-slate-500">{L('Advance', 'एडवांस')}</dt><dd className="font-medium">{inr(b.advance_paid)}</dd></div>
           <div><dt className="text-xs text-slate-500">{L('Balance', 'बाकी')}</dt><dd className="font-semibold text-amber-700">{inr(b.balance)}</dd></div>
           <div><dt className="text-xs text-slate-500">{L('Payment mode', 'भुगतान')}</dt><dd className="font-medium capitalize">{b.payment_mode}</dd></div>
@@ -583,6 +640,60 @@ export default function BookingDetail() {
                 className="flex-1 rounded-xl bg-emerald-600 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-emerald-700 disabled:opacity-50"
               >
                 {confirmModal.submitting ? L('Saving…', 'सेव हो रहा है…') : L('Confirm & Assign', 'कन्फ़र्म करें')}
+              </button>
+            </div>
+          </form>
+        </div>
+      )}
+      {/* Edit Booking Price Modal */}
+      {priceModal.open && (
+        <div className="fixed inset-0 z-[70] flex items-center justify-center bg-slate-900/50 p-4 backdrop-blur-xs">
+          <form
+            onSubmit={handlePriceUpdate}
+            className="w-full max-w-sm rounded-2xl bg-white p-5 shadow-2xl space-y-4"
+          >
+            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+              <h3 className="font-semibold text-slate-900">{L('Edit Booking Price', 'बुकिंग की कीमत बदलें')}</h3>
+              <button
+                type="button"
+                onClick={() => setPriceModal({ open: false, amount: '' })}
+                className="text-slate-400 hover:text-slate-600"
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            <div className="space-y-1">
+              <label className="text-xs font-semibold uppercase tracking-wider text-slate-500">
+                {L('Total Price (₹)', 'कुल कीमत (₹)')}
+              </label>
+              <input
+                type="number"
+                min="0"
+                step="1"
+                required
+                value={priceModal.amount}
+                onChange={(e) => setPriceModal((prev) => ({ ...prev, amount: e.target.value }))}
+                className="h-10 w-full rounded-xl border border-slate-300 px-3 text-base font-semibold outline-none focus:border-amber-500 focus:ring-2 focus:ring-amber-200"
+              />
+              <p className="text-[11px] text-slate-400">
+                {L('Advance paid: ', 'जमा एडवांस: ')} {inr(b.advance_paid)} · {L('New balance will update automatically.', 'बाकी राशि अपने आप अपडेट होगी।')}
+              </p>
+            </div>
+
+            <div className="flex gap-2 pt-2">
+              <button
+                type="button"
+                onClick={() => setPriceModal({ open: false, amount: '' })}
+                className="flex-1 rounded-xl border border-slate-300 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50"
+              >
+                {L('Cancel', 'रद्द')}
+              </button>
+              <button
+                type="submit"
+                className="flex-1 rounded-xl bg-amber-600 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-amber-700 transition"
+              >
+                {L('Update Price', 'कीमत अपडेट करें')}
               </button>
             </div>
           </form>

@@ -37,6 +37,15 @@ async def submit_public_order(order_in: OrderCreatePublic, db: AsyncSession = De
             "created_at": order.created_at.isoformat(),
         },
     )
+    await broadcaster.broadcast(
+        "order_updated",
+        {
+            "id": order.id,
+            "order_reference": order.order_reference,
+            "status": order.status,
+            "total_amount": str(order.total_amount),
+        },
+    )
 
     # In-app notification
     await create_notification(
