@@ -28,7 +28,7 @@ export default function AvailabilityCalendar({ roomTypes = [], bookings = [], bl
     const booked = safeBookings.filter((b) => BLOCKING.includes(b?.status) && b?.room_type_id === type?.id && (b?.check_in || '') <= iso && (b?.check_out || '') > iso).length;
     const pending = safeBookings.filter((b) => b?.status === 'pending' && b?.room_type_id === type?.id && (b?.check_in || '') <= iso && (b?.check_out || '') > iso).length;
     const blocked = safeBlocks.filter((b) => !b?.room_id && b?.room_type_id === type?.id && (b?.start_date || '') <= iso && (b?.end_date || '') > iso).length;
-    const total = Number(type?.total_rooms) || 1;
+    const total = Number(type?.total_rooms ?? type?.total_inventory) || 1;
     const free = total - booked - blocked;
     return { booked, pending, blocked, free, total };
   };

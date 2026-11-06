@@ -65,11 +65,13 @@ export default function RoomsAdmin() {
 
   const saveType = async (e) => {
     e.preventDefault();
+    const totalCount = Number(typeForm.total_rooms) || 1;
     const payload = {
       ...typeForm,
       price: money(typeForm.price),
       capacity: Number(typeForm.capacity) || 2,
-      total_rooms: Number(typeForm.total_rooms) || 1,
+      total_rooms: totalCount,
+      total_inventory: totalCount,
       amenities: String(typeForm.amenities || '').split(',').map((s) => s.trim()).filter(Boolean),
       images: String(typeForm.images || '').split(',').map((s) => s.trim()).filter(Boolean),
     };
@@ -136,7 +138,7 @@ export default function RoomsAdmin() {
                       <div className="flex items-start justify-between gap-2">
                         <div>
                           <p className="font-semibold text-slate-900">{t.name_en}</p>
-                          <p className="text-xs text-slate-500">{t.name_hi} · {t.capacity} {L('guests', 'मेहमान')} · {t.total_rooms} {L('rooms', 'कमरे')}</p>
+                          <p className="text-xs text-slate-500">{t.name_hi} · {t.capacity} {L('guests', 'मेहमान')} · {t.total_rooms ?? t.total_inventory ?? 1} {L('rooms', 'कमरे')}</p>
                         </div>
                         <div className="text-right">
                           <p className="font-semibold text-amber-700">{inr(t.price)}</p>
@@ -145,7 +147,7 @@ export default function RoomsAdmin() {
                       </div>
                       <p className="mt-2 line-clamp-2 text-xs text-slate-500">{t.desc_en}</p>
                       <div className="mt-3 flex gap-2">
-                        <button onClick={() => setTypeForm({ ...t, amenities: (t.amenities || []).join(', '), images: (t.images || []).join(', ') })} className="flex items-center gap-1 rounded-lg border border-slate-300 px-2.5 py-1.5 text-xs font-semibold"><Pencil size={12} />{L('Edit', 'संपादित')}</button>
+                        <button onClick={() => setTypeForm({ ...t, total_rooms: t.total_rooms ?? t.total_inventory ?? 1, amenities: (t.amenities || []).join(', '), images: (t.images || []).join(', ') })} className="flex items-center gap-1 rounded-lg border border-slate-300 px-2.5 py-1.5 text-xs font-semibold"><Pencil size={12} />{L('Edit', 'संपादित')}</button>
                         {me?.staff_role === 'owner' && <button onClick={async () => { await apiClient.entities.RoomType.update(t.id, { is_active: !t.is_active }); refresh(); }} className={`rounded-lg border px-2.5 py-1.5 text-xs font-semibold ${t.is_active ? 'border-emerald-200 bg-emerald-50 text-emerald-700' : 'border-slate-200 text-slate-500'}`}>{t.is_active ? L('Active', 'सक्रिय') : L('Hidden', 'छिपा')}</button>}
                       </div>
                     </div>

@@ -36,7 +36,7 @@ export default function Reports() {
     const revenue = orders.reduce((s, o) => s + money(o.total), 0) + payments.reduce((s, p) => s + money(p.amount), 0);
 
     const days = Math.max(1, Math.round((new Date(to) - new Date(from)) / 86400000) + 1);
-    const capacity = (data.types || []).reduce((s, t) => s + (Number(t.total_rooms) || 0), 0) * days;
+    const capacity = (data.types || []).reduce((s, t) => s + (Number(t.total_rooms ?? t.total_inventory) || 0), 0) * days;
     const sold = bookings.filter((b) => ['confirmed', 'checked_in', 'checked_out'].includes(b.status)).reduce((s, b) => s + (Number(b.nights) || 0), 0);
 
     const series = [];

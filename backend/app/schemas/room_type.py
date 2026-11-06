@@ -1,7 +1,8 @@
 from datetime import date
 from decimal import Decimal
+from typing import Any
 
-from pydantic import Field
+from pydantic import Field, model_validator
 
 from app.schemas.common import BaseSchema
 
@@ -17,8 +18,19 @@ class RoomTypeBase(BaseSchema):
     amenities: list[str] = Field(default_factory=list)
     images: list[str] = Field(default_factory=list)
     total_inventory: int = 1
+    total_rooms: int = 1
     display_order: int = 0
     is_active: bool = True
+
+    @model_validator(mode="before")
+    @classmethod
+    def sync_total_inventory(cls, values: Any) -> Any:
+        if isinstance(values, dict):
+            if "total_rooms" in values and ("total_inventory" not in values or values.get("total_inventory") is None):
+                values["total_inventory"] = values["total_rooms"]
+            elif "total_inventory" in values and ("total_rooms" not in values or values.get("total_rooms") is None):
+                values["total_rooms"] = values["total_inventory"]
+        return values
 
 
 class RoomTypeCreate(RoomTypeBase):
@@ -36,8 +48,19 @@ class RoomTypeUpdate(BaseSchema):
     amenities: list[str] | None = None
     images: list[str] | None = None
     total_inventory: int | None = None
+    total_rooms: int | None = None
     display_order: int | None = None
     is_active: bool | None = None
+
+    @model_validator(mode="before")
+    @classmethod
+    def sync_update_inventory(cls, values: Any) -> Any:
+        if isinstance(values, dict):
+            if "total_rooms" in values and ("total_inventory" not in values or values.get("total_inventory") is None):
+                values["total_inventory"] = values["total_rooms"]
+            elif "total_inventory" in values and ("total_rooms" not in values or values.get("total_rooms") is None):
+                values["total_rooms"] = values["total_inventory"]
+        return values
 
 
 class RoomTypeOut(RoomTypeBase):

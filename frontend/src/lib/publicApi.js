@@ -69,7 +69,8 @@ export async function fetchRoomTypes() {
       amenities: Array.isArray(t.amenities) && t.amenities.length ? t.amenities : ['Air Conditioning', 'Free High-Speed Wi-Fi', 'Geyser / Hot Water'],
       images: Array.isArray(t.images) && t.images.length ? t.images : [defaultRoomImages[idx % defaultRoomImages.length]],
       bed_type: t.bed_type || 'King Bed',
-      total_inventory: t.total_inventory || 1,
+      total_inventory: Number(t.total_inventory ?? t.total_rooms ?? 1),
+      total_rooms: Number(t.total_inventory ?? t.total_rooms ?? 1),
     }));
   } catch (err) {
     console.error('Failed to load room types from database:', err);

@@ -400,6 +400,8 @@ export const entities = {
         price: Number(rt.base_price),
         capacity: rt.max_guests,
         sort: rt.display_order ?? 0,
+        total_rooms: Number(rt.total_inventory ?? rt.total_rooms ?? 1),
+        total_inventory: Number(rt.total_inventory ?? rt.total_rooms ?? 1),
         amenities: Array.isArray(rt.amenities) ? rt.amenities : [],
         images: Array.isArray(rt.images) ? rt.images : [],
       }))
@@ -419,6 +421,7 @@ export const entities = {
       return list.find((r) => r.id === id) || null
     },
     async create(data) {
+      const totalInventory = Number(data.total_rooms || data.total_inventory || 1)
       return await request('/admin/rooms/types', {
         method: 'POST',
         body: JSON.stringify({
@@ -430,7 +433,8 @@ export const entities = {
           bed_type: data.bed_type || 'King Bed',
           amenities: Array.isArray(data.amenities) ? data.amenities : ['ac', 'wifi', 'tv'],
           images: Array.isArray(data.images) ? data.images : [],
-          total_inventory: Number(data.total_rooms || data.total_inventory || 1),
+          total_inventory: totalInventory,
+          total_rooms: totalInventory,
           display_order: Number(data.sort ?? data.display_order ?? 0),
           is_active: data.is_active !== false,
         }),
@@ -443,6 +447,10 @@ export const entities = {
       if (payload.price !== undefined) payload.base_price = Number(payload.price)
       if (payload.capacity !== undefined) payload.max_guests = Number(payload.capacity)
       if (payload.sort !== undefined) payload.display_order = Number(payload.sort)
+      if (payload.total_rooms !== undefined || payload.total_inventory !== undefined) {
+        payload.total_inventory = Number(payload.total_rooms ?? payload.total_inventory)
+        payload.total_rooms = payload.total_inventory
+      }
       return await request(`/admin/rooms/types/${id}`, {
         method: 'PUT',
         body: JSON.stringify(payload),

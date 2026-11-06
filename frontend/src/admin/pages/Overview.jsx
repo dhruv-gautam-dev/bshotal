@@ -58,7 +58,7 @@ export default function Overview() {
       active.filter((b) => b.status === 'checked_in').length,
       rooms.filter((r) => r.status === 'occupied').length,
     );
-    const totalRooms = roomTypes.reduce((s, t) => s + (Number(t.total_rooms) || 0), 0);
+    const totalRooms = roomTypes.reduce((s, t) => s + (Number(t.total_rooms ?? t.total_inventory) || 0), 0);
     const revenueToday =
       orders.filter((o) => (o.created_date || '').startsWith(today) && o.status !== 'cancelled').reduce((s, o) => s + money(o.total), 0) +
       payments.filter((p) => (p.paid_at || '').startsWith(today)).reduce((s, p) => s + money(p.amount), 0);

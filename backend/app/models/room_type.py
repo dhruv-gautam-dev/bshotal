@@ -27,6 +27,14 @@ class RoomType(TimeStampedModel):
     display_order: Mapped[int] = mapped_column(Integer, default=0)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True, index=True)
 
+    @property
+    def total_rooms(self) -> int:
+        return self.total_inventory
+
+    @total_rooms.setter
+    def total_rooms(self, value: int) -> None:
+        self.total_inventory = int(value) if value is not None else 1
+
     rooms = relationship("Room", back_populates="room_type", cascade="all, delete-orphan")
     pricing_rules = relationship(
         "PricingRule", back_populates="room_type", cascade="all, delete-orphan"

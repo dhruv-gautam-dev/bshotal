@@ -103,7 +103,7 @@ export async function checkAvailability(roomTypeId, checkIn, checkOut, excludeId
     start_date: { $lt: checkOut },
     end_date: { $gt: checkIn },
   }, { limit: 50 })).items.filter((b) => !b.room_id);
-  const total = Number(type.total_rooms) || 1;
+  const total = Number(type.total_rooms ?? type.total_inventory) || 1;
   return {
     type,
     total,

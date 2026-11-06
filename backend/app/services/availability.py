@@ -52,9 +52,8 @@ async def check_room_availability(
         Room.is_deleted == False,
         Room.status != "maintenance",
     )
-    total_physical_rooms = (
-        await db.execute(rooms_count_stmt)
-    ).scalar() or room_type.total_inventory
+    physical_rooms_count = (await db.execute(rooms_count_stmt)).scalar() or 0
+    total_physical_rooms = max(physical_rooms_count, room_type.total_inventory or 1)
 
     # 4. Count overlapping active bookings (only confirmed and checked_in bookings hold inventory; pending are requests)
     # Overlap condition: booking.check_in_date < check_out AND booking.check_out_date > check_in
