@@ -90,6 +90,30 @@ export function useLiveSync() {
       }
     };
 
+    // Helper to invalidate Enquiries
+    const handleEnquiryUpdate = async () => {
+      queryClient.invalidateQueries({ queryKey: ['admin-enquiries'] });
+      queryClient.invalidateQueries({ queryKey: ['admin-overview'] });
+      queryClient.invalidateQueries({ queryKey: ['overview'] });
+      queryClient.invalidateQueries({ queryKey: ['admin-notifications'] });
+    };
+
+    // Helper to invalidate Reviews
+    const handleReviewUpdate = async () => {
+      queryClient.invalidateQueries({ queryKey: ['admin-reviews'] });
+      queryClient.invalidateQueries({ queryKey: ['public-reviews'] });
+      queryClient.invalidateQueries({ queryKey: ['reviews-approved'] });
+      queryClient.invalidateQueries({ queryKey: ['admin-overview'] });
+      queryClient.invalidateQueries({ queryKey: ['overview'] });
+      queryClient.invalidateQueries({ queryKey: ['admin-notifications'] });
+    };
+
+    // Helper to invalidate Event Packages
+    const handlePackageUpdate = async () => {
+      queryClient.invalidateQueries({ queryKey: ['public-events-packages'] });
+      queryClient.invalidateQueries({ queryKey: ['admin-enquiries'] });
+    };
+
     // Setup Cross-Tab Broadcast Channel
     try {
       if (typeof window !== 'undefined' && 'BroadcastChannel' in window) {
@@ -101,6 +125,9 @@ export function useLiveSync() {
           else if (type === 'booking_updated') handleBookingUpdate(payload);
           else if (type === 'order_updated' || type === 'new_order' || type === 'order_status_updated') handleOrderUpdate(payload);
           else if (type === 'settings_updated') handleSettingsUpdate(payload);
+          else if (type === 'enquiry_updated') handleEnquiryUpdate(payload);
+          else if (type === 'review_updated') handleReviewUpdate(payload);
+          else if (type === 'event_package_updated') handlePackageUpdate(payload);
         };
       }
     } catch (e) {
@@ -183,6 +210,39 @@ export function useLiveSync() {
           }
         });
 
+        eventSource.addEventListener('enquiry_updated', (e) => {
+          try {
+            const data = JSON.parse(e.data);
+            handleEnquiryUpdate(data);
+            broadcastToOtherTabs('enquiry_updated', data);
+          } catch {
+            handleEnquiryUpdate({});
+            broadcastToOtherTabs('enquiry_updated', {});
+          }
+        });
+
+        eventSource.addEventListener('review_updated', (e) => {
+          try {
+            const data = JSON.parse(e.data);
+            handleReviewUpdate(data);
+            broadcastToOtherTabs('review_updated', data);
+          } catch {
+            handleReviewUpdate({});
+            broadcastToOtherTabs('review_updated', {});
+          }
+        });
+
+        eventSource.addEventListener('event_package_updated', (e) => {
+          try {
+            const data = JSON.parse(e.data);
+            handlePackageUpdate(data);
+            broadcastToOtherTabs('event_package_updated', data);
+          } catch {
+            handlePackageUpdate({});
+            broadcastToOtherTabs('event_package_updated', {});
+          }
+        });
+
         eventSource.addEventListener('new_notification', () => {
           queryClient.invalidateQueries({ queryKey: ['admin-notifications'] });
           queryClient.invalidateQueries({ queryKey: ['admin-overview'] });
@@ -215,6 +275,8 @@ export function useLiveSync() {
     const handleFocus = () => {
       queryClient.invalidateQueries({ queryKey: ['public-menu'] });
       queryClient.invalidateQueries({ queryKey: ['public-rooms'] });
+      queryClient.invalidateQueries({ queryKey: ['public-events-packages'] });
+      queryClient.invalidateQueries({ queryKey: ['public-reviews'] });
     };
 
     window.addEventListener('focus', handleFocus);

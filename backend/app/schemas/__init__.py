@@ -19,7 +19,12 @@ from app.schemas.booking import (
 )
 from app.schemas.common import MessageResponse, PaginatedResponse
 from app.schemas.customer import CustomerCreate, CustomerOut, CustomerUpdate
-from app.schemas.enquiry import EnquiryCreatePublic, EnquiryOut, EnquiryUpdateAdmin
+from app.schemas.enquiry import (
+    EnquiryCreatePublic,
+    EnquiryOut,
+    EnquiryPublicResponse,
+    EnquiryUpdateAdmin,
+)
 from app.schemas.event_package import EventPackageCreate, EventPackageOut, EventPackageUpdate
 from app.schemas.menu import (
     BulkPriceUpdate,

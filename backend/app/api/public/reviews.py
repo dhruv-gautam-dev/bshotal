@@ -8,7 +8,7 @@ from app.core.deps import get_db
 from app.models.review import Review
 from app.schemas.common import MessageResponse
 from app.schemas.review import ReviewCreatePublic, ReviewOut, ReviewSummary
-from app.services.notification_service import create_notification
+from app.services.notification_service import broadcaster, create_notification
 
 router = APIRouter(prefix="/reviews", tags=["Public Reviews"])
 
@@ -73,6 +73,8 @@ async def submit_public_review(review_in: ReviewCreatePublic, db: AsyncSession =
         category="review",
         reference_id=review.id,
     )
+
+    await broadcaster.broadcast("review_updated", {"action": "create", "id": review.id})
 
     return MessageResponse(
         message="Thank you for sharing your feedback! Your review has been submitted for moderation."

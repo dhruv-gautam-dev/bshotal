@@ -959,7 +959,7 @@ export const entities = {
       return { items: list }
     },
     async create(data) {
-      return await request('/public/events/enquiry', {
+      const res = await request('/public/events/enquiry', {
         method: 'POST',
         body: JSON.stringify({
           customer_name: data.name,
@@ -972,6 +972,12 @@ export const entities = {
           message: data.message || 'Customer enquiry',
         }),
       })
+      return {
+        ...res,
+        ref: res?.enquiry_reference || res?.ref,
+        name: data.name,
+        phone: data.phone,
+      }
     },
     async update(id, data) {
       return await request(`/admin/enquiries/${id}`, {
@@ -1048,40 +1054,105 @@ export const entities = {
       const endpoint = getToken() ? '/admin/enquiries/packages' : '/public/events/packages'
       const rows = await request(endpoint).catch(() => [])
       const list = Array.isArray(rows) ? rows : (rows.items || [])
-      return list.map((p) => ({
-        ...p,
-        title: p.name,
-        price: Number(p.base_price_per_person || 0),
-        desc: p.description,
-        sort: p.display_order ?? 0,
-        includes: Array.isArray(p.includes) ? p.includes : [],
-      }))
+      return list.map((p) => {
+        const price = Number(p.price_per_plate || p.base_price_per_person || 0)
+        const feat = Array.isArray(p.features) ? p.features : (Array.isArray(p.includes) ? p.includes : [])
+        return {
+          ...p,
+          title: p.name,
+          title_en: p.name,
+          name: p.name,
+          desc: p.description,
+          desc_en: p.description,
+          description: p.description,
+          price,
+          price_from: price,
+          price_to: Math.round(price * 1.5),
+          price_per_plate: price,
+          capacity: `${p.min_guests || 50}–${p.max_guests || 500} guests`,
+          min_guests: p.min_guests || 50,
+          max_guests: p.max_guests || 500,
+          sort: p.display_order ?? 0,
+          features: feat,
+          includes: feat,
+          inclusions: feat,
+        }
+      })
     },
     async filter() {
       const list = await this.list()
       return { items: list }
     },
     async create(data) {
+      const name = data.title_en || data.title || data.name || 'Event Package'
+      let min_guests = Number(data.min_guests) || 50
+      let max_guests = Number(data.max_guests) || 500
+      if (data.capacity && typeof data.capacity === 'string') {
+        const nums = data.capacity.match(/\d+/g)
+        if (nums && nums.length >= 2) {
+          min_guests = Number(nums[0]) || 50
+          max_guests = Number(nums[1]) || 500
+        } else if (nums && nums.length === 1) {
+          min_guests = Number(nums[0]) || 50
+          max_guests = min_guests * 2
+        }
+      }
+      const rawFeatures = data.features || data.inclusions || data.includes
+      const features = Array.isArray(rawFeatures)
+        ? rawFeatures
+        : String(rawFeatures || '').split(',').map((s) => s.trim()).filter(Boolean)
+
+      const price = Number(data.price_per_plate ?? data.price_from ?? data.price ?? 500)
+
       return await request('/admin/enquiries/packages', {
         method: 'POST',
         body: JSON.stringify({
-          name: data.title || data.name,
-          slug: slugify(data.title || data.name),
-          description: data.description || data.desc || '',
-          base_price_per_person: Number(data.price || data.base_price_per_person || 0),
-          includes: Array.isArray(data.includes) ? data.includes : [],
-          min_guests: Number(data.min_guests || 50),
-          max_guests: Number(data.max_guests || 500),
+          name,
+          slug: data.slug || slugify(name),
+          description: data.desc_en || data.description || data.desc || '',
+          price_per_plate: price,
+          features,
+          min_guests,
+          max_guests,
           display_order: Number(data.sort ?? data.display_order ?? 0),
           is_active: data.is_active !== false,
         }),
       })
     },
     async update(id, data) {
-      const payload = { ...data }
-      if (payload.title) payload.name = payload.title
-      if (payload.desc) payload.description = payload.desc
-      if (payload.price !== undefined) payload.base_price_per_person = Number(payload.price)
+      const name = data.title_en || data.title || data.name
+      let min_guests = data.min_guests !== undefined ? Number(data.min_guests) : undefined
+      let max_guests = data.max_guests !== undefined ? Number(data.max_guests) : undefined
+      if (data.capacity && typeof data.capacity === 'string') {
+        const nums = data.capacity.match(/\d+/g)
+        if (nums && nums.length >= 2) {
+          min_guests = Number(nums[0]) || 50
+          max_guests = Number(nums[1]) || 500
+        }
+      }
+      const rawFeatures = data.features || data.inclusions || data.includes
+      const features = rawFeatures !== undefined
+        ? (Array.isArray(rawFeatures) ? rawFeatures : String(rawFeatures || '').split(',').map((s) => s.trim()).filter(Boolean))
+        : undefined
+
+      const price = data.price_per_plate !== undefined
+        ? Number(data.price_per_plate)
+        : (data.price_from !== undefined ? Number(data.price_from) : (data.price !== undefined ? Number(data.price) : undefined))
+
+      const payload = {}
+      if (name) { payload.name = name; payload.slug = data.slug || slugify(name) }
+      if (data.desc_en !== undefined || data.description !== undefined || data.desc !== undefined) {
+        payload.description = data.desc_en ?? data.description ?? data.desc
+      }
+      if (price !== undefined) payload.price_per_plate = price
+      if (features !== undefined) payload.features = features
+      if (min_guests !== undefined) payload.min_guests = min_guests
+      if (max_guests !== undefined) payload.max_guests = max_guests
+      if (data.display_order !== undefined || data.sort !== undefined) {
+        payload.display_order = Number(data.display_order ?? data.sort)
+      }
+      if (data.is_active !== undefined) payload.is_active = data.is_active
+
       return await request(`/admin/enquiries/packages/${id}`, {
         method: 'PUT',
         body: JSON.stringify(payload),

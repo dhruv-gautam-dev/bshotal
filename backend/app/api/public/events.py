@@ -9,11 +9,10 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.deps import get_db
 from app.models.enquiry import Enquiry
 from app.models.event_package import EventPackage
-from app.schemas.common import MessageResponse
-from app.schemas.enquiry import EnquiryCreatePublic
+from app.schemas.enquiry import EnquiryCreatePublic, EnquiryPublicResponse
 from app.schemas.event_package import EventPackageOut
 from app.services.booking_service import get_or_create_customer
-from app.services.notification_service import create_notification
+from app.services.notification_service import broadcaster, create_notification
 
 router = APIRouter(prefix="/events", tags=["Public Events & Enquiries"])
 
@@ -35,7 +34,7 @@ async def get_public_event_packages(db: AsyncSession = Depends(get_db)):
     return res.scalars().all()
 
 
-@router.post("/enquiry", response_model=MessageResponse)
+@router.post("/enquiry", response_model=EnquiryPublicResponse)
 async def submit_public_enquiry(
     enquiry_in: EnquiryCreatePublic, db: AsyncSession = Depends(get_db)
 ):
@@ -72,6 +71,21 @@ async def submit_public_enquiry(
         reference_id=enquiry.id,
     )
 
-    return MessageResponse(
-        message=f"Thank you {enquiry_in.customer_name}. Your enquiry #{enquiry.enquiry_reference} has been received. Our event coordinator will contact you shortly."
+    # Real-time instant push to admin dashboard without page refresh
+    await broadcaster.broadcast(
+        "enquiry_updated",
+        {
+            "action": "create",
+            "id": enquiry.id,
+            "enquiry_reference": enquiry.enquiry_reference,
+            "customer_name": enquiry.customer_name,
+            "event_type": enquiry.event_type,
+        },
+    )
+
+    return EnquiryPublicResponse(
+        enquiry_reference=enquiry.enquiry_reference,
+        customer_name=enquiry.customer_name,
+        customer_phone=enquiry.customer_phone,
+        message=f"Thank you {enquiry_in.customer_name}. Your enquiry #{enquiry.enquiry_reference} has been received. Our event coordinator will contact you shortly.",
     )

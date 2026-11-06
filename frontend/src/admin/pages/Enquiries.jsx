@@ -32,7 +32,10 @@ export default function Enquiries() {
     },
   });
 
-  const refresh = () => { qc.invalidateQueries({ queryKey: ['admin-enquiries'] }); qc.invalidateQueries({ queryKey: ['public-packages'] }); };
+  const refresh = () => {
+    qc.invalidateQueries({ queryKey: ['admin-enquiries'] });
+    qc.invalidateQueries({ queryKey: ['public-events-packages'] });
+  };
 
   const rows = useMemo(() => (data?.enquiries || []).filter((e) => (!filter || e.status === filter) && (!type || e.type === type)), [data, filter, type]);
 
@@ -106,13 +109,13 @@ export default function Enquiries() {
             <div key={p.id} className="rounded-2xl border border-slate-200 bg-white p-4">
               <div className="flex items-start justify-between">
                 <div>
-                  <p className="font-semibold text-slate-900">{p.title_en}</p>
-                  <p className="text-xs text-slate-500">{p.capacity} · {inr(p.price_from)}–{inr(p.price_to)}</p>
+                  <p className="font-semibold text-slate-900">{p.title_en || p.name}</p>
+                  <p className="text-xs text-slate-500">{p.capacity} · {inr(p.price_from || p.price_per_plate || 0)} {L('/ plate', '/ प्लेट')}</p>
                 </div>
                 <button onClick={async () => { await apiClient.entities.EventPackage.delete(p.id); refresh(); }} className="rounded-lg border border-slate-200 p-2 text-red-600" aria-label="Delete"><Trash2 size={14} /></button>
               </div>
-              <p className="mt-2 line-clamp-2 text-sm text-slate-600">{p.desc_en}</p>
-              <button onClick={() => setPkg({ ...p, inclusions: (p.inclusions || []).join(', ') })} className="mt-3 rounded-lg border border-slate-300 px-3 py-1.5 text-xs font-semibold">{L('Edit', 'संपादित')}</button>
+              <p className="mt-2 line-clamp-2 text-sm text-slate-600">{p.desc_en || p.description}</p>
+              <button onClick={() => setPkg({ ...p, inclusions: Array.isArray(p.features) ? p.features.join(', ') : (Array.isArray(p.inclusions) ? p.inclusions.join(', ') : (p.inclusions || '')) })} className="mt-3 rounded-lg border border-slate-300 px-3 py-1.5 text-xs font-semibold">{L('Edit', 'संपादित')}</button>
             </div>
           ))}
           {(data?.packages || []).length === 0 && <Empty title={L('No event packages', 'कोई पैकेज नहीं')} hint={L('Packages show on the public Events page.', 'पैकेज सार्वजनिक इवेंट पेज पर दिखेंगे।')} />}

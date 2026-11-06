@@ -18,6 +18,13 @@ class EnquiryCreatePublic(BaseSchema):
     honeypot: str | None = None
 
 
+class EnquiryPublicResponse(BaseSchema):
+    enquiry_reference: str
+    customer_name: str
+    customer_phone: str
+    message: str
+
+
 class EnquiryUpdateAdmin(BaseSchema):
     status: str | None = Field(None, pattern="^(new|contacted|quote_sent|confirmed|lost)$")
     assigned_to_user_id: str | None = None

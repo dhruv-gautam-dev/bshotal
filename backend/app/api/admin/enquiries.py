@@ -9,6 +9,7 @@ from app.models.user import User
 from app.schemas.common import MessageResponse, PaginatedResponse
 from app.schemas.enquiry import EnquiryOut, EnquiryUpdateAdmin
 from app.schemas.event_package import EventPackageCreate, EventPackageOut, EventPackageUpdate
+from app.services.notification_service import broadcaster
 from app.utils.pagination import paginate_list
 
 router = APIRouter(prefix="/enquiries", tags=["Admin Enquiries"])
@@ -52,6 +53,7 @@ async def update_enquiry(
 
     await db.commit()
     await db.refresh(enquiry)
+    await broadcaster.broadcast("enquiry_updated", {"action": "update", "id": enquiry.id})
     return enquiry
 
 
@@ -66,6 +68,7 @@ async def delete_enquiry(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Enquiry not found")
     enquiry.is_deleted = True
     await db.commit()
+    await broadcaster.broadcast("enquiry_updated", {"action": "delete", "id": enquiry_id})
     return MessageResponse(message="Enquiry deleted")
 
 
@@ -93,6 +96,7 @@ async def create_admin_event_package(
     db.add(pkg)
     await db.commit()
     await db.refresh(pkg)
+    await broadcaster.broadcast("event_package_updated", {"action": "create", "id": pkg.id})
     return pkg
 
 
@@ -110,6 +114,7 @@ async def update_admin_event_package(
         setattr(pkg, k, v)
     await db.commit()
     await db.refresh(pkg)
+    await broadcaster.broadcast("event_package_updated", {"action": "update", "id": pkg.id})
     return pkg
 
 
@@ -124,5 +129,6 @@ async def delete_admin_event_package(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Package not found")
     pkg.is_deleted = True
     await db.commit()
+    await broadcaster.broadcast("event_package_updated", {"action": "delete", "id": package_id})
     return MessageResponse(message="Package deleted")
 

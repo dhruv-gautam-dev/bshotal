@@ -72,7 +72,15 @@ export async function prefetchPublicData(queryClient, dispatch) {
       staleTime: 1000 * 60 * 10,
     });
 
-    // 5. Featured Reviews
+    // 5. Featured / Approved Reviews
+    queryClient.prefetchQuery({
+      queryKey: ['reviews-approved'],
+      queryFn: async () => {
+        const res = await apiClient.entities.Review.filter({ status: 'approved' });
+        return res.items || [];
+      },
+      staleTime: 1000 * 60 * 5,
+    });
     queryClient.prefetchQuery({
       queryKey: ['public-reviews'],
       queryFn: async () => {
@@ -180,12 +188,23 @@ export async function prefetchAdminData(queryClient, dispatch) {
       staleTime: 1000 * 60 * 3,
     });
 
-    // 7. Admin Enquiries
+    // 7. Admin Enquiries & Event Packages
     queryClient.prefetchQuery({
       queryKey: ['admin-enquiries'],
       queryFn: async () => {
-        return await apiClient.entities.Enquiry.list().catch(() => []);
+        const [enquiries, packages] = await Promise.all([
+          apiClient.entities.Enquiry.filter({}, { sort: '-created_date', limit: 200 }),
+          apiClient.entities.EventPackage.filter({}, { sort: 'sort', limit: 50 }),
+        ]);
+        return { enquiries: enquiries.items || [], packages: packages.items || [] };
       },
+      staleTime: 1000 * 60 * 3,
+    });
+
+    // 8. Admin Reviews Moderation
+    queryClient.prefetchQuery({
+      queryKey: ['admin-reviews'],
+      queryFn: async () => (await apiClient.entities.Review.filter({}, { sort: '-created_date', limit: 200 })).items || [],
       staleTime: 1000 * 60 * 3,
     });
   } catch (err) {
@@ -206,6 +225,27 @@ export function prefetchOnHover(targetRoute, queryClient, dispatch) {
     queryClient.prefetchQuery({ queryKey: ['public-settings'], queryFn: getPublicSettings });
   } else if (targetRoute.startsWith('/events')) {
     queryClient.prefetchQuery({ queryKey: ['public-events-packages'], queryFn: fetchEventPackages });
+  } else if (targetRoute.startsWith('/reviews')) {
+    queryClient.prefetchQuery({
+      queryKey: ['reviews-approved'],
+      queryFn: async () => (await apiClient.entities.Review.filter({ status: 'approved' })).items || [],
+    });
+  } else if (targetRoute === '/admin/enquiries') {
+    queryClient.prefetchQuery({
+      queryKey: ['admin-enquiries'],
+      queryFn: async () => {
+        const [enquiries, packages] = await Promise.all([
+          apiClient.entities.Enquiry.filter({}, { sort: '-created_date', limit: 200 }),
+          apiClient.entities.EventPackage.filter({}, { sort: 'sort', limit: 50 }),
+        ]);
+        return { enquiries: enquiries.items || [], packages: packages.items || [] };
+      },
+    });
+  } else if (targetRoute === '/admin/reviews') {
+    queryClient.prefetchQuery({
+      queryKey: ['admin-reviews'],
+      queryFn: async () => (await apiClient.entities.Review.filter({}, { sort: '-created_date', limit: 200 })).items || [],
+    });
   } else if (targetRoute.startsWith('/admin')) {
     prefetchAdminData(queryClient, dispatch);
   }

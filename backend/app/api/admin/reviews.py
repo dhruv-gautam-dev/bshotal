@@ -7,6 +7,7 @@ from app.models.review import Review
 from app.models.user import User
 from app.schemas.common import MessageResponse, PaginatedResponse
 from app.schemas.review import ReviewOut, ReviewStatusUpdate
+from app.services.notification_service import broadcaster
 from app.utils.pagination import paginate_list
 
 router = APIRouter(prefix="/reviews", tags=["Admin Reviews Moderation"])
@@ -49,6 +50,7 @@ async def moderate_review(
 
     await db.commit()
     await db.refresh(review)
+    await broadcaster.broadcast("review_updated", {"action": "moderate", "id": review.id, "status": data.status})
     return review
 
 
@@ -63,4 +65,5 @@ async def delete_review(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Review not found")
     review.is_deleted = True
     await db.commit()
+    await broadcaster.broadcast("review_updated", {"action": "delete", "id": review_id})
     return MessageResponse(message="Review deleted")
