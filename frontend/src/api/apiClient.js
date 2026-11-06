@@ -89,6 +89,8 @@ async function request(path, options = {}) {
           .join('; ')
       } else if (typeof errJson.detail === 'string') {
         errorDetail = errJson.detail
+      } else if (errJson.detail && typeof errJson.detail === 'object') {
+        errorDetail = errJson.detail.message || errJson.detail.msg || JSON.stringify(errJson.detail)
       } else if (errJson.error) {
         errorDetail = typeof errJson.error === 'string' ? errJson.error : JSON.stringify(errJson.error)
       } else if (errJson.message) {
@@ -389,11 +391,20 @@ export const entities = {
 
   // --- Room Types ---
   RoomType: {
+    _cache: null,
+    _cacheExpires: 0,
+    invalidateCache() {
+      this._cache = null;
+      this._cacheExpires = 0;
+    },
     async list() {
+      if (this._cache && Date.now() < this._cacheExpires) {
+        return this._cache;
+      }
       const endpoint = getToken() ? '/admin/rooms/types' : '/public/rooms'
       const rows = await request(endpoint).catch(() => [])
       const list = Array.isArray(rows) ? rows : (rows.items || [])
-      return list.map((rt) => ({
+      const mapped = list.map((rt) => ({
         ...rt,
         name_en: rt.name,
         desc_en: rt.description,
@@ -405,6 +416,9 @@ export const entities = {
         amenities: Array.isArray(rt.amenities) ? rt.amenities : [],
         images: Array.isArray(rt.images) ? rt.images : [],
       }))
+      this._cache = mapped;
+      this._cacheExpires = Date.now() + 15000;
+      return mapped;
     },
     async filter(predicate = {}, options = {}) {
       let list = await this.list()
@@ -421,8 +435,9 @@ export const entities = {
       return list.find((r) => r.id === id) || null
     },
     async create(data) {
+      this.invalidateCache();
       const totalInventory = Number(data.total_rooms || data.total_inventory || 1)
-      return await request('/admin/rooms/types', {
+      const res = await request('/admin/rooms/types', {
         method: 'POST',
         body: JSON.stringify({
           name: data.name_en || data.name,
@@ -438,9 +453,12 @@ export const entities = {
           display_order: Number(data.sort ?? data.display_order ?? 0),
           is_active: data.is_active !== false,
         }),
-      })
+      });
+      this.invalidateCache();
+      return res;
     },
     async update(id, data) {
+      this.invalidateCache();
       const payload = { ...data }
       if (payload.name_en) payload.name = payload.name_en
       if (payload.desc_en !== undefined) payload.description = payload.desc_en
@@ -451,13 +469,18 @@ export const entities = {
         payload.total_inventory = Number(payload.total_rooms ?? payload.total_inventory)
         payload.total_rooms = payload.total_inventory
       }
-      return await request(`/admin/rooms/types/${id}`, {
+      const res = await request(`/admin/rooms/types/${id}`, {
         method: 'PUT',
         body: JSON.stringify(payload),
-      })
+      });
+      this.invalidateCache();
+      return res;
     },
     async delete(id) {
-      return await request(`/admin/rooms/types/${id}`, { method: 'DELETE' })
+      this.invalidateCache();
+      const res = await request(`/admin/rooms/types/${id}`, { method: 'DELETE' });
+      this.invalidateCache();
+      return res;
     },
   },
 

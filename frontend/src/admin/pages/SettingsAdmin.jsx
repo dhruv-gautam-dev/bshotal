@@ -1,10 +1,12 @@
 import { useEffect, useMemo, useState } from 'react';
+import { useDispatch } from 'react-redux';
 import { useQuery } from '@tanstack/react-query';
 import { Save, UserPlus, ShieldCheck, Trash2 } from 'lucide-react';
 import { apiClient } from '@/api/apiClient';
 import { useI18n } from '@/lib/i18n';
 import { useAdmin } from '../AdminContext';
 import { getSettings, saveSettings, audit } from '../lib/adminData';
+import { updateSettingsOptimistic } from '@/store/slices/settingsSlice';
 
 const HOTEL = [
   ['hotel_name', 'Hotel name', 'होटल का नाम'], ['tagline_en', 'Tagline (English)', 'टैगलाइन (अंग्रेज़ी)'],
@@ -27,6 +29,7 @@ export default function SettingsAdmin() {
   const { L } = useI18n();
   const { me, can } = useAdmin();
   const isOwner = me?.staff_role === 'owner';
+  const dispatch = useDispatch();
   const [tab, setTab] = useState('hotel');
   const [form, setForm] = useState(null);
   const [invite, setInvite] = useState({ email: '', role: 'staff' });
@@ -53,14 +56,17 @@ export default function SettingsAdmin() {
   }, [data]);
 
   const save = async () => {
+    const payload = { ...form };
+    ['id', 'created_date', 'updated_date', 'created_by_id'].forEach((k) => delete payload[k]);
+    dispatch(updateSettingsOptimistic(payload));
+    setMsg(L('Saved.', 'सेव हो गया।'));
     setSaving(true);
     try {
-      const payload = { ...form };
-      ['id', 'created_date', 'updated_date', 'created_by_id'].forEach((k) => delete payload[k]);
       await saveSettings(data?.settings?.id, payload);
-      await audit(me, 'save', 'settings', 'Setting', data?.settings?.id || '', 'Business settings updated');
-      setMsg(L('Saved.', 'सेव हो गया।'));
+      audit(me, 'save', 'settings', 'Setting', data?.settings?.id || '', 'Business settings updated').catch(() => {});
       refetch();
+    } catch (err) {
+      alert(err.message || 'Failed to save settings');
     } finally { setSaving(false); }
   };
 

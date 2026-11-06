@@ -17,7 +17,7 @@ from app.schemas.common import MessageResponse
 from app.schemas.pricing_rule import PricingRuleCreate, PricingRuleOut
 from app.schemas.room import RoomCreate, RoomOut, RoomUpdate
 from app.schemas.room_type import RoomTypeCreate, RoomTypeOut, RoomTypeUpdate
-from app.services.availability import check_room_availability
+from app.services.availability import check_room_availability, format_date_ranges
 
 router = APIRouter(prefix="/rooms", tags=["Admin Rooms & Inventory"])
 
@@ -236,11 +236,22 @@ async def get_available_inventory_for_dates(
             detail="check_out must be strictly after check_in",
         )
 
-    is_avail, avail_count, rt = await check_room_availability(
-        db, room_type_id=room_type_id, check_in=check_in, check_out=check_out, requested_rooms=1
+    avail_res = await check_room_availability(
+        db,
+        room_type_id=room_type_id,
+        check_in=check_in,
+        check_out=check_out,
+        requested_rooms=1,
+        exclude_booking_id=exclude_booking_id,
     )
+    is_avail, avail_count, rt = avail_res
     if not rt:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Room type not found")
+
+    avail_dates = getattr(avail_res, "available_dates", [])
+    booked_dates = getattr(avail_res, "booked_dates", [])
+    avail_dates_str = format_date_ranges(avail_dates) if avail_dates else ""
+    booked_dates_str = format_date_ranges(booked_dates) if booked_dates else ""
 
     # Get all active physical rooms of this room type
     stmt = (
@@ -281,6 +292,8 @@ async def get_available_inventory_for_dates(
         "is_available": is_avail,
         "available_count": avail_count,
         "available_rooms": available_rooms,
+        "available_dates_formatted": avail_dates_str,
+        "booked_dates_formatted": booked_dates_str,
     }
 
 

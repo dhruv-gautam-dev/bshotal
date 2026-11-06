@@ -85,7 +85,7 @@ class BookingUpdateAdmin(BaseSchema):
 
 class BookingStatusUpdate(BaseSchema):
     status: str = Field(
-        ..., pattern="^(pending|confirmed|checked_in|checked_out|cancelled|no_show)$"
+        ..., pattern="^(pending|confirmed|checked_in|checked_out|cancelled|no_show|failed)$"
     )
     assigned_room_id: str | None = None
     cancellation_reason: str | None = None

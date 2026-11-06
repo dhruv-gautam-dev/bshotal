@@ -13,7 +13,7 @@ from app.models.booking import Booking, BookingHistory
 from app.models.customer import Customer
 from app.models.room import Room
 from app.schemas.booking import BookingCreatePublic, BookingStatusUpdate
-from app.services.availability import check_room_availability
+from app.services.availability import check_room_availability, format_date_ranges
 from app.services.pricing import calculate_room_pricing
 
 _booking_locks: dict[str, asyncio.Lock] = defaultdict(asyncio.Lock)
@@ -25,6 +25,7 @@ ALLOWED_BOOKING_TRANSITIONS = {
     "checked_out": set(),
     "cancelled": {"pending", "confirmed"},
     "no_show": {"confirmed", "pending"},
+    "failed": {"pending", "confirmed", "cancelled"},
 }
 
 
@@ -41,6 +42,11 @@ async def get_or_create_customer(
     stmt = select(Customer).where(Customer.phone == phone, Customer.is_deleted == False)
     res = await db.execute(stmt)
     customer = res.scalar_one_or_none()
+    if not customer and email:
+        email_stmt = select(Customer).where(Customer.email == email, Customer.is_deleted == False)
+        email_res = await db.execute(email_stmt)
+        customer = email_res.scalar_one_or_none()
+
     if not customer:
         customer = Customer(phone=phone, name=name, email=email)
         db.add(customer)
@@ -56,6 +62,8 @@ async def get_or_create_customer(
 async def create_public_booking(db: AsyncSession, data: BookingCreatePublic) -> Booking:
     """
     Public booking creation with concurrency lock and server-side price calculation.
+    If rooms are unavailable, records customer details with a failed booking tag and
+    logs a failed booking entry before notifying admins and returning clear availability dates.
     """
     if data.honeypot:
         # Bot detected
@@ -63,7 +71,7 @@ async def create_public_booking(db: AsyncSession, data: BookingCreatePublic) -> 
 
     async with _booking_locks[data.room_type_id]:
         # Concurrency check with row lock
-        is_avail, avail_count, room_type = await check_room_availability(
+        avail_res = await check_room_availability(
             db,
             room_type_id=data.room_type_id,
             check_in=data.check_in_date,
@@ -71,10 +79,94 @@ async def create_public_booking(db: AsyncSession, data: BookingCreatePublic) -> 
             requested_rooms=data.num_rooms,
             for_update=True,
         )
-        if not is_avail or not room_type:
+        is_avail, avail_count, room_type = avail_res
+
+        if not room_type:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Selected room category not found.",
+            )
+
+        if not is_avail:
+            avail_dates = getattr(avail_res, "available_dates", [])
+            booked_dates = getattr(avail_res, "booked_dates", [])
+            type_name = room_type.name or "Selected room type"
+
+            if avail_dates:
+                avail_str = format_date_ranges(avail_dates)
+                booked_str = format_date_ranges(booked_dates) if booked_dates else ""
+                detail_msg = f"{type_name} is not available for your entire stay. The hotel is available for these dates: {avail_str}."
+                if booked_str:
+                    detail_msg += f" (Already booked on: {booked_str})."
+                detail_msg += " Please choose different dates."
+            else:
+                s_fmt = f"{data.check_in_date.day} {data.check_in_date.strftime('%b')}"
+                e_fmt = f"{data.check_out_date.day} {data.check_out_date.strftime('%b')}"
+                detail_msg = f"{type_name} is fully booked for all chosen dates ({s_fmt} to {e_fmt}). Please choose different dates or select another room type."
+
+            # Capture guest contact details into customer database with tag
+            customer = await get_or_create_customer(
+                db, phone=data.guest_phone, name=data.guest_name, email=data.guest_email
+            )
+            date_summary = f"{data.check_in_date.isoformat()} to {data.check_out_date.isoformat()}"
+            tag_note = f"[Tag: failed_booking] [Attempted: {type_name} ({date_summary}) - Room Unavailable]"
+            if customer.notes:
+                if tag_note not in customer.notes:
+                    customer.notes = f"{customer.notes}\n{tag_note}"
+            else:
+                customer.notes = tag_note
+
+            # Save the failed booking attempt so admin has full visibility
+            failed_ref = generate_booking_reference()
+            failed_booking = Booking(
+                booking_reference=failed_ref,
+                room_type_id=data.room_type_id,
+                customer_id=customer.id,
+                guest_name=data.guest_name,
+                guest_phone=data.guest_phone,
+                guest_email=data.guest_email,
+                check_in_date=data.check_in_date,
+                check_out_date=data.check_out_date,
+                num_rooms=data.num_rooms,
+                num_guests=data.num_guests,
+                num_children=data.num_children,
+                base_amount=Decimal("0.00"),
+                tax_amount=Decimal("0.00"),
+                total_amount=Decimal("0.00"),
+                advance_paid=Decimal("0.00"),
+                payment_status="unpaid",
+                booking_status="failed",
+                source="website",
+                cancellation_reason=detail_msg,
+                admin_notes=f"Room unavailable attempt: {detail_msg}",
+                special_requests=data.special_requests,
+            )
+            db.add(failed_booking)
+            await db.flush()
+
+            history = BookingHistory(
+                booking_id=failed_booking.id,
+                from_status="none",
+                to_status="failed",
+                notes=f"Public booking attempt failed due to room unavailability: {detail_msg}",
+            )
+            db.add(history)
+
+            # In-app notification for admin/staff
+            from app.services.notification_service import create_notification
+            await create_notification(
+                db,
+                title=f"Failed Booking Attempt #{failed_ref}",
+                message=f"Guest {data.guest_name} ({data.guest_phone}) attempted to book {type_name} for {date_summary} but rooms were unavailable.",
+                category="booking",
+                reference_id=failed_booking.id,
+            )
+
+            await db.commit()
+
             raise HTTPException(
                 status_code=status.HTTP_409_CONFLICT,
-                detail="Selected room type is not available for the chosen dates. Please choose different dates or room type.",
+                detail=detail_msg,
             )
 
         # Server-side pricing calculation
@@ -175,14 +267,28 @@ async def update_booking_status(
 
     # When confirming a booking, verify inventory is actually available
     if new_status == "confirmed" and current_status != "confirmed":
-        is_avail, avail_count, r_type = await check_room_availability(
-            db, booking.room_type_id, booking.check_in_date, booking.check_out_date, requested_rooms=booking.num_rooms
+        avail_res = await check_room_availability(
+            db,
+            booking.room_type_id,
+            booking.check_in_date,
+            booking.check_out_date,
+            requested_rooms=booking.num_rooms,
+            exclude_booking_id=booking.id,
         )
+        is_avail, avail_count, r_type = avail_res
         if not is_avail:
             type_name = r_type.name if r_type else "Room"
+            avail_dates = getattr(avail_res, "available_dates", [])
+            booked_dates = getattr(avail_res, "booked_dates", [])
+            if avail_dates:
+                avail_str = format_date_ranges(avail_dates)
+                booked_str = format_date_ranges(booked_dates) if booked_dates else ""
+                msg = f"Cannot confirm booking: {type_name} is only available for {avail_str} (Booked on: {booked_str})."
+            else:
+                msg = f"Cannot confirm booking: {type_name} is fully booked for {booking.check_in_date} to {booking.check_out_date}. 0 rooms available for these dates."
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail=f"Cannot confirm booking: {type_name} is fully booked for {booking.check_in_date} to {booking.check_out_date}. 0 rooms available for these dates.",
+                detail=msg,
             )
 
     # Manage room status changes on check-in, check-out, or cancellation

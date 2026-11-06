@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useSelector, useDispatch } from 'react-redux';
 import { Plus, Search, Download, Trash2, Pencil, Upload } from 'lucide-react';
 import { apiClient } from '@/api/apiClient';
 import { useI18n } from '@/lib/i18n';
@@ -9,6 +10,15 @@ import { audit, downloadCsv, inr, money } from '../lib/adminData';
 import MenuItemForm from '../components/MenuItemForm';
 import Confirm from '../components/Confirm';
 import Empty from '../components/Empty';
+import {
+  setMenuData,
+  updateMenuItemOptimistic,
+  addMenuItemOptimistic,
+  deleteMenuItemOptimistic,
+  bulkUpdatePricesOptimistic,
+  addCategoryOptimistic,
+  deleteCategoryOptimistic,
+} from '@/store/slices/menuSlice';
 
 export default function MenuAdmin() {
   const { L } = useI18n();
@@ -22,6 +32,11 @@ export default function MenuAdmin() {
   const [seeding, setSeeding] = useState(false);
   const [newCat, setNewCat] = useState('');
   const qc = useQueryClient();
+  const dispatch = useDispatch();
+
+  const reduxCategories = useSelector((state) => state.menu.categories);
+  const reduxItems = useSelector((state) => state.menu.items);
+  const isMenuLoaded = useSelector((state) => state.menu.isLoaded);
 
   useEffect(() => { setForm({ open: params.get('new') === '1', item: null }); }, [params]);
 
@@ -32,12 +47,20 @@ export default function MenuAdmin() {
         apiClient.entities.MenuCategory.list(),
         apiClient.entities.MenuItem.filter({}, { sort: 'sort', limit: 500 }),
       ]);
-      return { categories: Array.isArray(categories) ? categories : [], items: items.items || [] };
+      const res = { categories: Array.isArray(categories) ? categories : [], items: items.items || [] };
+      dispatch(setMenuData(res));
+      return res;
     },
   });
 
-  const categories = data?.categories || [];
-  const items = data?.items || [];
+  useEffect(() => {
+    if (data) {
+      dispatch(setMenuData(data));
+    }
+  }, [data, dispatch]);
+
+  const categories = isMenuLoaded ? reduxCategories : (data?.categories || []);
+  const items = isMenuLoaded ? reduxItems : (data?.items || []);
   const catName = useMemo(() => Object.fromEntries(categories.map((c) => [c.id, c.name_en])), [categories]);
 
   const rows = useMemo(() => {
@@ -48,23 +71,47 @@ export default function MenuAdmin() {
   const refresh = () => { qc.invalidateQueries({ queryKey: ['admin-menu'] }); qc.invalidateQueries({ queryKey: ['public-menu'] }); };
 
   const toggleStock = async (item) => {
-    await apiClient.entities.MenuItem.update(item.id, { is_available: !item.is_available });
-    await audit(me, 'update', 'menu', 'MenuItem', item.id, `${item.name_en} → ${!item.is_available ? 'out of stock' : 'available'}`);
-    refresh();
+    // Instant optimistic toggle
+    dispatch(updateMenuItemOptimistic({ id: item.id, is_available: !item.is_available }));
+    try {
+      await apiClient.entities.MenuItem.update(item.id, { is_available: !item.is_available });
+      audit(me, 'update', 'menu', 'MenuItem', item.id, `${item.name_en} → ${!item.is_available ? 'out of stock' : 'available'}`).catch(() => {});
+      refresh();
+    } catch (err) {
+      alert(err.message || 'Failed to update stock');
+      refresh();
+    }
   };
 
   const addCategory = async () => {
     if (newCat.trim().length < 2) return;
-    await apiClient.entities.MenuCategory.create({ name_en: newCat.trim(), name_hi: '', sort: categories.length });
+    const catName = newCat.trim();
+    // Instant optimistic add
+    dispatch(addCategoryOptimistic({ id: `temp-${Date.now()}`, name_en: catName, name_hi: '', sort: categories.length }));
     setNewCat('');
-    refresh();
+    try {
+      await apiClient.entities.MenuCategory.create({ name_en: catName, name_hi: '', sort: categories.length });
+      refresh();
+    } catch (err) {
+      alert(err.message || 'Failed to create category');
+      refresh();
+    }
   };
 
   const removeItem = async () => {
-    await apiClient.entities.MenuItem.delete(del.id);
-    await audit(me, 'delete', 'menu', 'MenuItem', del.id, `Deleted dish ${del.name_en}`);
+    const itemToDelete = del;
     setDel(null);
-    refresh();
+    if (!itemToDelete?.id) return;
+    // Instant optimistic remove
+    dispatch(deleteMenuItemOptimistic(itemToDelete.id));
+    try {
+      await apiClient.entities.MenuItem.delete(itemToDelete.id);
+      audit(me, 'delete', 'menu', 'MenuItem', itemToDelete.id, `Deleted dish ${itemToDelete.name_en}`).catch(() => {});
+      refresh();
+    } catch (err) {
+      alert(err.message || 'Failed to delete dish');
+      refresh();
+    }
   };
 
   const runBulk = async () => {
@@ -75,10 +122,18 @@ export default function MenuAdmin() {
       id: i.id,
       price: bulk.mode === 'percent' ? Math.max(1, Math.round(money(i.price) * (1 + value / 100))) : Math.max(1, Math.round(money(i.price) + value)),
     }));
-    await apiClient.entities.MenuItem.bulkUpdate(updates);
-    await audit(me, 'price', 'menu', 'MenuItem', '', `Bulk price ${bulk.mode} ${value} on ${updates.length} dishes`);
+    // Instant optimistic bulk price updates
+    dispatch(bulkUpdatePricesOptimistic(updates));
     setBulk({ ...bulk, open: false, value: '' });
-    refresh();
+
+    try {
+      await apiClient.entities.MenuItem.bulkUpdate(updates);
+      audit(me, 'price', 'menu', 'MenuItem', '', `Bulk price ${bulk.mode} ${value} on ${updates.length} dishes`).catch(() => {});
+      refresh();
+    } catch (err) {
+      alert(err.message || 'Failed to update prices in bulk');
+      refresh();
+    }
   };
 
   /** Reload menu from database */

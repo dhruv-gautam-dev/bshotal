@@ -1,14 +1,17 @@
 import { useEffect, useMemo, useState } from 'react';
+import { useDispatch } from 'react-redux';
 import { X, Minus, Plus, Loader2 } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import { apiClient } from '@/api/apiClient';
 import { useI18n } from '@/lib/i18n';
 import { getSettings, money, todayISO } from '../lib/adminData';
+import { addOrderOptimistic } from '@/store/slices/ordersSlice';
 
 const ref = () => `FD-${Math.random().toString(36).slice(2, 7).toUpperCase()}`;
 
 export default function OrderForm({ open, onClose, onSaved }) {
   const { L } = useI18n();
+  const dispatch = useDispatch();
   const [f, setF] = useState({ name: '', phone: '', type: 'dine-in', table: '', address: '', notes: '' });
   const [lines, setLines] = useState([]);
   const [err, setErr] = useState('');
@@ -48,14 +51,17 @@ export default function OrderForm({ open, onClose, onSaved }) {
     if (!lines.length) return setErr(L('Add at least one dish.', 'कम से कम एक डिश जोड़ें।'));
     setBusy(true);
     try {
-      const created = await apiClient.entities.Order.create({
+      const orderPayload = {
         ref: ref(), customer_name: f.name.trim(), phone: f.phone.replace(/\D/g, '').slice(-10),
         type: f.type, table_no: f.table, address: f.address, items: lines,
         subtotal, tax, delivery, total, notes: f.notes, status: 'new',
         payment_status: 'unpaid', payment_mode: 'none', source: 'walkin',
-      });
-      onSaved?.(created);
+      };
+      dispatch(addOrderOptimistic({ ...orderPayload, id: `temp-${Date.now()}` }));
       onClose();
+
+      const created = await apiClient.entities.Order.create(orderPayload);
+      onSaved?.(created);
     } catch (ex) {
       setErr(ex.message || L('Could not save the order.', 'ऑर्डर सेव नहीं हुआ।'));
     } finally { setBusy(false); }

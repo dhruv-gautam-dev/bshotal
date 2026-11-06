@@ -1,12 +1,15 @@
 import { useEffect, useState } from 'react';
+import { useDispatch } from 'react-redux';
 import { X, Loader2, Upload } from 'lucide-react';
 import { apiClient } from '@/api/apiClient';
 import { useI18n } from '@/lib/i18n';
+import { updateMenuItemOptimistic, addMenuItemOptimistic } from '@/store/slices/menuSlice';
 
 const blank = { name_en: '', name_hi: '', desc: '', price: '', category_id: '', image_url: '', is_veg: true, tags: '', is_available: true, sort: 0 };
 
 export default function MenuItemForm({ open, item, categories, onClose, onSaved }) {
   const { L } = useI18n();
+  const dispatch = useDispatch();
   const [f, setF] = useState(blank);
   const [busy, setBusy] = useState(false);
   const [uploading, setUploading] = useState(false);
@@ -38,21 +41,30 @@ export default function MenuItemForm({ open, item, categories, onClose, onSaved 
     if (f.name_en.trim().length < 2) return setErr(L('Enter the dish name.', 'डिश का नाम डालें।'));
     if (!(Number(f.price) > 0)) return setErr(L('Enter a price.', 'कीमत डालें।'));
     if (!f.category_id) return setErr(L('Choose a category.', 'श्रेणी चुनें।'));
-    setBusy(true);
+
+    const payload = {
+      ...f,
+      price: Number(f.price),
+      sort: Number(f.sort) || 0,
+      tags: f.tags.split(',').map((t) => t.trim()).filter(Boolean),
+    };
+
+    // Instant optimistic update
+    if (item) {
+      dispatch(updateMenuItemOptimistic({ id: item.id, ...payload }));
+    } else {
+      dispatch(addMenuItemOptimistic({ ...payload, id: `temp-${Date.now()}` }));
+    }
+    onClose();
+
     try {
-      const payload = {
-        ...f,
-        price: Number(f.price),
-        sort: Number(f.sort) || 0,
-        tags: f.tags.split(',').map((t) => t.trim()).filter(Boolean),
-      };
       if (item) await apiClient.entities.MenuItem.update(item.id, payload);
       else await apiClient.entities.MenuItem.create(payload);
       onSaved?.();
-      onClose();
     } catch (ex) {
-      setErr(ex.message || L('Could not save.', 'सेव नहीं हुआ।'));
-    } finally { setBusy(false); }
+      alert(ex.message || L('Could not save dish.', 'डिश सेव नहीं हुई।'));
+      onSaved?.();
+    }
   };
 
   if (!open) return null;

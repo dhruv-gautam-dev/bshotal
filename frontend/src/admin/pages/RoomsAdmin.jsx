@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useSelector, useDispatch } from 'react-redux';
 import { Plus, Trash2, Pencil, X, Upload, Loader2 } from 'lucide-react';
 import { apiClient } from '@/api/apiClient';
 import { useI18n } from '@/lib/i18n';
@@ -8,12 +9,26 @@ import { useAdmin } from '../AdminContext';
 import { ROOM_STATUS, audit, inr, money, todayISO } from '../lib/adminData';
 import AvailabilityCalendar from './AvailabilityCalendar';
 import Empty from '../components/Empty';
+import {
+  setRoomsData,
+  updateRoomTypeOptimistic,
+  addRoomTypeOptimistic,
+  deleteRoomTypeOptimistic,
+  addRoomOptimistic,
+  updateRoomOptimistic,
+  deleteRoomOptimistic,
+  addBlockedDateOptimistic,
+  deleteBlockedDateOptimistic,
+  addPricingRuleOptimistic,
+  deletePricingRuleOptimistic,
+} from '@/store/slices/roomsSlice';
 
 const blankType = { name_en: '', name_hi: '', desc_en: '', price: '', capacity: 2, total_rooms: 1, amenities: '', images: '' };
 
 export default function RoomsAdmin() {
   const { L } = useI18n();
   const { me } = useAdmin();
+  const dispatch = useDispatch();
   const [params, setParams] = useSearchParams();
   const [tab, setTab] = useState(params.get('tab') || 'types');
   const [typeForm, setTypeForm] = useState(null);
@@ -22,6 +37,12 @@ export default function RoomsAdmin() {
   const [blockForm, setBlockForm] = useState({ room_type_id: '', start_date: todayISO(), end_date: '', reason: '' });
   const [ruleForm, setRuleForm] = useState({ room_type_id: '', start_date: '', end_date: '', price: '', label: '' });
   const qc = useQueryClient();
+
+  const reduxTypes = useSelector((state) => state.rooms.types);
+  const reduxRooms = useSelector((state) => state.rooms.rooms);
+  const reduxBlocks = useSelector((state) => state.rooms.blocks);
+  const reduxRules = useSelector((state) => state.rooms.rules);
+  const isRoomsLoaded = useSelector((state) => state.rooms.isLoaded);
 
   const handleRoomImageUpload = async (e) => {
     const file = e.target.files?.[0];
@@ -52,15 +73,23 @@ export default function RoomsAdmin() {
         apiClient.entities.BlockedDate.filter({}, { sort: '-start_date', limit: 100 }),
         apiClient.entities.PricingRule.filter({}, { sort: '-start_date', limit: 100 }),
       ]);
-      return { types: types.items, rooms: rooms.items, bookings: bookings.items, blocks: blocks.items, rules: rules.items };
+      const res = { types: types.items, rooms: rooms.items, bookings: bookings.items, blocks: blocks.items, rules: rules.items };
+      dispatch(setRoomsData(res));
+      return res;
     },
   });
 
-  const types = data?.types || [];
-  const rooms = data?.rooms || [];
+  useEffect(() => {
+    if (data) {
+      dispatch(setRoomsData(data));
+    }
+  }, [data, dispatch]);
+
+  const types = isRoomsLoaded ? reduxTypes : (data?.types || []);
+  const rooms = isRoomsLoaded ? reduxRooms : (data?.rooms || []);
   const bookings = data?.bookings || [];
-  const blocks = data?.blocks || [];
-  const rules = data?.rules || [];
+  const blocks = isRoomsLoaded ? reduxBlocks : (data?.blocks || []);
+  const rules = isRoomsLoaded ? reduxRules : (data?.rules || []);
   const refresh = () => { qc.invalidateQueries({ queryKey: ['admin-rooms'] }); qc.invalidateQueries({ queryKey: ['public-rooms'] }); };
 
   const saveType = async (e) => {
@@ -75,11 +104,24 @@ export default function RoomsAdmin() {
       amenities: String(typeForm.amenities || '').split(',').map((s) => s.trim()).filter(Boolean),
       images: String(typeForm.images || '').split(',').map((s) => s.trim()).filter(Boolean),
     };
-    if (payload.id) await apiClient.entities.RoomType.update(payload.id, payload);
-    else await apiClient.entities.RoomType.create(payload);
-    await audit(me, 'save', 'rooms', 'RoomType', payload.id || '', `${payload.name_en} ₹${payload.price}`);
+
+    // Instant optimistic update
+    if (payload.id) {
+      dispatch(updateRoomTypeOptimistic(payload));
+    } else {
+      dispatch(addRoomTypeOptimistic({ ...payload, id: `temp-${Date.now()}` }));
+    }
     setTypeForm(null);
-    refresh();
+
+    try {
+      if (payload.id) await apiClient.entities.RoomType.update(payload.id, payload);
+      else await apiClient.entities.RoomType.create(payload);
+      audit(me, 'save', 'rooms', 'RoomType', payload.id || '', `${payload.name_en} ₹${payload.price}`).catch(() => {});
+      refresh();
+    } catch (err) {
+      alert(err.message || 'Failed to save room type');
+      refresh();
+    }
   };
 
   const addRoom = async (e) => {
@@ -110,11 +152,24 @@ export default function RoomsAdmin() {
       return;
     }
 
-    const duplicate = rooms.find((r) => String(r.number).trim().toLowerCase() === roomNumClean.toLowerCase());
+    const duplicate = rooms.find((r) => String(r.number || r.room_number).trim().toLowerCase() === roomNumClean.toLowerCase());
     if (duplicate) {
       alert(L(`Room number ${roomNumClean} already exists! Please choose another room number.`, `कमरा नंबर ${roomNumClean} पहले से मौजूद है! कृपया कोई दूसरा नंबर चुनें।`));
       return;
     }
+
+    // Instant optimistic addition
+    const tempRoom = {
+      id: `temp-${Date.now()}`,
+      number: roomNumClean,
+      room_number: roomNumClean,
+      room_type_id: typeId,
+      floor: Number(roomForm.floor) || 1,
+      status: 'available',
+      is_active: true,
+    };
+    dispatch(addRoomOptimistic(tempRoom));
+    setRoomForm({ open: false, number: '', room_type_id: '', floor: '' });
 
     try {
       await apiClient.entities.Room.create({
@@ -124,49 +179,71 @@ export default function RoomsAdmin() {
         status: 'available',
         is_active: true,
       });
-      await audit(me, 'create', 'rooms', 'Room', '', `Added Room ${roomNumClean}`);
-      setRoomForm({ open: false, number: '', room_type_id: '', floor: '' });
+      audit(me, 'create', 'rooms', 'Room', '', `Added Room ${roomNumClean}`).catch(() => {});
       refresh();
     } catch (err) {
       alert(err.message || 'Failed to add room number');
+      refresh();
     }
   };
 
   const deleteRoom = async (room) => {
-    if (!window.confirm(L(`Are you sure you want to delete Room ${room.number}?`, `क्या आप कमरा ${room.number} मिटाना चाहते हैं?`))) {
+    if (!window.confirm(L(`Are you sure you want to delete Room ${room.number || room.room_number}?`, `क्या आप कमरा ${room.number || room.room_number} मिटाना चाहते हैं?`))) {
       return;
     }
+    // Instant optimistic deletion
+    dispatch(deleteRoomOptimistic(room.id));
     try {
       await apiClient.entities.Room.delete(room.id);
-      await audit(me, 'delete', 'rooms', 'Room', room.id, `Deleted Room ${room.number}`);
+      audit(me, 'delete', 'rooms', 'Room', room.id, `Deleted Room ${room.number || room.room_number}`).catch(() => {});
       refresh();
     } catch (err) {
       alert(err.message || 'Failed to delete room');
+      refresh();
     }
   };
 
   const setRoomStatus = async (room, status) => {
-    await apiClient.entities.Room.update(room.id, { status });
-    await audit(me, 'status', 'rooms', 'Room', room.id, `Room ${room.number} → ${status}`);
-    refresh();
+    // Instant optimistic update
+    dispatch(updateRoomOptimistic({ id: room.id, status }));
+    try {
+      await apiClient.entities.Room.update(room.id, { status });
+      audit(me, 'status', 'rooms', 'Room', room.id, `Room ${room.number || room.room_number} → ${status}`).catch(() => {});
+      refresh();
+    } catch (err) {
+      alert(err.message || 'Failed to update room status');
+      refresh();
+    }
   };
 
   const addBlock = async (e) => {
     e.preventDefault();
     if (!blockForm.room_type_id || !blockForm.start_date || !blockForm.end_date) return;
-    await apiClient.entities.BlockedDate.create(blockForm);
-    await audit(me, 'block', 'rooms', 'BlockedDate', '', `${blockForm.start_date} → ${blockForm.end_date}`);
+    const tempBlock = { ...blockForm, id: `temp-${Date.now()}` };
+    dispatch(addBlockedDateOptimistic(tempBlock));
     setBlockForm({ ...blockForm, end_date: '', reason: '' });
-    refresh();
+    try {
+      await apiClient.entities.BlockedDate.create(blockForm);
+      audit(me, 'block', 'rooms', 'BlockedDate', '', `${blockForm.start_date} → ${blockForm.end_date}`).catch(() => {});
+      refresh();
+    } catch (err) {
+      refresh();
+    }
   };
 
   const addRule = async (e) => {
     e.preventDefault();
     if (!ruleForm.room_type_id || !ruleForm.start_date || !ruleForm.end_date || !ruleForm.price) return;
-    await apiClient.entities.PricingRule.create({ ...ruleForm, price: money(ruleForm.price) });
-    await audit(me, 'price', 'rooms', 'PricingRule', '', `${ruleForm.start_date} → ${ruleForm.end_date} ₹${ruleForm.price}`);
+    const tempRule = { ...ruleForm, price: money(ruleForm.price), id: `temp-${Date.now()}` };
+    dispatch(addPricingRuleOptimistic(tempRule));
     setRuleForm({ room_type_id: '', start_date: '', end_date: '', price: '', label: '' });
-    refresh();
+    try {
+      await apiClient.entities.PricingRule.create({ ...ruleForm, price: money(ruleForm.price) });
+      audit(me, 'price', 'rooms', 'PricingRule', '', `${ruleForm.start_date} → ${ruleForm.end_date} ₹${ruleForm.price}`).catch(() => {});
+      refresh();
+    } catch (err) {
+      refresh();
+    }
   };
 
   const input = 'mt-1 w-full rounded-xl border border-slate-300 px-3 py-2.5 text-sm outline-none focus:border-amber-500 focus:ring-2 focus:ring-amber-200';
@@ -269,7 +346,7 @@ export default function RoomsAdmin() {
                   {blocks.map((b) => (
                     <li key={b.id} className="flex items-center justify-between py-2">
                       <span>{b.start_date} → {b.end_date} <span className="block text-xs text-slate-500">{types.find((t) => t.id === b.room_type_id)?.name_en} {b.reason ? `· ${b.reason}` : ''}</span></span>
-                      <button onClick={async () => { await apiClient.entities.BlockedDate.delete(b.id); refresh(); }} className="rounded-lg border border-slate-200 p-2 text-red-600" aria-label="Delete"><Trash2 size={14} /></button>
+                      <button onClick={async () => { dispatch(deleteBlockedDateOptimistic(b.id)); try { await apiClient.entities.BlockedDate.delete(b.id); refresh(); } catch { refresh(); } }} className="rounded-lg border border-slate-200 p-2 text-red-600" aria-label="Delete"><Trash2 size={14} /></button>
                     </li>
                   ))}
                   {blocks.length === 0 && <li className="py-2 text-slate-500">{L('No blocked dates.', 'कोई तारीख बंद नहीं।')}</li>}
@@ -299,7 +376,7 @@ export default function RoomsAdmin() {
                       <span>{r.start_date} → {r.end_date} <span className="block text-xs text-slate-500">{types.find((t) => t.id === r.room_type_id)?.name_en} {r.label ? `· ${r.label}` : ''}</span></span>
                       <span className="flex items-center gap-2">
                         <b className="text-amber-700">{inr(r.price)}</b>
-                        <button onClick={async () => { await apiClient.entities.PricingRule.delete(r.id); refresh(); }} className="rounded-lg border border-slate-200 p-2 text-red-600" aria-label="Delete"><Trash2 size={14} /></button>
+                        <button onClick={async () => { dispatch(deletePricingRuleOptimistic(r.id)); try { await apiClient.entities.PricingRule.delete(r.id); refresh(); } catch { refresh(); } }} className="rounded-lg border border-slate-200 p-2 text-red-600" aria-label="Delete"><Trash2 size={14} /></button>
                       </span>
                     </li>
                   ))}

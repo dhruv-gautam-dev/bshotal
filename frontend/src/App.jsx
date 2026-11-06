@@ -2,6 +2,8 @@ import { Toaster } from "@/components/ui/toaster"
 import { QueryClientProvider } from '@tanstack/react-query'
 import { queryClientInstance } from '@/lib/query-client'
 import { BrowserRouter as Router, Route, Routes } from 'react-router-dom';
+import { Provider } from 'react-redux';
+import { store } from '@/store';
 import PageNotFound from './lib/PageNotFound';
 import { AuthProvider, useAuth } from '@/lib/AuthContext';
 import UserNotRegisteredError from '@/components/UserNotRegisteredError';
@@ -110,19 +112,21 @@ const AuthenticatedApp = () => {
 function App() {
 
   return (
-    <AuthProvider>
-      <QueryClientProvider client={queryClientInstance}>
-        <I18nProvider>
-          <CartProvider>
-            <Router>
-              <ScrollToTop />
-              <AuthenticatedApp />
-            </Router>
-          </CartProvider>
-        </I18nProvider>
-        <Toaster />
-      </QueryClientProvider>
-    </AuthProvider>
+    <Provider store={store}>
+      <AuthProvider>
+        <QueryClientProvider client={queryClientInstance}>
+          <I18nProvider>
+            <CartProvider>
+              <Router>
+                <ScrollToTop />
+                <AuthenticatedApp />
+              </Router>
+            </CartProvider>
+          </I18nProvider>
+          <Toaster />
+        </QueryClientProvider>
+      </AuthProvider>
+    </Provider>
   )
 }
 

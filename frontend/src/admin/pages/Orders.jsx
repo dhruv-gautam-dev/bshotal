@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useSelector, useDispatch } from 'react-redux';
 import { Plus, Download, Printer, X, Phone } from 'lucide-react';
 import { apiClient } from '@/api/apiClient';
 import { useI18n } from '@/lib/i18n';
@@ -11,6 +12,11 @@ import {
 import StatusPill from '../components/StatusPill';
 import Empty from '../components/Empty';
 import OrderForm from '../components/OrderForm';
+import {
+  setOrdersData,
+  setActiveOrder,
+  updateOrderOptimistic,
+} from '@/store/slices/ordersSlice';
 
 const COLUMNS = ['new', 'accepted', 'preparing', 'ready', 'out_for_delivery', 'completed'];
 const NEXT = {
@@ -27,6 +33,10 @@ export default function Orders() {
   const [active, setActive] = useState(null);
   const [settings, setSettings] = useState(null);
   const qc = useQueryClient();
+  const dispatch = useDispatch();
+
+  const reduxOrders = useSelector((state) => state.orders.items);
+  const isOrdersLoaded = useSelector((state) => state.orders.isLoaded);
 
   useEffect(() => { setOpenForm(params.get('new') === '1'); }, [params]);
   useEffect(() => { getSettings().then(setSettings); }, []);
@@ -36,7 +46,9 @@ export default function Orders() {
     queryFn: async () => {
       try {
         const res = await apiClient.entities.Order.filter({}, { sort: '-created_date', limit: 200 });
-        return Array.isArray(res?.items) ? res.items : (Array.isArray(res) ? res : []);
+        const list = Array.isArray(res?.items) ? res.items : (Array.isArray(res) ? res : []);
+        dispatch(setOrdersData(list));
+        return list;
       } catch (err) {
         console.error('Failed to load admin orders:', err);
         return [];
@@ -45,7 +57,13 @@ export default function Orders() {
     refetchInterval: 6000, // Automatically refresh live board every 6s
   });
 
-  const orders = Array.isArray(rawOrders) ? rawOrders : [];
+  useEffect(() => {
+    if (Array.isArray(rawOrders) && rawOrders.length > 0) {
+      dispatch(setOrdersData(rawOrders));
+    }
+  }, [rawOrders, dispatch]);
+
+  const orders = isOrdersLoaded ? reduxOrders : (Array.isArray(rawOrders) ? rawOrders : []);
 
   // Live board: safe listener if real-time subscription is supported
   useEffect(() => {
@@ -56,17 +74,34 @@ export default function Orders() {
   }, [qc]);
 
   const move = async (order, status) => {
-    await apiClient.entities.Order.update(order.id, { status });
-    await audit(me, 'status', 'orders', 'Order', order.id, `${order.ref}: ${order.status} → ${status}`);
-    qc.invalidateQueries({ queryKey: ['admin-orders'] });
+    // Instant optimistic status transition
+    dispatch(updateOrderOptimistic({ id: order.id, status }));
     setActive((a) => (a && a.id === order.id ? { ...a, status } : a));
+
+    try {
+      await apiClient.entities.Order.update(order.id, { status });
+      audit(me, 'status', 'orders', 'Order', order.id, `${order.ref}: ${order.status} → ${status}`).catch(() => {});
+      qc.invalidateQueries({ queryKey: ['admin-orders'] });
+    } catch (err) {
+      alert(err.message || 'Failed to update order status');
+      qc.invalidateQueries({ queryKey: ['admin-orders'] });
+    }
   };
 
   const markPaid = async (order) => {
-    await apiClient.entities.Order.update(order.id, { payment_status: 'paid', payment_mode: order.payment_mode === 'none' ? 'cash' : order.payment_mode });
-    await audit(me, 'payment', 'orders', 'Order', order.id, `${order.ref} marked paid`);
-    qc.invalidateQueries({ queryKey: ['admin-orders'] });
-    setActive({ ...order, payment_status: 'paid' });
+    const payment_mode = order.payment_mode === 'none' ? 'cash' : order.payment_mode;
+    // Instant optimistic payment update
+    dispatch(updateOrderOptimistic({ id: order.id, payment_status: 'paid', payment_mode }));
+    setActive((a) => (a && a.id === order.id ? { ...a, payment_status: 'paid', payment_mode } : a));
+
+    try {
+      await apiClient.entities.Order.update(order.id, { payment_status: 'paid', payment_mode });
+      audit(me, 'payment', 'orders', 'Order', order.id, `${order.ref} marked paid`).catch(() => {});
+      qc.invalidateQueries({ queryKey: ['admin-orders'] });
+    } catch (err) {
+      alert(err.message || 'Failed to update payment status');
+      qc.invalidateQueries({ queryKey: ['admin-orders'] });
+    }
   };
 
   const kot = (o) => printHtml(`KOT ${o.ref}`, `

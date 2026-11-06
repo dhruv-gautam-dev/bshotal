@@ -34,6 +34,7 @@ export const BOOKING_STATUS = {
   checked_out: { en: 'Checked out', hi: 'चेक-आउट', cls: 'bg-slate-100 text-slate-700 border-slate-200' },
   cancelled: { en: 'Cancelled', hi: 'रद्द', cls: 'bg-red-100 text-red-700 border-red-200' },
   no_show: { en: 'No show', hi: 'नहीं आए', cls: 'bg-red-100 text-red-700 border-red-200' },
+  failed: { en: 'Unavailable / Failed', hi: 'अनुपलब्ध / विफल', cls: 'bg-rose-100 text-rose-800 border-rose-200' },
 };
 
 export const ORDER_STATUS = {
@@ -90,7 +91,7 @@ export async function saveSettings(id, values) {
  */
 export async function checkAvailability(roomTypeId, checkIn, checkOut, excludeId = '') {
   const type = (await apiClient.entities.RoomType.filter({ id: roomTypeId }, { limit: 1 })).items[0];
-  if (!type) return { available: 0, total: 0, error: 'Room type not found' };
+  if (!type) return { available: 0, total: 0, error: 'Room type not found', is_available: false, available_dates: [], booked_dates: [] };
   const booked = (await apiClient.entities.Booking.filter({
     room_type_id: roomTypeId,
     status: { $in: BLOCKING },
@@ -104,12 +105,41 @@ export async function checkAvailability(roomTypeId, checkIn, checkOut, excludeId
     end_date: { $gt: checkIn },
   }, { limit: 50 })).items.filter((b) => !b.room_id);
   const total = Number(type.total_rooms ?? type.total_inventory) || 1;
+
+  // Night-by-night breakdown
+  const start = new Date(checkIn);
+  const end = new Date(checkOut);
+  const totalNights = Math.max(1, Math.round((end - start) / 86400000));
+  const availableDates = [];
+  const bookedDates = [];
+  let minAvail = total;
+
+  for (let i = 0; i < totalNights; i++) {
+    const cur = new Date(start.getTime() + i * 86400000);
+    const curIso = cur.toISOString().slice(0, 10);
+    const isBlocked = blocks.some((b) => b.start_date <= curIso && b.end_date > curIso);
+    let availOnNight = 0;
+    if (!isBlocked) {
+      const bookedOnNight = overlap.filter((b) => b.check_in <= curIso && b.check_out > curIso).length;
+      availOnNight = Math.max(0, total - bookedOnNight);
+    }
+    minAvail = Math.min(minAvail, availOnNight);
+    if (availOnNight > 0) {
+      availableDates.push(curIso);
+    } else {
+      bookedDates.push(curIso);
+    }
+  }
+
   return {
     type,
     total,
     booked: overlap.length,
     blocked: blocks.length,
-    available: total - overlap.length - blocks.length,
+    available: minAvail,
+    is_available: bookedDates.length === 0,
+    available_dates: availableDates,
+    booked_dates: bookedDates,
   };
 }
 
@@ -137,17 +167,40 @@ export async function audit(me, action, area, entity, recordId, summary) {
 /** Build the customer book from bookings + orders (always up to date). */
 export function deriveCustomers(bookings, orders) {
   const map = new Map();
-  const touch = (name, phone, spend) => {
+  const touch = (name, phone, spend, isFailed = false, failInfo = null) => {
     const key = String(phone || '').replace(/\D/g, '').slice(-10);
     if (!key) return;
-    const row = map.get(key) || { name, phone: key, visits: 0, orders_count: 0, total_spend: 0, last_visit: '' };
+    const row = map.get(key) || {
+      name,
+      phone: key,
+      visits: 0,
+      orders_count: 0,
+      total_spend: 0,
+      last_visit: '',
+      has_failed: false,
+      failed_attempts: [],
+    };
     row.name = name || row.name;
-    row.visits += 1;
-    row.total_spend += money(spend);
-    row.last_visit = row.last_visit || '';
+    if (isFailed) {
+      row.has_failed = true;
+      if (failInfo) row.failed_attempts.push(failInfo);
+    } else {
+      row.visits += 1;
+      row.total_spend += money(spend);
+    }
     map.set(key, row);
   };
-  bookings.forEach((b) => touch(b.guest_name, b.phone, b.amount));
+  bookings.forEach((b) => {
+    const isFailed = (b.status === 'failed' || b.booking_status === 'failed');
+    const failInfo = isFailed ? {
+      date: b.created_date || b.created_at,
+      room_type: b.room_type_name,
+      check_in: b.check_in,
+      check_out: b.check_out,
+      reason: b.cancellation_reason || b.admin_notes,
+    } : null;
+    touch(b.guest_name, b.phone || b.guest_phone, b.amount || b.total_amount, isFailed, failInfo);
+  });
   orders.forEach((o) => { touch(o.customer_name, o.phone, o.total); });
   return [...map.values()].sort((a, b) => b.total_spend - a.total_spend);
 }

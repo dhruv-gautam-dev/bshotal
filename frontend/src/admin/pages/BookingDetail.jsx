@@ -1,6 +1,7 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useSelector, useDispatch } from 'react-redux';
 import { ArrowLeft, Phone, MessageCircle, Printer, CheckCircle2, LogIn, LogOut, XCircle, Trash2, Plus, AlertTriangle, X, BedDouble } from 'lucide-react';
 import { apiClient } from '@/api/apiClient';
 import { useI18n } from '@/lib/i18n';
@@ -11,6 +12,13 @@ import {
 import StatusPill from '../components/StatusPill';
 import Confirm from '../components/Confirm';
 import DatePicker from '@/components/ui/date-picker';
+import {
+  setSelectedBooking,
+  updateBookingOptimistic,
+  addPaymentOptimistic,
+  deleteBookingOptimistic,
+} from '@/store/slices/bookingsSlice';
+import { updateRoomOptimistic } from '@/store/slices/roomsSlice';
 
 export default function BookingDetail() {
   const { id } = useParams();
@@ -18,6 +26,7 @@ export default function BookingDetail() {
   const { me } = useAdmin();
   const navigate = useNavigate();
   const qc = useQueryClient();
+  const dispatch = useDispatch();
   const [err, setErr] = useState('');
   const [busy, setBusy] = useState(false);
   const [pay, setPay] = useState({ open: false, amount: '', mode: 'cash', kind: 'balance', note: '' });
@@ -25,6 +34,10 @@ export default function BookingDetail() {
   const [notes, setNotes] = useState(null);
   const [cancelOpen, setCancelOpen] = useState(false);
   const [delOpen, setDelOpen] = useState(false);
+
+  // Redux state selectors for instant state updates
+  const reduxSelected = useSelector((state) => state.bookings.selectedBooking);
+  const reduxInList = useSelector((state) => state.bookings.items.find((item) => item.id === id));
 
   // Confirm booking & assign room number modal
   const [confirmModal, setConfirmModal] = useState({
@@ -48,30 +61,42 @@ export default function BookingDetail() {
           : apiClient.entities.Payment.filter({ booking_id: id }, { sort: '-created_date', limit: 50 }),
         getSettings(),
       ]);
+      if (booking) {
+        dispatch(setSelectedBooking(booking));
+      }
       return { booking, payments: payments.items || [], settings };
     },
   });
 
-  const b = data?.booking;
+  useEffect(() => {
+    if (data?.booking) {
+      dispatch(setSelectedBooking(data.booking));
+    }
+  }, [data?.booking, dispatch]);
+
+  const b = (reduxSelected && reduxSelected.id === id) ? reduxSelected : (reduxInList || data?.booking);
   const isStaff = me?.staff_role === 'staff';
   const canDelete = !isStaff;
 
   const save = async (patch, log) => {
-    setBusy(true);
     setErr('');
+    // Instant optimistic update
+    dispatch(updateBookingOptimistic({ id, ...patch }));
     try {
       await apiClient.entities.Booking.update(id, patch);
-      await audit(me, 'update', 'bookings', 'Booking', id, log);
-      await refetch();
+      audit(me, 'update', 'bookings', 'Booking', id, log).catch(() => {});
+      refetch();
       qc.invalidateQueries({ queryKey: ['admin-bookings'] });
     } catch (ex) {
       setErr(ex.message || L('Could not update the booking.', 'बुकिंग अपडेट नहीं हुई।'));
-    } finally { setBusy(false); }
+      refetch();
+    }
   };
 
   const setStatus = (status, label) => save({
     status,
-    history: [...(b.history || []), { status, at: new Date().toISOString(), by: me?.email || 'staff' }],
+    booking_status: status,
+    history: [...(b?.history || []), { status, at: new Date().toISOString(), by: me?.email || 'staff' }],
   }, label);
 
   const openConfirmDialog = async (targetStatus = 'confirmed') => {
@@ -112,57 +137,79 @@ export default function BookingDetail() {
     if (!b) return;
 
     if (confirmModal.data && (!confirmModal.data.is_available || confirmModal.data.available_count <= 0)) {
+      const availText = confirmModal.data.available_dates_formatted
+        ? ` (${L('Available only on: ', 'केवल इन तारीखों पर उपलब्ध: ')} ${confirmModal.data.available_dates_formatted})`
+        : '';
       alert(L(
-        `Cannot confirm: ${confirmModal.data.room_type_name} is fully booked from ${b.check_in} to ${b.check_out}. No rooms are available for these dates.`,
-        `कन्फ़र्म नहीं हो सकता: ${confirmModal.data.room_type_name} श्रेणी के सभी कमरे इन तारीखों में भरे हैं। कोई कमरा खाली नहीं है।`
+        `Cannot confirm: ${confirmModal.data.room_type_name} is not available from ${b.check_in} to ${b.check_out}.${availText}`,
+        `कन्फ़र्म नहीं हो सकता: ${confirmModal.data.room_type_name} श्रेणी के कमरे इन तारीखों में उपलब्ध नहीं हैं।${availText}`
       ));
       return;
     }
 
-    setConfirmModal((prev) => ({ ...prev, submitting: true, error: '' }));
+    const assignedRoomId = confirmModal.selectedRoomId || undefined;
+    const assignedRoomObj = confirmModal.data?.available_rooms?.find((r) => r.id === assignedRoomId);
+    const assignedRoomNumber = assignedRoomObj ? assignedRoomObj.room_number : b.room_number;
+
+    // Instant optimistic update
+    dispatch(updateBookingOptimistic({
+      id,
+      status: confirmModal.targetStatus,
+      booking_status: confirmModal.targetStatus,
+      assigned_room_id: assignedRoomId,
+      room_id: assignedRoomId,
+      room_number: assignedRoomNumber,
+    }));
+    if (assignedRoomId) {
+      dispatch(updateRoomOptimistic({ id: assignedRoomId, status: 'occupied' }));
+    }
+    setConfirmModal((prev) => ({ ...prev, open: false, submitting: false }));
+
     try {
       await apiClient.entities.Booking.update(id, {
         status: confirmModal.targetStatus,
-        assigned_room_id: confirmModal.selectedRoomId || undefined,
+        assigned_room_id: assignedRoomId,
         history: [...(b.history || []), {
           status: confirmModal.targetStatus,
           at: new Date().toISOString(),
           by: me?.email || 'staff',
-          notes: confirmModal.selectedRoomId ? 'Room assigned & confirmed' : 'Confirmed',
+          notes: assignedRoomId ? 'Room assigned & confirmed' : 'Confirmed',
         }],
       });
-      await audit(me, 'update', 'bookings', 'Booking', id, `Confirmed ${b.ref} with room assignment`);
-      await refetch();
+      audit(me, 'update', 'bookings', 'Booking', id, `Confirmed ${b.ref} with room assignment`).catch(() => {});
+      refetch();
       qc.invalidateQueries({ queryKey: ['admin-bookings'] });
       qc.invalidateQueries({ queryKey: ['admin-rooms'] });
-      setConfirmModal((prev) => ({ ...prev, open: false, submitting: false }));
     } catch (ex) {
-      setConfirmModal((prev) => ({
-        ...prev,
-        submitting: false,
-        error: ex.message || 'Failed to update booking',
-      }));
+      alert(ex.message || 'Failed to update booking');
+      refetch();
     }
   };
 
   const checkIn = async () => {
-    setBusy(true);
     try {
       const rooms = await apiClient.entities.Room.filter({ room_type_id: b.room_type_id, is_active: true }, { limit: 50 });
       const free = (rooms.items || []).find((r) => r.status !== 'occupied' && r.status !== 'maintenance');
-      if (free) await apiClient.entities.Room.update(free.id, { status: 'occupied' });
+      if (free) {
+        dispatch(updateRoomOptimistic({ id: free.id, status: 'occupied' }));
+        await apiClient.entities.Room.update(free.id, { status: 'occupied' });
+      }
       await save({
         status: 'checked_in',
+        booking_status: 'checked_in',
         room_id: free?.id || b.room_id || '',
         room_number: free?.number || b.room_number || '',
         history: [...(b.history || []), { status: 'checked_in', at: new Date().toISOString(), by: me?.email || 'staff' }],
       }, `Checked in ${b.guest_name}`);
-    } finally { setBusy(false); }
+    } catch (ex) {
+      alert(ex.message || 'Check-in failed');
+    }
   };
 
   const checkOut = async () => {
     if (b.room_id) {
-      await apiClient.entities.Room.update(b.room_id, { status: 'cleaning' }).catch(() => {});
+      dispatch(updateRoomOptimistic({ id: b.room_id, status: 'cleaning' }));
+      apiClient.entities.Room.update(b.room_id, { status: 'cleaning' }).catch(() => {});
     }
     await setStatus('checked_out', `Checked out ${b.guest_name}`);
   };
@@ -172,6 +219,7 @@ export default function BookingDetail() {
     const reason = reasonInput?.value?.trim() || 'Cancelled by staff/guest request';
     await save({
       status: 'cancelled',
+      booking_status: 'cancelled',
       cancellation_reason: reason,
       cancel_reason: reason,
       history: [...(b.history || []), { status: 'cancelled', at: new Date().toISOString(), by: me?.email || 'staff', reason }],
@@ -180,30 +228,44 @@ export default function BookingDetail() {
   };
 
   const remove = async () => {
-    await apiClient.entities.Booking.delete(id);
-    await audit(me, 'delete', 'bookings', 'Booking', id, `Deleted booking ${b.ref}`);
-    navigate('/admin/bookings');
+    dispatch(deleteBookingOptimistic(id));
+    try {
+      await apiClient.entities.Booking.delete(id);
+      audit(me, 'delete', 'bookings', 'Booking', id, `Deleted booking ${b?.ref}`).catch(() => {});
+      qc.invalidateQueries({ queryKey: ['admin-bookings'] });
+      navigate('/admin/bookings');
+    } catch (ex) {
+      alert(ex.message || 'Failed to delete booking');
+    }
   };
 
   const addPayment = async (e) => {
     e.preventDefault();
     const amount = money(pay.amount);
     if (amount <= 0) return;
-    setBusy(true);
+    const payNum = pay.kind === 'refund' ? -amount : amount;
+
+    // Instant optimistic update
+    dispatch(addPaymentOptimistic({ bookingId: id, amount: payNum }));
+    setPay({ open: false, amount: '', mode: 'cash', kind: 'balance', note: '' });
+
     try {
       await apiClient.entities.Payment.create({
         booking_id: id, amount, mode: pay.mode, kind: pay.kind, note: pay.note, paid_at: todayISO(), received_by: me?.email || '',
       });
-      const paid = money(b.advance_paid) + (pay.kind === 'refund' ? -amount : amount);
+      const paid = money(b.advance_paid) + payNum;
       await apiClient.entities.Booking.update(id, {
         advance_paid: paid,
         balance: Math.max(0, money(b.amount) - paid),
         payment_mode: pay.mode,
       });
-      await audit(me, 'payment', 'bookings', 'Booking', id, `Payment ${inr(amount)} (${pay.mode}) for ${b.ref}`);
-      setPay({ open: false, amount: '', mode: 'cash', kind: 'balance', note: '' });
-      await refetch();
-    } finally { setBusy(false); }
+      audit(me, 'payment', 'bookings', 'Booking', id, `Payment ${inr(amount)} (${pay.mode}) for ${b.ref}`).catch(() => {});
+      refetch();
+      qc.invalidateQueries({ queryKey: ['admin-bookings'] });
+    } catch (ex) {
+      alert(ex.message || 'Failed to record payment');
+      refetch();
+    }
   };
 
   const saveDates = async () => {
@@ -433,9 +495,22 @@ export default function BookingDetail() {
                   {L('No Rooms Available for These Dates', 'इन तारीखों में कोई कमरा उपलब्ध नहीं')}
                 </div>
                 <p>
-                  {L(
-                    `All rooms in "${confirmModal.data.room_type_name}" are already fully booked from ${b.check_in} to ${b.check_out}. Only ${confirmModal.data.available_count} room(s) available.`,
-                    `"${confirmModal.data.room_type_name}" श्रेणी के सभी कमरे ${b.check_in} से ${b.check_out} तक भरे हुए हैं। केवल ${confirmModal.data.available_count} कमरा उपलब्ध है।`
+                  {confirmModal.data.available_dates_formatted ? (
+                    <span>
+                      {L(
+                        `Room "${confirmModal.data.room_type_name}" is not available for the full duration. Available only on: `,
+                        `कमरा "${confirmModal.data.room_type_name}" पूरी अवधि के लिए उपलब्ध नहीं है। केवल इन तारीखों पर उपलब्ध: `
+                      )}
+                      <b className="text-amber-800">{confirmModal.data.available_dates_formatted}</b>
+                      {confirmModal.data.booked_dates_formatted && (
+                        <span> ({L('Booked on: ', 'बुक है: ')} {confirmModal.data.booked_dates_formatted})</span>
+                      )}
+                    </span>
+                  ) : (
+                    L(
+                      `All rooms in "${confirmModal.data.room_type_name}" are already fully booked from ${b.check_in} to ${b.check_out}. Only ${confirmModal.data.available_count} room(s) available.`,
+                      `"${confirmModal.data.room_type_name}" श्रेणी के सभी कमरे ${b.check_in} से ${b.check_out} तक भरे हुए हैं। केवल ${confirmModal.data.available_count} कमरा उपलब्ध है।`
+                    )
                   )}
                 </p>
                 <p className="font-medium text-red-900">

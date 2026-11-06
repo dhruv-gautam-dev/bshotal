@@ -1,15 +1,18 @@
 import { useEffect, useMemo, useState } from 'react';
+import { useDispatch } from 'react-redux';
 import { X, Loader2 } from 'lucide-react';
 import { apiClient } from '@/api/apiClient';
 import { useI18n } from '@/lib/i18n';
 import { checkAvailability, rateForStay, money, todayISO, nightsBetween } from '../lib/adminData';
 import DatePicker from '@/components/ui/date-picker';
+import { addBookingOptimistic } from '@/store/slices/bookingsSlice';
 
 const empty = { name: '', phone: '', email: '', roomTypeId: '', checkIn: todayISO(), checkOut: '', guests: 2, source: 'phone', special: '', amount: '', advance: 0, payment_mode: 'none', status: 'confirmed', notes: '' };
 const ref = () => `RM-${Math.random().toString(36).slice(2, 7).toUpperCase()}`;
 
 export default function BookingForm({ open, onClose, onSaved }) {
   const { L } = useI18n();
+  const dispatch = useDispatch();
   const [types, setTypes] = useState([]);
   const [f, setF] = useState(empty);
   const [err, setErr] = useState('');
@@ -50,14 +53,22 @@ export default function BookingForm({ open, onClose, onSaved }) {
     setBusy(true);
     try {
       const avail = await checkAvailability(type.id, f.checkIn, f.checkOut);
-      if (avail.available <= 0) {
-        setErr(L('No rooms of this type are free for those dates.', 'इन तारीखों में इस प्रकार का कमरा खाली नहीं है।'));
+      if (avail.available <= 0 || !avail.is_available) {
+        let msg = L('No rooms of this type are free for those dates.', 'इन तारीखों में इस प्रकार का कमरा खाली नहीं है।');
+        if (avail.available_dates && avail.available_dates.length > 0) {
+          msg = L(
+            `Rooms are only available on: ${avail.available_dates.join(', ')} (Booked: ${avail.booked_dates.join(', ')}).`,
+            `कमरे केवल इन तारीखों पर उपलब्ध हैं: ${avail.available_dates.join(', ')} (बुक हैं: ${avail.booked_dates.join(', ')})।`
+          );
+        }
+        setErr(msg);
         setBusy(false);
         return;
       }
       const amount = money(f.amount) || money(type.price) * nights;
       const advance = money(f.advance);
-      const created = await apiClient.entities.Booking.create({
+      const bookingPayload = {
+        id: `temp-${Date.now()}`,
         ref: ref(),
         guest_name: f.name.trim(),
         phone: f.phone.replace(/\D/g, '').slice(-10),
@@ -76,8 +87,13 @@ export default function BookingForm({ open, onClose, onSaved }) {
         status: f.status || 'confirmed',
         source: f.source,
         notes: f.notes,
+        created_date: new Date().toISOString(),
         history: [{ status: f.status || 'confirmed', at: new Date().toISOString(), by: 'admin-dashboard' }],
-      });
+      };
+      dispatch(addBookingOptimistic(bookingPayload));
+      onClose();
+
+      const created = await apiClient.entities.Booking.create(bookingPayload);
       if (advance > 0) {
         await apiClient.entities.Payment.create({
           booking_id: created.id, amount: advance, mode: f.payment_mode === 'none' ? 'cash' : f.payment_mode,
@@ -85,7 +101,6 @@ export default function BookingForm({ open, onClose, onSaved }) {
         });
       }
       onSaved?.(created);
-      onClose();
     } catch (ex) {
       setErr(ex.message || L('Could not save the booking.', 'बुकिंग सेव नहीं हुई।'));
     } finally {

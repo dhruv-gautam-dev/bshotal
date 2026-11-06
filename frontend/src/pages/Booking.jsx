@@ -1,5 +1,6 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
+import { AlertTriangle, Calendar, Info } from 'lucide-react';
 import PageHero from '@/components/site/PageHero';
 import BookingConfirmation from '@/components/site/BookingConfirmation';
 import { useRoomTypes } from '@/hooks/useSiteCatalog';
@@ -17,12 +18,33 @@ export default function Booking() {
   const { data: rooms } = useRoomTypes();
   const roomList = rooms || [];
   const [q] = useSearchParams();
-  const [f, setF] = useState({ name: '', phone: '', email: '', checkIn: q.get('in') || '', checkOut: q.get('out') || '', guests: q.get('guests') || 2, room: q.get('room') || '', special: '' });
+  const [f, setF] = useState({
+    name: '',
+    phone: '',
+    email: '',
+    checkIn: q.get('in') || '',
+    checkOut: q.get('out') || '',
+    guests: q.get('guests') || 2,
+    room: q.get('room') || '',
+    special: '',
+  });
   const [errors, setErrors] = useState({});
+  const [serverError, setServerError] = useState('');
   const [busy, setBusy] = useState(false);
   const [done, setDone] = useState(null);
+
   useSeo('Book a Room | B.S. Hotel, Mathura NH-2', 'Request a room booking at B.S. Hotel near Township Nagar, NH-2, Baad (Mathura) and confirm on WhatsApp.');
-  const set = (k) => (e) => setF({ ...f, [k]: e.target.value });
+
+  useEffect(() => {
+    if (!f.room && roomList.length > 0) {
+      setF((prev) => ({ ...prev, room: roomList[0].id }));
+    }
+  }, [roomList, f.room]);
+
+  const set = (k) => (e) => {
+    setServerError('');
+    setF((prev) => ({ ...prev, [k]: e?.target ? e.target.value : e }));
+  };
 
   const validate = () => {
     const e = {};
@@ -39,18 +61,39 @@ export default function Booking() {
 
   const submit = async (ev) => {
     ev.preventDefault();
+    setServerError('');
     const e = validate();
     setErrors(e);
     if (Object.keys(e).length) return;
+
     setBusy(true);
-    const room = roomList.find((r) => r.id === f.room) || roomList[0];
+    const selectedRoomId = f.room || roomList[0]?.id || '';
+    const room = roomList.find((r) => r.id === selectedRoomId) || roomList[0];
     const nights = Math.max(1, Math.round((new Date(f.checkOut) - new Date(f.checkIn)) / 86400000));
     const roomName = room ? (typeof room.name === 'object' ? tr(room.name) : (room.name_en || room.name)) : 'Room';
-    const res = await submitBooking({ ...f, room: room?.id || '', roomName, nights, amount: ((room?.price || 0) * nights) });
-    setBusy(false);
-    setDone(res);
-    window.scrollTo({ top: 0, behavior: 'smooth' });
+
+    try {
+      const res = await submitBooking({
+        ...f,
+        room: room?.id || '',
+        roomName,
+        nights,
+        amount: ((room?.price || 0) * nights),
+      });
+      setDone(res);
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    } catch (err) {
+      console.error('Booking submission error:', err);
+      setServerError(err.message || 'Selected room is not available for the chosen dates. Please choose different dates.');
+    } finally {
+      setBusy(false);
+    }
   };
+
+  const room = roomList.find((r) => r.id === f.room) || roomList[0];
+  const nights = f.checkIn && f.checkOut && f.checkOut > f.checkIn
+    ? Math.max(1, Math.round((new Date(f.checkOut) - new Date(f.checkIn)) / 86400000))
+    : 0;
 
   return (
     <>
@@ -76,6 +119,37 @@ export default function Booking() {
               <select className="field mt-1" value={f.room} onChange={set('room')}>{roomList.map((r) => <option key={r.id} value={r.id}>{tr(r.name)}</option>)}</select>
             </label>
             <label className="text-sm md:col-span-2">{t('f.special')}<textarea className="field mt-1 py-3" rows={3} value={f.special} onChange={set('special')} /></label>
+
+            {nights > 0 && room && (
+              <div className="md:col-span-2 flex items-center justify-between rounded-xl bg-amber-500/10 border border-amber-500/20 px-4 py-2.5 text-xs text-amber-200">
+                <span className="flex items-center gap-1.5 font-medium">
+                  <Calendar className="h-4 w-4 text-amber-400" />
+                  {nights} {nights === 1 ? 'night' : 'nights'} stay ({f.checkIn} → {f.checkOut})
+                </span>
+                <span className="font-semibold text-amber-300">
+                  Total est: ₹{((room.price || 0) * nights).toLocaleString('en-IN')}
+                </span>
+              </div>
+            )}
+
+            {serverError && (
+              <div className="md:col-span-2 rounded-2xl border border-rose-500/40 bg-rose-950/40 p-4 sm:p-5 text-rose-100 shadow-lg backdrop-blur-sm animate-in fade-in duration-200">
+                <div className="flex items-start gap-3.5">
+                  <div className="rounded-xl bg-rose-500/20 p-2 text-rose-400 shrink-0 mt-0.5">
+                    <AlertTriangle className="h-5 w-5" />
+                  </div>
+                  <div className="space-y-1 flex-1">
+                    <h4 className="font-semibold text-rose-200 text-sm sm:text-base">
+                      {t('rooms.unavailableTitle', 'Dates Not Available / कमरा उपलब्ध नहीं है')}
+                    </h4>
+                    <p className="text-sm font-medium leading-relaxed text-rose-100/90">
+                      {serverError}
+                    </p>
+                  </div>
+                </div>
+              </div>
+            )}
+
             <button type="submit" disabled={busy} className="btn-gold md:col-span-2">{busy ? '…' : t('cta.requestBooking')}</button>
           </form>
         )}
