@@ -5,7 +5,7 @@ import { ROOMS } from '@/data/rooms';
 import { MENU } from '@/data/menu';
 import { EVENTS } from '@/data/events';
 
-const API_HOST = import.meta.env.VITE_API_URL || '';
+import { API_HOST } from '@/lib/apiConfig';
 
 const cleanPhone = (p) => {
   if (!p) return '';

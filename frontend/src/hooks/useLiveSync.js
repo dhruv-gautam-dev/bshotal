@@ -6,6 +6,7 @@ import { setRoomsData } from '@/store/slices/roomsSlice';
 import { setSettingsData } from '@/store/slices/settingsSlice';
 import { fetchMenu, fetchRoomTypes, getPublicSettings } from '@/lib/publicApi';
 import { useCart } from '@/lib/cart';
+import { API_HOST } from '@/lib/apiConfig';
 
 const CHANNEL_NAME = 'bs_hotel_live_sync';
 
@@ -148,8 +149,7 @@ export function useLiveSync() {
     const connectSSE = () => {
       if (!isMounted) return;
       try {
-        const apiHost = import.meta.env.VITE_API_URL || '';
-        const url = `${apiHost}/api/v1/public/live/stream`;
+        const url = `${API_HOST}/api/v1/public/live/stream`;
         eventSource = new EventSource(url);
 
         eventSource.addEventListener('menu_updated', (e) => {
