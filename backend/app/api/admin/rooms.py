@@ -1,11 +1,13 @@
 from datetime import date, timedelta
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
-from sqlalchemy import select
+from sqlalchemy import func, select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.deps import get_db, require_manager, require_staff
 from app.models.blocked_date import BlockedDate
+from app.models.booking import Booking
 from app.models.pricing_rule import PricingRule
 from app.models.room import Room
 from app.models.room_type import RoomType
@@ -99,19 +101,83 @@ async def create_room(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(require_manager),
 ):
-    # Check duplicate room number
-    exist = await db.execute(
-        select(Room).where(Room.room_number == data.room_number, Room.is_deleted == False)
-    )
-    if exist.scalar_one_or_none():
+    room_num = str(data.room_number).strip()
+    if not room_num:
         raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST, detail="Room number already exists"
+            status_code=status.HTTP_400_BAD_REQUEST, detail="Room number cannot be empty."
         )
-    room = Room(**data.model_dump())
-    db.add(room)
-    await db.commit()
-    await db.refresh(room)
-    return room
+
+    # 1. Verify room category exists
+    rt = await db.get(RoomType, data.room_type_id)
+    if not rt or rt.is_deleted:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Selected room category does not exist."
+        )
+
+    # 2. Check if a room with this number already exists in DB (active or soft-deleted)
+    exist_stmt = select(Room).where(Room.room_number == room_num)
+    existing_room = (await db.execute(exist_stmt)).scalar_one_or_none()
+
+    if existing_room and not existing_room.is_deleted:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Room number '{room_num}' already exists and is active.",
+        )
+
+    # 3. Verify count does not exceed room type inventory
+    count_stmt = select(func.count(Room.id)).where(
+        Room.room_type_id == data.room_type_id, Room.is_deleted == False
+    )
+    current_count = (await db.execute(count_stmt)).scalar() or 0
+    max_inventory = rt.total_inventory or 1
+
+    if current_count >= max_inventory:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Cannot add room number. Category '{rt.name}' is limited to {max_inventory} room(s) max ({current_count} already created). Increase the room count in Room Types tab first.",
+        )
+
+    # 4. If the room previously existed but was soft-deleted, reactivate and update it
+    if existing_room and existing_room.is_deleted:
+        existing_room.is_deleted = False
+        existing_room.room_type_id = data.room_type_id
+        existing_room.floor = data.floor or 1
+        existing_room.status = data.status or "available"
+        existing_room.notes = data.notes
+        existing_room.is_active = data.is_active if data.is_active is not None else True
+        try:
+            await db.commit()
+            await db.refresh(existing_room)
+            return existing_room
+        except Exception as ex:
+            await db.rollback()
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Failed to reactivate room '{room_num}': {str(ex)}",
+            )
+
+    # 5. Otherwise create brand new room with error handling
+    try:
+        room_dict = data.model_dump()
+        room_dict["room_number"] = room_num
+        room_dict["floor"] = data.floor or 1
+        room = Room(**room_dict)
+        db.add(room)
+        await db.commit()
+        await db.refresh(room)
+        return room
+    except IntegrityError as ex:
+        await db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Room number '{room_num}' already exists in database constraint. Please choose another number.",
+        )
+    except Exception as ex:
+        await db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Failed to create room: {str(ex)}",
+        )
 
 
 @router.put("/inventory/{room_id}", response_model=RoomOut)
@@ -136,6 +202,86 @@ async def update_room(
     await db.commit()
     await db.refresh(room)
     return room
+
+
+@router.delete("/inventory/{room_id}", response_model=MessageResponse)
+async def delete_room(
+    room_id: str,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(require_manager),
+):
+    room = await db.get(Room, room_id)
+    if not room or room.is_deleted:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Room not found")
+    room.is_deleted = True
+    await db.commit()
+    return MessageResponse(message=f"Room {room.room_number} deleted successfully")
+
+
+@router.get("/available-inventory")
+async def get_available_inventory_for_dates(
+    room_type_id: str = Query(...),
+    check_in: date = Query(...),
+    check_out: date = Query(...),
+    exclude_booking_id: str | None = Query(None),
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(require_staff),
+):
+    """
+    Returns available physical rooms and category inventory status for a specific date range.
+    """
+    if check_out <= check_in:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="check_out must be strictly after check_in",
+        )
+
+    is_avail, avail_count, rt = await check_room_availability(
+        db, room_type_id=room_type_id, check_in=check_in, check_out=check_out, requested_rooms=1
+    )
+    if not rt:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Room type not found")
+
+    # Get all active physical rooms of this room type
+    stmt = (
+        select(Room)
+        .where(
+            Room.room_type_id == room_type_id,
+            Room.is_active == True,
+            Room.is_deleted == False,
+            Room.status != "maintenance",
+        )
+        .order_by(Room.room_number.asc())
+    )
+    all_rooms = (await db.execute(stmt)).scalars().all()
+
+    # Find which room numbers are already assigned to active overlapping bookings
+    overlap_stmt = select(Booking.assigned_room_id).where(
+        Booking.assigned_room_id.isnot(None),
+        Booking.is_deleted == False,
+        Booking.booking_status.in_(["confirmed", "checked_in"]),
+        Booking.check_in_date < check_out,
+        Booking.check_out_date > check_in,
+    )
+    if exclude_booking_id:
+        overlap_stmt = overlap_stmt.where(Booking.id != exclude_booking_id)
+
+    busy_room_ids = set((await db.execute(overlap_stmt)).scalars().all())
+
+    available_rooms = [
+        {"id": r.id, "room_number": r.room_number, "floor": r.floor, "status": r.status}
+        for r in all_rooms
+        if r.id not in busy_room_ids
+    ]
+
+    return {
+        "room_type_id": room_type_id,
+        "room_type_name": rt.name,
+        "total_inventory": rt.total_inventory,
+        "is_available": is_avail,
+        "available_count": avail_count,
+        "available_rooms": available_rooms,
+    }
 
 
 # --- Blocked Dates CRUD ---

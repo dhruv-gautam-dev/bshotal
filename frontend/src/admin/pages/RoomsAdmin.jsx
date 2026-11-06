@@ -84,9 +84,65 @@ export default function RoomsAdmin() {
 
   const addRoom = async (e) => {
     e.preventDefault();
-    await apiClient.entities.Room.create({ number: roomForm.number, room_type_id: roomForm.room_type_id, floor: roomForm.floor, status: 'available', is_active: true });
-    setRoomForm({ open: false, number: '', room_type_id: '', floor: '' });
-    refresh();
+    const typeId = roomForm.room_type_id || types[0]?.id;
+    if (!typeId) {
+      alert(L('Please select a room category.', 'कृपया एक कमरा प्रकार चुनें।'));
+      return;
+    }
+
+    const targetType = types.find((t) => t.id === typeId);
+    const currentCount = rooms.filter((r) => r.room_type_id === typeId).length;
+    const maxAllowed = Number(targetType?.total_rooms ?? targetType?.total_inventory ?? 1);
+
+    if (currentCount >= maxAllowed) {
+      alert(
+        L(
+          `Cannot add room number. Category "${targetType?.name_en || ''}" is limited to ${maxAllowed} room(s) max (${currentCount} already created). Please increase room count in Room Types tab first.`,
+          `कमरा नंबर नहीं जोड़ सकते। श्रेणी "${targetType?.name_en || ''}" में अधिकतम ${maxAllowed} कमरे तय हैं (${currentCount} पहले से बने हैं)। कृपया पहले रूम टाइप्स टैब में कमरों की संख्या बढ़ाएं।`
+        )
+      );
+      return;
+    }
+
+    const roomNumClean = String(roomForm.number || '').trim();
+    if (!roomNumClean) {
+      alert(L('Please enter a valid room number.', 'कृपया मान्य कमरा नंबर दर्ज करें।'));
+      return;
+    }
+
+    const duplicate = rooms.find((r) => String(r.number).trim().toLowerCase() === roomNumClean.toLowerCase());
+    if (duplicate) {
+      alert(L(`Room number ${roomNumClean} already exists! Please choose another room number.`, `कमरा नंबर ${roomNumClean} पहले से मौजूद है! कृपया कोई दूसरा नंबर चुनें।`));
+      return;
+    }
+
+    try {
+      await apiClient.entities.Room.create({
+        number: roomNumClean,
+        room_type_id: typeId,
+        floor: Number(roomForm.floor) || 1,
+        status: 'available',
+        is_active: true,
+      });
+      await audit(me, 'create', 'rooms', 'Room', '', `Added Room ${roomNumClean}`);
+      setRoomForm({ open: false, number: '', room_type_id: '', floor: '' });
+      refresh();
+    } catch (err) {
+      alert(err.message || 'Failed to add room number');
+    }
+  };
+
+  const deleteRoom = async (room) => {
+    if (!window.confirm(L(`Are you sure you want to delete Room ${room.number}?`, `क्या आप कमरा ${room.number} मिटाना चाहते हैं?`))) {
+      return;
+    }
+    try {
+      await apiClient.entities.Room.delete(room.id);
+      await audit(me, 'delete', 'rooms', 'Room', room.id, `Deleted Room ${room.number}`);
+      refresh();
+    } catch (err) {
+      alert(err.message || 'Failed to delete room');
+    }
   };
 
   const setRoomStatus = async (room, status) => {
@@ -166,11 +222,24 @@ export default function RoomsAdmin() {
                     <div key={r.id} className="flex items-center justify-between gap-2 rounded-xl border border-slate-200 bg-white p-3">
                       <div>
                         <p className="font-semibold text-slate-900">{L('Room', 'कमरा')} {r.number}</p>
-                        <p className="text-xs text-slate-500">{types.find((t) => t.id === r.room_type_id)?.name_en || '—'}</p>
+                        <p className="text-xs text-slate-500">{types.find((t) => t.id === r.room_type_id)?.name_en || '—'}{r.floor ? ` · Floor ${r.floor}` : ''}</p>
                       </div>
-                      <select value={r.status} onChange={(e) => setRoomStatus(r, e.target.value)} className="rounded-lg border border-slate-300 px-2 py-1.5 text-xs font-semibold">
-                        {Object.entries(ROOM_STATUS).map(([k, v]) => <option key={k} value={k}>{L(v.en, v.hi)}</option>)}
-                      </select>
+                      <div className="flex items-center gap-1.5">
+                        <select value={r.status} onChange={(e) => setRoomStatus(r, e.target.value)} className="rounded-lg border border-slate-300 px-2 py-1.5 text-xs font-semibold">
+                          {Object.entries(ROOM_STATUS).map(([k, v]) => <option key={k} value={k}>{L(v.en, v.hi)}</option>)}
+                        </select>
+                        {['owner', 'admin'].includes(me?.staff_role || me?.role) && (
+                          <button
+                            type="button"
+                            onClick={() => deleteRoom(r)}
+                            className="rounded-lg border border-red-200 p-1.5 text-red-600 hover:bg-red-50 hover:text-red-700"
+                            title={L('Delete room number', 'कमरा नंबर हटाएं')}
+                            aria-label="Delete room"
+                          >
+                            <Trash2 size={14} />
+                          </button>
+                        )}
+                      </div>
                     </div>
                   ))}
                 </div>
@@ -277,21 +346,43 @@ export default function RoomsAdmin() {
         </div>
       )}
 
-      {roomForm.open && (
-        <div className="fixed inset-0 z-[60] flex items-end justify-center bg-slate-900/40 sm:items-center sm:p-4">
-          <form onSubmit={addRoom} className="w-full max-w-sm rounded-t-2xl bg-white p-5 sm:rounded-2xl">
-            <div className="mb-3 flex items-center justify-between"><h2 className="font-semibold">{L('Add room number', 'कमरा नंबर जोड़ें')}</h2><button type="button" onClick={() => setRoomForm({ ...roomForm, open: false })}><X size={20} /></button></div>
-            <label className="text-sm">{L('Number', 'नंबर')}<input className={input} value={roomForm.number} onChange={(e) => setRoomForm({ ...roomForm, number: e.target.value })} required /></label>
-            <label className="mt-2 block text-sm">{L('Room type', 'कमरे का प्रकार')}
-              <select className={input} value={roomForm.room_type_id} onChange={(e) => setRoomForm({ ...roomForm, room_type_id: e.target.value })} required>
-                {types.map((t) => <option key={t.id} value={t.id}>{t.name_en}</option>)}
-              </select>
-            </label>
-            <label className="mt-2 block text-sm">{L('Floor', 'मंज़िल')}<input className={input} value={roomForm.floor} onChange={(e) => setRoomForm({ ...roomForm, floor: e.target.value })} /></label>
-            <button className="mt-4 w-full rounded-xl bg-slate-900 py-2.5 text-sm font-semibold text-white">{L('Save', 'सेव')}</button>
-          </form>
-        </div>
-      )}
+      {roomForm.open && (() => {
+        const selectedTypeId = roomForm.room_type_id || types[0]?.id;
+        const selectedType = types.find((t) => t.id === selectedTypeId);
+        const currentCount = rooms.filter((r) => r.room_type_id === selectedTypeId).length;
+        const maxAllowed = Number(selectedType?.total_rooms ?? selectedType?.total_inventory ?? 1);
+        const isFull = currentCount >= maxAllowed;
+
+        return (
+          <div className="fixed inset-0 z-[60] flex items-end justify-center bg-slate-900/40 sm:items-center sm:p-4">
+            <form onSubmit={addRoom} className="w-full max-w-sm rounded-t-2xl bg-white p-5 sm:rounded-2xl">
+              <div className="mb-3 flex items-center justify-between">
+                <h2 className="font-semibold text-slate-900">{L('Add room number', 'कमरा नंबर जोड़ें')}</h2>
+                <button type="button" onClick={() => setRoomForm({ ...roomForm, open: false })}><X size={20} /></button>
+              </div>
+              <label className="text-sm">{L('Room number', 'कमरा नंबर')}<input className={input} placeholder="e.g. 101" value={roomForm.number} onChange={(e) => setRoomForm({ ...roomForm, number: e.target.value })} required /></label>
+              <label className="mt-2 block text-sm">{L('Room category', 'कमरे का प्रकार')}
+                <select className={input} value={selectedTypeId} onChange={(e) => setRoomForm({ ...roomForm, room_type_id: e.target.value })} required>
+                  {types.map((t) => <option key={t.id} value={t.id}>{t.name_en} ({t.total_rooms ?? t.total_inventory ?? 1} total)</option>)}
+                </select>
+              </label>
+              <p className="mt-1 text-xs text-slate-500">
+                {L('Category capacity:', 'श्रेणी क्षमता:')}{' '}
+                <span className={`font-semibold ${isFull ? 'text-red-600' : 'text-slate-800'}`}>
+                  {currentCount} / {maxAllowed} {L('rooms created', 'कमरे बने')}
+                </span>
+              </p>
+              {isFull && (
+                <p className="mt-1 rounded-lg bg-red-50 p-2 text-xs font-medium text-red-700">
+                  {L('Category capacity reached. Increase room count in Room Types tab to add more room numbers.', 'इस श्रेणी की क्षमता पूरी हो चुकी है। और कमरे जोड़ने के लिए पहले रूम टाइप्स टैब में संख्या बढ़ाएं।')}
+                </p>
+              )}
+              <label className="mt-2 block text-sm">{L('Floor', 'मंज़िल')}<input className={input} placeholder="e.g. 1 or 2" value={roomForm.floor} onChange={(e) => setRoomForm({ ...roomForm, floor: e.target.value })} /></label>
+              <button disabled={isFull} className="mt-4 w-full rounded-xl bg-slate-900 py-2.5 text-sm font-semibold text-white disabled:opacity-50">{L('Save room number', 'कमरा नंबर सेव करें')}</button>
+            </form>
+          </div>
+        );
+      })()}
     </div>
   );
 }

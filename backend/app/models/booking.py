@@ -67,6 +67,10 @@ class Booking(TimeStampedModel):
     id_proof_type: Mapped[str | None] = mapped_column(String(50), nullable=True)
     id_proof_number: Mapped[str | None] = mapped_column(String(50), nullable=True)
 
+    @property
+    def room_number(self) -> str | None:
+        return self.assigned_room.room_number if self.assigned_room else None
+
     room_type = relationship("RoomType", back_populates="bookings")
     assigned_room = relationship("Room", back_populates="bookings")
     customer = relationship("Customer", back_populates="bookings")

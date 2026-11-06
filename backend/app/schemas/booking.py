@@ -87,6 +87,7 @@ class BookingStatusUpdate(BaseSchema):
     status: str = Field(
         ..., pattern="^(pending|confirmed|checked_in|checked_out|cancelled|no_show)$"
     )
+    assigned_room_id: str | None = None
     cancellation_reason: str | None = None
     admin_notes: str | None = None
 
@@ -97,6 +98,12 @@ class BookingStatusUpdate(BaseSchema):
             # Accept booking_status as an alias for status
             if "status" not in data and "booking_status" in data:
                 data["status"] = data["booking_status"]
+            # Accept room_id or room as aliases for assigned_room_id
+            if "assigned_room_id" not in data:
+                if "room_id" in data:
+                    data["assigned_room_id"] = data["room_id"]
+                elif "room" in data and isinstance(data["room"], str):
+                    data["assigned_room_id"] = data["room"]
             # Accept cancel_reason or reason as aliases for cancellation_reason
             if not data.get("cancellation_reason"):
                 data["cancellation_reason"] = data.get("cancel_reason") or data.get("reason")
@@ -111,6 +118,7 @@ class BookingOut(BaseSchema):
     booking_reference: str
     room_type_id: str
     assigned_room_id: str | None = None
+    room_number: str | None = None
     customer_id: str | None = None
     guest_name: str
     guest_phone: str

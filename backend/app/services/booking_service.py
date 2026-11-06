@@ -132,7 +132,38 @@ async def update_booking_status(
     current_status = booking.booking_status
     new_status = update_data.status
 
+    # Validate and assign room if specified
+    if update_data.assigned_room_id:
+        assigned_room = await db.get(Room, update_data.assigned_room_id)
+        if not assigned_room or assigned_room.is_deleted:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Assigned room not found.")
+        if assigned_room.room_type_id != booking.room_type_id:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Assigned room does not match the room category of this booking.",
+            )
+
+        # Check conflict with overlapping active bookings for this physical room
+        conflict_stmt = select(Booking).where(
+            Booking.assigned_room_id == update_data.assigned_room_id,
+            Booking.id != booking.id,
+            Booking.is_deleted == False,
+            Booking.booking_status.in_(["confirmed", "checked_in"]),
+            Booking.check_in_date < booking.check_out_date,
+            Booking.check_out_date > booking.check_in_date,
+        )
+        conflict = (await db.execute(conflict_stmt)).scalars().first()
+        if conflict:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Room {assigned_room.room_number} is already assigned to booking #{conflict.booking_reference} ({conflict.check_in_date} to {conflict.check_out_date}).",
+            )
+        booking.assigned_room_id = update_data.assigned_room_id
+
     if new_status == current_status:
+        if update_data.assigned_room_id:
+            await db.commit()
+            await db.refresh(booking)
         return booking
 
     allowed_next = ALLOWED_BOOKING_TRANSITIONS.get(current_status, set())
@@ -151,7 +182,7 @@ async def update_booking_status(
             type_name = r_type.name if r_type else "Room"
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail=f"Cannot confirm booking: {type_name} is fully booked for {booking.check_in_date} to {booking.check_out_date}. Only {avail_count} room(s) available.",
+                detail=f"Cannot confirm booking: {type_name} is fully booked for {booking.check_in_date} to {booking.check_out_date}. 0 rooms available for these dates.",
             )
 
     # Manage room status changes on check-in, check-out, or cancellation

@@ -507,6 +507,18 @@ export const entities = {
         body: JSON.stringify(payload),
       })
     },
+    async delete(id) {
+      return await request(`/admin/rooms/inventory/${id}`, { method: 'DELETE' })
+    },
+    async getAvailableForDates({ roomTypeId, checkIn, checkOut, excludeBookingId } = {}) {
+      const q = new URLSearchParams({
+        room_type_id: roomTypeId,
+        check_in: checkIn,
+        check_out: checkOut,
+      })
+      if (excludeBookingId) q.append('exclude_booking_id', excludeBookingId)
+      return await request(`/admin/rooms/available-inventory?${q.toString()}`)
+    },
   },
 
   // --- Blocked Dates ---
@@ -588,6 +600,7 @@ export const entities = {
         balance: Math.max(0, Number(b.total_amount || 0) - Number(b.advance_paid || 0)),
         status: b.booking_status,
         room_id: b.assigned_room_id,
+        room_number: b.room_number || b.assigned_room?.room_number || '',
         room_type_name: b.room_type?.name || rtMap[b.room_type_id] || b.room_type_name || 'Standard Room',
         nights: b.check_in_date && b.check_out_date ? Math.max(1, Math.round((new Date(b.check_out_date) - new Date(b.check_in_date)) / 86400000)) : 1,
         created_date: b.created_at,
@@ -618,6 +631,7 @@ export const entities = {
         balance: Math.max(0, Number(b.total_amount || 0) - Number(b.advance_paid || 0)),
         status: b.booking_status,
         room_id: b.assigned_room_id,
+        room_number: b.room_number || b.assigned_room?.room_number || '',
         room_type_name: b.room_type?.name || rtMap[b.room_type_id] || b.room_type_name || 'Standard Room',
         nights: b.check_in_date && b.check_out_date ? Math.max(1, Math.round((new Date(b.check_out_date) - new Date(b.check_in_date)) / 86400000)) : 1,
         created_date: b.created_at,
@@ -669,11 +683,13 @@ export const entities = {
       if (data.status || data.booking_status) {
         const statusVal = data.status || data.booking_status;
         const reasonVal = data.cancellation_reason || data.cancel_reason || null;
+        const assignedRoom = data.assigned_room_id !== undefined ? data.assigned_room_id : (data.room_id !== undefined ? data.room_id : undefined);
         return await request(`/admin/bookings/${id}/status`, {
           method: 'PATCH',
           body: JSON.stringify({
             status: statusVal,
             booking_status: statusVal,
+            assigned_room_id: assignedRoom,
             cancellation_reason: reasonVal,
             admin_notes: data.admin_notes || null,
           }),

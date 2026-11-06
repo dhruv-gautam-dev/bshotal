@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { ArrowLeft, Phone, MessageCircle, Printer, CheckCircle2, LogIn, LogOut, XCircle, Trash2, Plus } from 'lucide-react';
+import { ArrowLeft, Phone, MessageCircle, Printer, CheckCircle2, LogIn, LogOut, XCircle, Trash2, Plus, AlertTriangle, X, BedDouble } from 'lucide-react';
 import { apiClient } from '@/api/apiClient';
 import { useI18n } from '@/lib/i18n';
 import { useAdmin } from '../AdminContext';
@@ -25,6 +25,17 @@ export default function BookingDetail() {
   const [notes, setNotes] = useState(null);
   const [cancelOpen, setCancelOpen] = useState(false);
   const [delOpen, setDelOpen] = useState(false);
+
+  // Confirm booking & assign room number modal
+  const [confirmModal, setConfirmModal] = useState({
+    open: false,
+    loading: false,
+    error: '',
+    data: null,
+    selectedRoomId: '',
+    submitting: false,
+    targetStatus: 'confirmed',
+  });
 
   const { data, isLoading, refetch } = useQuery({
     queryKey: ['admin-booking', id],
@@ -62,6 +73,77 @@ export default function BookingDetail() {
     status,
     history: [...(b.history || []), { status, at: new Date().toISOString(), by: me?.email || 'staff' }],
   }, label);
+
+  const openConfirmDialog = async (targetStatus = 'confirmed') => {
+    if (!b) return;
+    setConfirmModal({
+      open: true,
+      loading: true,
+      error: '',
+      data: null,
+      selectedRoomId: b.room_id || '',
+      submitting: false,
+      targetStatus,
+    });
+    try {
+      const res = await apiClient.entities.Room.getAvailableForDates({
+        roomTypeId: b.room_type_id,
+        checkIn: b.check_in,
+        checkOut: b.check_out,
+        excludeBookingId: b.id,
+      });
+      setConfirmModal((prev) => ({
+        ...prev,
+        loading: false,
+        data: res,
+        selectedRoomId: b.room_id || (res.available_rooms?.[0]?.id || ''),
+      }));
+    } catch (ex) {
+      setConfirmModal((prev) => ({
+        ...prev,
+        loading: false,
+        error: ex.message || 'Could not verify room availability',
+      }));
+    }
+  };
+
+  const handleConfirmModalSubmit = async (e) => {
+    e.preventDefault();
+    if (!b) return;
+
+    if (confirmModal.data && (!confirmModal.data.is_available || confirmModal.data.available_count <= 0)) {
+      alert(L(
+        `Cannot confirm: ${confirmModal.data.room_type_name} is fully booked from ${b.check_in} to ${b.check_out}. No rooms are available for these dates.`,
+        `कन्फ़र्म नहीं हो सकता: ${confirmModal.data.room_type_name} श्रेणी के सभी कमरे इन तारीखों में भरे हैं। कोई कमरा खाली नहीं है।`
+      ));
+      return;
+    }
+
+    setConfirmModal((prev) => ({ ...prev, submitting: true, error: '' }));
+    try {
+      await apiClient.entities.Booking.update(id, {
+        status: confirmModal.targetStatus,
+        assigned_room_id: confirmModal.selectedRoomId || undefined,
+        history: [...(b.history || []), {
+          status: confirmModal.targetStatus,
+          at: new Date().toISOString(),
+          by: me?.email || 'staff',
+          notes: confirmModal.selectedRoomId ? 'Room assigned & confirmed' : 'Confirmed',
+        }],
+      });
+      await audit(me, 'update', 'bookings', 'Booking', id, `Confirmed ${b.ref} with room assignment`);
+      await refetch();
+      qc.invalidateQueries({ queryKey: ['admin-bookings'] });
+      qc.invalidateQueries({ queryKey: ['admin-rooms'] });
+      setConfirmModal((prev) => ({ ...prev, open: false, submitting: false }));
+    } catch (ex) {
+      setConfirmModal((prev) => ({
+        ...prev,
+        submitting: false,
+        error: ex.message || 'Failed to update booking',
+      }));
+    }
+  };
 
   const checkIn = async () => {
     setBusy(true);
@@ -183,7 +265,28 @@ export default function BookingDetail() {
         <dl className="mt-4 grid grid-cols-2 gap-3 text-sm sm:grid-cols-4">
           <div><dt className="text-xs text-slate-500">{L('Check-in', 'चेक-इन')}</dt><dd className="font-medium">{b.check_in}</dd></div>
           <div><dt className="text-xs text-slate-500">{L('Check-out', 'चेक-आउट')}</dt><dd className="font-medium">{b.check_out}</dd></div>
-          <div><dt className="text-xs text-slate-500">{L('Room', 'कमरा')}</dt><dd className="font-medium">{b.room_type_name}{b.room_number ? ` · ${b.room_number}` : ''}</dd></div>
+          <div>
+            <dt className="text-xs text-slate-500">{L('Room & Category', 'कमरा व प्रकार')}</dt>
+            <dd className="font-medium flex items-center gap-1.5 flex-wrap">
+              <span>{b.room_type_name}</span>
+              {b.room_number ? (
+                <span className="inline-flex items-center rounded-md bg-emerald-50 px-2 py-0.5 text-xs font-bold text-emerald-700 border border-emerald-200">
+                  {L('Room', 'कमरा')} {b.room_number}
+                </span>
+              ) : (
+                <span className="text-xs text-amber-600 font-medium">({L('Room not assigned', 'कमरा आवंटित नहीं')})</span>
+              )}
+              {['pending', 'confirmed'].includes(b.status) && (
+                <button
+                  type="button"
+                  onClick={() => openConfirmDialog(b.status)}
+                  className="text-xs font-semibold text-amber-700 underline hover:text-amber-800 ml-1"
+                >
+                  {b.room_number ? L('Change room', 'कमरा बदलें') : L('Assign room', 'कमरा आवंटित करें')}
+                </button>
+              )}
+            </dd>
+          </div>
           <div><dt className="text-xs text-slate-500">{L('Guests', 'मेहमान')}</dt><dd className="font-medium">{b.guests} · {b.nights} {L('nights', 'रात')}</dd></div>
           <div><dt className="text-xs text-slate-500">{L('Total', 'कुल')}</dt><dd className="font-medium">{inr(b.amount)}</dd></div>
           <div><dt className="text-xs text-slate-500">{L('Advance', 'एडवांस')}</dt><dd className="font-medium">{inr(b.advance_paid)}</dd></div>
@@ -194,7 +297,7 @@ export default function BookingDetail() {
         {b.special_requests && <p className="mt-3 rounded-lg bg-slate-50 px-3 py-2 text-sm text-slate-700"><b>{L('Requests', 'अनुरोध')}:</b> {b.special_requests}</p>}
 
         <div className="mt-4 flex flex-wrap gap-2">
-          {b.status === 'pending' && <button onClick={() => setStatus('confirmed', `Confirmed ${b.ref}`)} disabled={busy} className="flex items-center gap-1.5 rounded-xl bg-emerald-600 px-3 py-2.5 text-sm font-semibold text-white"><CheckCircle2 size={15} />{L('Confirm booking', 'बुकिंग कन्फ़र्म करें')}</button>}
+          {b.status === 'pending' && <button onClick={() => openConfirmDialog('confirmed')} disabled={busy} className="flex items-center gap-1.5 rounded-xl bg-emerald-600 px-3 py-2.5 text-sm font-semibold text-white hover:bg-emerald-700 shadow-sm"><CheckCircle2 size={15} />{L('Confirm booking', 'बुकिंग कन्फ़र्म करें')}</button>}
           {['pending', 'confirmed'].includes(b.status) && <button onClick={checkIn} disabled={busy} className="flex items-center gap-1.5 rounded-xl bg-blue-600 px-3 py-2.5 text-sm font-semibold text-white"><LogIn size={15} />{L('Check in', 'चेक-इन')}</button>}
           {b.status === 'checked_in' && <button onClick={checkOut} disabled={busy} className="flex items-center gap-1.5 rounded-xl bg-slate-900 px-3 py-2.5 text-sm font-semibold text-white"><LogOut size={15} />{L('Check out', 'चेक-आउट')}</button>}
           {['cancelled', 'no_show'].includes(b.status) && <button onClick={() => setStatus('confirmed', `Reopened ${b.ref}`)} disabled={busy} className="flex items-center gap-1.5 rounded-xl border border-amber-300 bg-amber-50 px-3 py-2.5 text-sm font-semibold text-amber-800"><CheckCircle2 size={15} />{L('Reopen booking', 'बुकिंग पुनः खोलें')}</button>}
@@ -280,6 +383,136 @@ export default function BookingDetail() {
 
       <Confirm open={cancelOpen} title={L('Cancel this booking?', 'यह बुकिंग रद्द करें?')} message={<input id="cancel-reason" placeholder={L('Reason (optional)', 'कारण (वैकल्पिक)')} className="mt-2 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm" />} confirmLabel={L('Cancel booking', 'बुकिंग रद्द करें')} onConfirm={cancel} onCancel={() => setCancelOpen(false)} />
       <Confirm open={delOpen} title={L('Delete permanently?', 'हमेशा के लिए मिटाएँ?')} message={L('This removes the booking and cannot be undone.', 'यह बुकिंग हट जाएगी और वापस नहीं आएगी।')} onConfirm={remove} onCancel={() => setDelOpen(false)} />
+
+      {/* Confirm Booking & Room Assignment Modal */}
+      {confirmModal.open && (
+        <div className="fixed inset-0 z-[70] flex items-end justify-center bg-slate-900/50 p-0 sm:items-center sm:p-4 backdrop-blur-xs">
+          <form
+            onSubmit={handleConfirmModalSubmit}
+            className="w-full max-w-md rounded-t-2xl bg-white p-5 sm:rounded-2xl shadow-xl space-y-4"
+          >
+            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+              <div>
+                <h2 className="font-bold text-slate-900 text-base">
+                  {confirmModal.targetStatus === 'confirmed' ? L('Confirm Booking & Assign Room', 'बुकिंग कन्फ़र्म व कमरा आवंटित करें') : L('Assign Room Number', 'कमरा नंबर आवंटित करें')}
+                </h2>
+                <p className="text-xs text-slate-500 font-mono">#{b.ref}</p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setConfirmModal((prev) => ({ ...prev, open: false }))}
+                className="rounded-lg p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-600"
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            <div className="rounded-xl bg-slate-50 p-3 space-y-1 text-xs">
+              <div className="flex justify-between">
+                <span className="text-slate-500">{L('Guest:', 'मेहमान:')}</span>
+                <span className="font-semibold text-slate-900">{b.guest_name} ({b.phone})</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-slate-500">{L('Category:', 'प्रकार:')}</span>
+                <span className="font-semibold text-slate-900">{b.room_type_name}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-slate-500">{L('Dates:', 'तारीखें:')}</span>
+                <span className="font-semibold text-slate-900">{b.check_in} → {b.check_out} ({b.nights} {L('nights', 'रात')})</span>
+              </div>
+            </div>
+
+            {confirmModal.loading ? (
+              <div className="py-6 text-center text-xs text-slate-500 animate-pulse">
+                {L('Checking room availability and available numbers…', 'कमरों की उपलब्धता जाँची जा रही है…')}
+              </div>
+            ) : confirmModal.data && (!confirmModal.data.is_available || confirmModal.data.available_count <= 0) ? (
+              <div className="rounded-xl border border-red-200 bg-red-50 p-3.5 space-y-2 text-xs text-red-800">
+                <div className="flex items-center gap-2 font-bold text-red-900">
+                  <AlertTriangle size={16} className="text-red-600" />
+                  {L('No Rooms Available for These Dates', 'इन तारीखों में कोई कमरा उपलब्ध नहीं')}
+                </div>
+                <p>
+                  {L(
+                    `All rooms in "${confirmModal.data.room_type_name}" are already fully booked from ${b.check_in} to ${b.check_out}. Only ${confirmModal.data.available_count} room(s) available.`,
+                    `"${confirmModal.data.room_type_name}" श्रेणी के सभी कमरे ${b.check_in} से ${b.check_out} तक भरे हुए हैं। केवल ${confirmModal.data.available_count} कमरा उपलब्ध है।`
+                  )}
+                </p>
+                <p className="font-medium text-red-900">
+                  {L('You cannot confirm this booking on these dates.', 'आप इन तारीखों पर यह बुकिंग कन्फ़र्म नहीं कर सकते।')}
+                </p>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                <div className="flex items-center gap-2 rounded-lg bg-emerald-50 px-3 py-2 text-xs font-semibold text-emerald-800 border border-emerald-200">
+                  <CheckCircle2 size={16} className="text-emerald-600" />
+                  <span>
+                    {L('Rooms available for these dates:', 'इन तारीखों पर कमरे उपलब्ध हैं:')}{' '}
+                    <b>{confirmModal.data?.available_count ?? 1} {L('vacant', 'खाली')}</b>
+                  </span>
+                </div>
+
+                <div className="space-y-1">
+                  <label className="block text-xs font-semibold uppercase tracking-wider text-slate-700">
+                    {L('Select Room Number to Assign', 'आवंटित करने के लिए कमरा नंबर चुनें')}
+                  </label>
+                  {confirmModal.data?.available_rooms && confirmModal.data.available_rooms.length > 0 ? (
+                    <select
+                      value={confirmModal.selectedRoomId}
+                      onChange={(e) => setConfirmModal((prev) => ({ ...prev, selectedRoomId: e.target.value }))}
+                      className="h-10 w-full rounded-xl border border-slate-300 bg-white px-3 text-sm outline-none transition focus:border-amber-500 focus:ring-2 focus:ring-amber-200"
+                    >
+                      <option value="">{L('-- Select Room Number --', '-- कमरा नंबर चुनें --')}</option>
+                      {confirmModal.data.available_rooms.map((r) => (
+                        <option key={r.id} value={r.id}>
+                          {L('Room', 'कमरा')} {r.room_number} {r.floor ? `(Floor ${r.floor})` : ''} · {r.status}
+                        </option>
+                      ))}
+                    </select>
+                  ) : (
+                    <div className="rounded-lg bg-amber-50 p-2.5 text-xs text-amber-800 border border-amber-200">
+                      {L(
+                        'No physical room numbers configured yet for this category. Booking will be confirmed against category inventory.',
+                        'इस श्रेणी के लिए अभी विशिष्ट कमरा नंबर नहीं बने हैं।'
+                      )}
+                    </div>
+                  )}
+                  <p className="text-[11px] text-slate-500">
+                    {L('Only displays room numbers that are vacant for the full stay duration.', 'केवल वही कमरा नंबर दिखाए जा रहे हैं जो पूरी अवधि के लिए खाली हैं।')}
+                  </p>
+                </div>
+              </div>
+            )}
+
+            {confirmModal.error && (
+              <p className="rounded-lg bg-red-50 p-2.5 text-xs font-medium text-red-700">
+                {confirmModal.error}
+              </p>
+            )}
+
+            <div className="flex gap-2 pt-2">
+              <button
+                type="button"
+                onClick={() => setConfirmModal((prev) => ({ ...prev, open: false }))}
+                className="flex-1 rounded-xl border border-slate-300 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50"
+              >
+                {L('Cancel', 'रद्द')}
+              </button>
+              <button
+                type="submit"
+                disabled={
+                  confirmModal.submitting ||
+                  confirmModal.loading ||
+                  (confirmModal.data && (!confirmModal.data.is_available || confirmModal.data.available_count <= 0))
+                }
+                className="flex-1 rounded-xl bg-emerald-600 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-emerald-700 disabled:opacity-50"
+              >
+                {confirmModal.submitting ? L('Saving…', 'सेव हो रहा है…') : L('Confirm & Assign', 'कन्फ़र्म करें')}
+              </button>
+            </div>
+          </form>
+        </div>
+      )}
     </div>
   );
 }

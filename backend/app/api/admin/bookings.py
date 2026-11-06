@@ -44,7 +44,12 @@ async def list_bookings(
     stmt = (
         select(Booking)
         .where(Booking.is_deleted == False)
-        .options(selectinload(Booking.history), selectinload(Booking.payments))
+        .options(
+            selectinload(Booking.history),
+            selectinload(Booking.payments),
+            selectinload(Booking.assigned_room),
+            selectinload(Booking.room_type),
+        )
         .order_by(Booking.created_at.desc())
     )
 
@@ -85,7 +90,12 @@ async def get_booking_detail(
     stmt = (
         select(Booking)
         .where(Booking.id == booking_id, Booking.is_deleted == False)
-        .options(selectinload(Booking.history), selectinload(Booking.payments))
+        .options(
+            selectinload(Booking.history),
+            selectinload(Booking.payments),
+            selectinload(Booking.assigned_room),
+            selectinload(Booking.room_type),
+        )
     )
     res = await db.execute(stmt)
     booking = res.scalar_one_or_none()
