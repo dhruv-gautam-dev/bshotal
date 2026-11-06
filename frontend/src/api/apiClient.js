@@ -1369,6 +1369,11 @@ export const users = {
 export const apiClient = {
   auth,
   users,
+  rooms: entities.RoomType,
+  menu: entities.MenuItem,
+  categories: entities.MenuCategory,
+  bookings: entities.Booking,
+  orders: entities.Order,
   async upload(file, bucket = 'room-photos') {
     const formData = new FormData()
     formData.append('file', file)

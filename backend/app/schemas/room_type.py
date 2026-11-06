@@ -83,18 +83,18 @@ class DailyPriceBreakdown(BaseSchema):
 class RoomTypeQuote(BaseSchema):
     room_type_id: str
     name: str
-    slug: str
-    bed_type: str
-    max_guests: int
-    images: list[str]
-    amenities: list[str]
-    available_rooms: int
-    is_available: bool
-    nights: int
-    daily_rates: list[DailyPriceBreakdown]
-    base_amount: Decimal
-    tax_percent: Decimal
-    tax_amount: Decimal
-    total_amount: Decimal
+    slug: str | None = None
+    bed_type: str | None = "King Bed"
+    max_guests: int = 2
+    images: list[str] = []
+    amenities: list[str] = []
+    available_rooms: int = 0
+    is_available: bool = False
+    nights: int = 1
+    daily_rates: list[DailyPriceBreakdown] = []
+    base_amount: Decimal = Decimal("0.00")
+    tax_percent: Decimal = Decimal("12.00")
+    tax_amount: Decimal = Decimal("0.00")
+    total_amount: Decimal = Decimal("0.00")
     available_dates: list[date] = []
     booked_dates: list[date] = []
