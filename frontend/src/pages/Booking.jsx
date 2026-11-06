@@ -4,11 +4,13 @@ import { AlertTriangle, Calendar, Info } from 'lucide-react';
 import PageHero from '@/components/site/PageHero';
 import BookingConfirmation from '@/components/site/BookingConfirmation';
 import { useRoomTypes } from '@/hooks/useSiteCatalog';
+import { ROOMS } from '@/data/rooms';
 import { useI18n } from '@/lib/i18n';
 import { isValidPhone } from '@/lib/whatsapp';
 import { submitBooking } from '@/lib/services';
 import useSeo from '@/lib/useSeo';
 import DatePicker from '@/components/ui/date-picker';
+import PhoneInput from '@/components/ui/phone-input';
 
 const today = () => new Date().toISOString().slice(0, 10);
 const Err = ({ m }) => (m ? <p className="mt-1 text-sm text-red-400" role="alert">{m}</p> : null);
@@ -16,7 +18,7 @@ const Err = ({ m }) => (m ? <p className="mt-1 text-sm text-red-400" role="alert
 export default function Booking() {
   const { t, tr } = useI18n();
   const { data: rooms } = useRoomTypes();
-  const roomList = rooms || [];
+  const roomList = (rooms && rooms.length > 0) ? rooms : ROOMS;
   const [q] = useSearchParams();
   const [f, setF] = useState({
     name: '',
@@ -25,7 +27,7 @@ export default function Booking() {
     checkIn: q.get('in') || '',
     checkOut: q.get('out') || '',
     guests: q.get('guests') || 2,
-    room: q.get('room') || '',
+    room: q.get('room') || (roomList[0]?.id || 'standard'),
     special: '',
   });
   const [errors, setErrors] = useState({});
@@ -102,7 +104,11 @@ export default function Booking() {
         {done ? <BookingConfirmation booking={done} /> : (
           <form onSubmit={submit} noValidate className="grid gap-5 rounded-2xl border border-primary/30 bg-card p-6 md:grid-cols-2 md:p-8">
             <label className="text-sm">{t('f.name')}<input className="field mt-1" value={f.name} onChange={set('name')} autoComplete="name" /><Err m={errors.name} /></label>
-            <label className="text-sm">{t('f.phone')}<input className="field mt-1" inputMode="tel" value={f.phone} onChange={set('phone')} autoComplete="tel" placeholder="98765 43210" /><Err m={errors.phone} /></label>
+            <label className="text-sm">
+              {t('f.phone')}
+              <PhoneInput value={f.phone} onChange={set('phone')} className="mt-1" />
+              <Err m={errors.phone} />
+            </label>
             <label className="text-sm md:col-span-2">{t('f.email')}<input className="field mt-1" type="email" value={f.email} onChange={set('email')} /><Err m={errors.email} /></label>
             <div className="space-y-1">
               <span className="text-sm font-medium">{t('f.checkIn')}</span>
@@ -116,7 +122,14 @@ export default function Booking() {
             </div>
             <label className="text-sm">{t('f.guests')}<input className="field mt-1" type="number" min="1" max="10" value={f.guests} onChange={set('guests')} /><Err m={errors.guests} /></label>
             <label className="text-sm">{t('f.roomType')}
-              <select className="field mt-1" value={f.room} onChange={set('room')}>{roomList.map((r) => <option key={r.id} value={r.id}>{tr(r.name)}</option>)}</select>
+              <select className="field mt-1" value={f.room || roomList[0]?.id} onChange={set('room')}>
+                {roomList.map((r) => (
+                  <option key={r.id} value={r.id}>
+                    {typeof r.name === 'object' ? tr(r.name) : (r.name_en || r.name)}
+                    {r.price ? ` — ₹${Number(r.price).toLocaleString('en-IN')}/night` : ''}
+                  </option>
+                ))}
+              </select>
             </label>
             <label className="text-sm md:col-span-2">{t('f.special')}<textarea className="field mt-1 py-3" rows={3} value={f.special} onChange={set('special')} /></label>
 

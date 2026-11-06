@@ -6,6 +6,7 @@ import { useI18n } from '@/lib/i18n';
 import { isValidPhone, openWhatsApp, waLink } from '@/lib/whatsapp';
 import { submitContact } from '@/lib/services';
 import useSeo from '@/lib/useSeo';
+import PhoneInput from '@/components/ui/phone-input';
 
 export default function Contact() {
   const { t, tr } = useI18n();
@@ -14,7 +15,7 @@ export default function Contact() {
   const [sent, setSent] = useState(null);
   const [busy, setBusy] = useState(false);
   useSeo('Contact | B.S. Hotel, Township Nagar NH-2 Mathura', 'Call +91 91492 24039 for bookings, +91 92592 73735 for payments or WhatsApp B.S. Hotel & Restaurant near Township Nagar, NH-2, Baad (Mathura).');
-  const set = (k) => (e) => setF({ ...f, [k]: e.target.value });
+  const set = (k) => (e) => setF({ ...f, [k]: e?.target ? e.target.value : e });
 
   const submit = async (e) => {
     e.preventDefault();
@@ -70,7 +71,10 @@ export default function Contact() {
         ) : (
           <form onSubmit={submit} noValidate className="space-y-4 self-start rounded-2xl border border-primary/30 bg-card p-6">
             <label className="block text-sm">{t('f.name')}<input className="field mt-1" value={f.name} onChange={set('name')} /></label>
-            <label className="block text-sm">{t('f.phone')}<input className="field mt-1" inputMode="tel" value={f.phone} onChange={set('phone')} /></label>
+            <label className="block text-sm">
+              {t('f.phone')}
+              <PhoneInput value={f.phone} onChange={set('phone')} className="mt-1" />
+            </label>
             <label className="block text-sm">{t('f.message')}<textarea className="field mt-1 py-3" rows={5} value={f.message} onChange={set('message')} /></label>
             {err && <p className="text-sm text-red-400" role="alert">{err}</p>}
             <button type="submit" disabled={busy} className="btn-gold w-full"><MessageCircle size={20} />{busy ? 'Sending…' : t('f.send')}</button>

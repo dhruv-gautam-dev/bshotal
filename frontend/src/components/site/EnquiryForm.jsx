@@ -5,6 +5,7 @@ import { isValidPhone, openWhatsApp } from '@/lib/whatsapp';
 import { submitEnquiry, enquiryMessage } from '@/lib/services';
 import { MessageCircle, CheckCircle2, RotateCcw } from 'lucide-react';
 import DatePicker from '@/components/ui/date-picker';
+import PhoneInput from '@/components/ui/phone-input';
 
 const today = () => new Date().toISOString().slice(0, 10);
 const Err = ({ m }) => (m ? <p className="mt-1 text-sm text-red-400" role="alert">{m}</p> : null);
@@ -25,7 +26,7 @@ export default function EnquiryForm({ eventType }) {
     else if (!f.eventType && defaultType) setF((p) => ({ ...p, eventType: defaultType }));
   }, [eventType, defaultType]);
 
-  const set = (k) => (e) => setF({ ...f, [k]: e.target.value });
+  const set = (k) => (e) => setF((prev) => ({ ...prev, [k]: e?.target ? e.target.value : e }));
 
   const submit = async (ev) => {
     ev.preventDefault();
@@ -98,7 +99,11 @@ export default function EnquiryForm({ eventType }) {
         </div>
       )}
       <label className="text-sm">{t('f.name')}<input className="field mt-1" value={f.name} onChange={set('name')} /><Err m={errors.name} /></label>
-      <label className="text-sm">{t('f.phone')}<input className="field mt-1" inputMode="tel" value={f.phone} onChange={set('phone')} /><Err m={errors.phone} /></label>
+      <label className="text-sm">
+        {t('f.phone')}
+        <PhoneInput value={f.phone} onChange={set('phone')} className="mt-1" />
+        <Err m={errors.phone} />
+      </label>
       <label className="text-sm">Event type
         <select className="field mt-1" value={f.eventType} onChange={set('eventType')}>
           {eventTypes.length ? eventTypes.map((val) => <option key={val} value={val}>{val}</option>) : (

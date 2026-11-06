@@ -6,6 +6,7 @@ import { apiClient } from '@/api/apiClient';
 import { useI18n } from '@/lib/i18n';
 import { getSettings, money, todayISO } from '../lib/adminData';
 import { addOrderOptimistic } from '@/store/slices/ordersSlice';
+import PhoneInput from '@/components/ui/phone-input';
 
 const ref = () => `FD-${Math.random().toString(36).slice(2, 7).toUpperCase()}`;
 
@@ -81,7 +82,10 @@ export default function OrderForm({ open, onClose, onSaved }) {
 
         <div className="grid gap-3 sm:grid-cols-2">
           <label className="text-sm font-medium text-slate-700">{L('Customer', 'ग्राहक')}<input className={input} value={f.name} onChange={(e) => setF({ ...f, name: e.target.value })} required /></label>
-          <label className="text-sm font-medium text-slate-700">{L('Mobile', 'मोबाइल')}<input className={input} inputMode="tel" value={f.phone} onChange={(e) => setF({ ...f, phone: e.target.value })} required /></label>
+          <label className="text-sm font-medium text-slate-700">
+            {L('Mobile', 'मोबाइल')}
+            <PhoneInput variant="admin" value={f.phone} onChange={(e) => setF({ ...f, phone: e?.target ? e.target.value : e })} className="mt-1" required />
+          </label>
           <label className="text-sm font-medium text-slate-700">{L('Order type', 'ऑर्डर प्रकार')}
             <select className={input} value={f.type} onChange={(e) => setF({ ...f, type: e.target.value })}>
               <option value="dine-in">{L('Dine-in', 'डाइन-इन')}</option>

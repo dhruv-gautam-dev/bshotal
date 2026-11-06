@@ -5,6 +5,7 @@ import { apiClient } from '@/api/apiClient';
 import { useI18n } from '@/lib/i18n';
 import { checkAvailability, rateForStay, money, todayISO, nightsBetween } from '../lib/adminData';
 import DatePicker from '@/components/ui/date-picker';
+import PhoneInput from '@/components/ui/phone-input';
 import { addBookingOptimistic } from '@/store/slices/bookingsSlice';
 
 const empty = { name: '', phone: '', email: '', roomTypeId: '', checkIn: todayISO(), checkOut: '', guests: 2, source: 'phone', special: '', amount: '', advance: 0, payment_mode: 'none', status: 'confirmed', notes: '' };
@@ -40,7 +41,7 @@ export default function BookingForm({ open, onClose, onSaved }) {
     return () => { alive = false; };
   }, [type, f.checkIn, nights]);
 
-  const set = (k) => (e) => setF((p) => ({ ...p, [k]: e.target.value }));
+  const set = (k) => (e) => setF((p) => ({ ...p, [k]: e?.target ? e.target.value : e }));
 
   const submit = async (e) => {
     e.preventDefault();
@@ -124,7 +125,10 @@ export default function BookingForm({ open, onClose, onSaved }) {
 
         <div className="grid gap-3 sm:grid-cols-2">
           <label className="text-sm font-medium text-slate-700">{L('Guest name', 'मेहमान का नाम')}<input className={input} value={f.name} onChange={set('name')} required /></label>
-          <label className="text-sm font-medium text-slate-700">{L('Mobile', 'मोबाइल')}<input className={input} inputMode="tel" value={f.phone} onChange={set('phone')} required /></label>
+          <label className="text-sm font-medium text-slate-700">
+            {L('Mobile', 'मोबाइल')}
+            <PhoneInput variant="admin" value={f.phone} onChange={set('phone')} className="mt-1" required />
+          </label>
           <label className="text-sm font-medium text-slate-700">{L('Email (optional)', 'ईमेल (वैकल्पिक)')}<input className={input} type="email" value={f.email} onChange={set('email')} /></label>
           <label className="text-sm font-medium text-slate-700">{L('Room type', 'कमरे का प्रकार')}
             <select className={input} value={f.roomTypeId} onChange={set('roomTypeId')} required>
