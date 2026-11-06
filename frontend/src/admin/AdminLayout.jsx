@@ -113,7 +113,7 @@ export default function AdminLayout() {
           </button>
         </header>
 
-        <main className="mx-auto w-full max-w-6xl px-4 pb-28 pt-5 lg:pb-10">
+        <main className={`mx-auto w-full px-4 pb-28 pt-5 lg:pb-10 ${location.pathname.startsWith('/admin/orders') ? 'max-w-[1850px] lg:px-6 xl:px-8' : 'max-w-6xl'}`}>
           <div key={location.pathname}><Outlet /></div>
         </main>
       </div>

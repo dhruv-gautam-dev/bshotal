@@ -1,9 +1,8 @@
 import { Link } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
 import { useDispatch } from 'react-redux';
-import { Phone, MessageCircle, BedDouble } from 'lucide-react';
+import { Phone, UtensilsCrossed, BedDouble } from 'lucide-react';
 import { useI18n } from '@/lib/i18n';
-import { waLink } from '@/lib/whatsapp';
 import { prefetchOnHover } from '@/lib/prefetch';
 import { useSiteSettings } from '@/hooks/useSiteCatalog';
 
@@ -11,7 +10,7 @@ export default function MobileBar() {
   const { t } = useI18n();
   const queryClient = useQueryClient();
   const dispatch = useDispatch();
-  const { bookingsTel, whatsappNumber } = useSiteSettings();
+  const { bookingsTel } = useSiteSettings();
   const cls = 'flex min-h-[56px] flex-1 flex-col items-center justify-center gap-0.5 text-xs font-semibold';
 
   return (
@@ -20,15 +19,15 @@ export default function MobileBar() {
         <Phone size={20} />
         {t('cta.call')}
       </a>
-      <a
-        href={waLink('Hello, I would like to know more about B.S. Hotel.', whatsappNumber)}
-        target="_blank"
-        rel="noopener noreferrer"
-        className={`${cls} text-green-400`}
+      <Link
+        to="/restaurant"
+        className={`${cls} text-amber-500 hover:text-amber-400`}
+        onTouchStart={() => prefetchOnHover('/restaurant', queryClient, dispatch)}
+        onMouseEnter={() => prefetchOnHover('/restaurant', queryClient, dispatch)}
       >
-        <MessageCircle size={20} />
-        {t('cta.whatsapp')}
-      </a>
+        <UtensilsCrossed size={20} />
+        {t('cta.orderFood')}
+      </Link>
       <Link
         to="/booking"
         className={`${cls} bg-primary text-primary-foreground`}
