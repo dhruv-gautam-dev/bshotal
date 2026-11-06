@@ -50,7 +50,7 @@ async def check_public_availability(
     nights = (check_out - check_in).days
 
     for rt in room_types:
-        is_avail, avail_count, _ = await check_room_availability(
+        avail_res = await check_room_availability(
             db,
             room_type_id=rt.id,
             check_in=check_in,
@@ -72,14 +72,16 @@ async def check_public_availability(
                 max_guests=rt.max_guests,
                 images=rt.images or [],
                 amenities=rt.amenities or [],
-                available_rooms=avail_count,
-                is_available=is_avail,
+                available_rooms=avail_res.available_count,
+                is_available=avail_res.is_available,
                 nights=nights,
                 daily_rates=daily_rates,
                 base_amount=base_amount,
                 tax_percent=tax_pct,
                 tax_amount=tax_amt,
                 total_amount=total_amt,
+                available_dates=avail_res.available_dates,
+                booked_dates=avail_res.booked_dates,
             )
         )
 

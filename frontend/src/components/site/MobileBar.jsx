@@ -29,10 +29,10 @@ export default function MobileBar() {
         {t('cta.orderFood')}
       </Link>
       <Link
-        to="/booking"
+        to="/rooms"
         className={`${cls} bg-primary text-primary-foreground`}
-        onTouchStart={() => prefetchOnHover('/booking', queryClient, dispatch)}
-        onMouseEnter={() => prefetchOnHover('/booking', queryClient, dispatch)}
+        onTouchStart={() => prefetchOnHover('/rooms', queryClient, dispatch)}
+        onMouseEnter={() => prefetchOnHover('/rooms', queryClient, dispatch)}
       >
         <BedDouble size={20} />
         {t('cta.bookRoom')}

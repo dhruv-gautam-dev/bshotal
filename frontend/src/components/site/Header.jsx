@@ -58,10 +58,10 @@ export default function Header() {
             {count > 0 && <span className="absolute right-0 top-0 flex h-5 min-w-5 items-center justify-center rounded-full bg-primary px-1 text-[11px] font-bold text-primary-foreground">{count}</span>}
           </Link>
           <Link
-            to="/booking"
+            to="/rooms"
             className="btn-gold hidden sm:inline-flex"
-            onMouseEnter={() => prefetchOnHover('/booking', queryClient, dispatch)}
-            onTouchStart={() => prefetchOnHover('/booking', queryClient, dispatch)}
+            onMouseEnter={() => prefetchOnHover('/rooms', queryClient, dispatch)}
+            onTouchStart={() => prefetchOnHover('/rooms', queryClient, dispatch)}
           >
             {t('cta.bookNow')}
           </Link>
@@ -70,7 +70,7 @@ export default function Header() {
       </div>
       {open && (
         <nav className="border-t border-primary/20 bg-background px-4 pb-4 lg:hidden" aria-label="Mobile">
-          {[...NAV, ['/order', 'nav.order'], ['/booking', 'cta.bookNow']].map(([to, k]) => (
+          {[...NAV, ['/order', 'nav.order'], ['/rooms', 'cta.bookNow']].map(([to, k]) => (
             <NavLink
               key={to}
               to={to}

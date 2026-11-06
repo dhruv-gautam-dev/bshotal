@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useSelector, useDispatch } from 'react-redux';
-import { Plus, Search, Download, X, AlertTriangle, CheckCircle2, BedDouble, Calendar, User, Phone, MessageSquare } from 'lucide-react';
+import { Plus, Search, Download, X, AlertTriangle, CheckCircle2, BedDouble, Calendar, User, Phone, MessageSquare, SlidersHorizontal, ChevronDown } from 'lucide-react';
 import { apiClient } from '@/api/apiClient';
 import { useI18n } from '@/lib/i18n';
 import { BOOKING_STATUS, inr, downloadCsv } from '../lib/adminData';
@@ -26,6 +26,7 @@ export default function Bookings() {
   const [roomTypeId, setRoomTypeId] = useState('');
   const [from, setFrom] = useState('');
   const [to, setTo] = useState('');
+  const [showMobileFilters, setShowMobileFilters] = useState(false);
   const qc = useQueryClient();
   const navigate = useNavigate();
   const dispatch = useDispatch();
@@ -86,6 +87,8 @@ export default function Bookings() {
   }, [bookings]);
 
   const hasActiveFilters = Boolean(q || status || roomTypeId || from || to);
+  const activeNonSearchFiltersCount = [status, roomTypeId, from, to].filter(Boolean).length;
+  const hasNonSearchFilters = activeNonSearchFiltersCount > 0;
   const clearFilters = () => {
     setQ('');
     setStatus('');
@@ -303,9 +306,10 @@ export default function Bookings() {
         </button>
       </div>
 
-      {/* Responsive, Clean Filter Bar */}
-      <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm space-y-3">
-        <div className="flex flex-wrap items-center justify-between gap-2 text-xs">
+      {/* Responsive, Clean Filter Bar with Mobile Collapsible Dropdown */}
+      <div className="rounded-2xl border border-slate-200 bg-white p-3.5 shadow-sm space-y-3">
+        {/* Desktop Header Summary */}
+        <div className="hidden lg:flex items-center justify-between text-xs">
           <span className="font-semibold text-slate-700">
             {L('Filter bookings', 'फ़िल्टर')} <span className="ml-1 rounded-full bg-slate-100 px-2 py-0.5 font-bold text-slate-800">{rows.length} {L('found', 'मिले')}</span>
           </span>
@@ -320,7 +324,170 @@ export default function Bookings() {
           )}
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-3">
+        {/* Mobile View: Search Bar Outside + Collapsible Filters Dropdown */}
+        <div className="lg:hidden space-y-2.5">
+          <div className="flex items-center gap-2">
+            {/* Search Input stays directly outside */}
+            <div className="relative flex-1">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={15} />
+              <input
+                value={q}
+                onChange={(e) => setQ(e.target.value)}
+                placeholder={L('Search name, phone, ref...', 'नाम, फ़ोन, रेफ़ खोजें...')}
+                className={`${inputClass} pl-9 pr-8 text-xs`}
+              />
+              {q && (
+                <button
+                  type="button"
+                  onClick={() => setQ('')}
+                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                >
+                  <X size={14} />
+                </button>
+              )}
+            </div>
+
+            {/* Mobile Filters Dropdown Toggle Button */}
+            <button
+              type="button"
+              onClick={() => setShowMobileFilters((prev) => !prev)}
+              className={`flex items-center gap-1.5 rounded-xl border px-3 py-2 text-xs font-semibold transition shrink-0 ${
+                hasNonSearchFilters
+                  ? 'border-amber-400 bg-amber-50 text-amber-800 shadow-xs'
+                  : 'border-slate-300 bg-white text-slate-700 hover:bg-slate-50'
+              }`}
+            >
+              <SlidersHorizontal size={14} />
+              <span>{L('Filters', 'फ़िल्टर')}</span>
+              {activeNonSearchFiltersCount > 0 && (
+                <span className="rounded-full bg-amber-700 px-1.5 py-0.2 text-[10px] font-bold text-white">
+                  {activeNonSearchFiltersCount}
+                </span>
+              )}
+              <ChevronDown size={14} className={`transition-transform duration-200 ${showMobileFilters ? 'rotate-180' : ''}`} />
+            </button>
+          </div>
+
+          {/* Active filter pills on mobile when collapsed */}
+          {!showMobileFilters && hasNonSearchFilters && (
+            <div className="flex flex-wrap items-center gap-1.5 pt-0.5 text-[11px]">
+              {status && (
+                <span className="inline-flex items-center gap-1 rounded-full bg-amber-100/90 px-2 py-0.5 font-medium text-amber-900 border border-amber-200">
+                  {BOOKING_STATUS[status]?.en || status}
+                  <button onClick={() => setStatus('')}><X size={11} /></button>
+                </span>
+              )}
+              {roomTypeId && (
+                <span className="inline-flex items-center gap-1 rounded-full bg-slate-100 px-2 py-0.5 font-medium text-slate-800 border border-slate-200">
+                  {roomTypes.find((r) => r.id === roomTypeId)?.name_en || L('Category', 'श्रेणी')}
+                  <button onClick={() => setRoomTypeId('')}><X size={11} /></button>
+                </span>
+              )}
+              {(from || to) && (
+                <span className="inline-flex items-center gap-1 rounded-full bg-slate-100 px-2 py-0.5 font-medium text-slate-800 border border-slate-200">
+                  {from ? from : ''} → {to ? to : ''}
+                  <button onClick={() => { setFrom(''); setTo(''); }}><X size={11} /></button>
+                </span>
+              )}
+              <button
+                onClick={clearFilters}
+                className="text-amber-800 underline font-semibold text-[11px] ml-1"
+              >
+                {L('Clear all', 'सभी हटाएं')}
+              </button>
+            </div>
+          )}
+
+          {/* Collapsible Filters Dropdown / Accordion for Mobile */}
+          {showMobileFilters && (
+            <div className="rounded-xl border border-slate-200 bg-slate-50/90 p-3.5 space-y-3 animate-in fade-in slide-in-from-top-2 duration-150">
+              <div className="flex items-center justify-between border-b border-slate-200/80 pb-2">
+                <span className="text-xs font-bold text-slate-800 uppercase tracking-wider">
+                  {L('Filter Options', 'फ़िल्टर विकल्प')}
+                </span>
+                {hasNonSearchFilters && (
+                  <button
+                    type="button"
+                    onClick={() => { setStatus(''); setRoomTypeId(''); setFrom(''); setTo(''); }}
+                    className="text-xs font-semibold text-amber-700 hover:underline"
+                  >
+                    {L('Reset', 'रीसेट')}
+                  </button>
+                )}
+              </div>
+
+              {/* Status */}
+              <div className="space-y-1">
+                <label className="text-[11px] font-semibold uppercase tracking-wider text-slate-600">
+                  {L('Status', 'स्थिति')}
+                </label>
+                <select
+                  value={status}
+                  onChange={(e) => setStatus(e.target.value)}
+                  className={inputClass}
+                  disabled={subTab === 'failed'}
+                >
+                  <option value="">{subTab === 'failed' ? L('Unavailable / Failed', 'अनुपलब्ध / विफल') : L('All statuses', 'सभी स्थिति')}</option>
+                  {subTab !== 'failed' && Object.entries(BOOKING_STATUS).filter(([k]) => k !== 'failed').map(([k, v]) => (
+                    <option key={k} value={k}>{L(v.en, v.hi)}</option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Room Category */}
+              <div className="space-y-1">
+                <label className="text-[11px] font-semibold uppercase tracking-wider text-slate-600">
+                  {L('Room Category', 'कमरे का प्रकार')}
+                </label>
+                <select value={roomTypeId} onChange={(e) => setRoomTypeId(e.target.value)} className={inputClass}>
+                  <option value="">{L('All categories', 'सभी प्रकार')}</option>
+                  {roomTypes.map((rt) => <option key={rt.id} value={rt.id}>{rt.name_en || rt.name}</option>)}
+                </select>
+              </div>
+
+              {/* Date Filters: From & To */}
+              <div className="grid grid-cols-2 gap-2">
+                <div className="space-y-1">
+                  <label className="text-[11px] font-semibold uppercase tracking-wider text-slate-600">
+                    {L('Check-in from', 'से चेक-इन')}
+                  </label>
+                  <DatePicker
+                    variant="admin"
+                    value={from}
+                    onChange={(e) => setFrom(e.target.value)}
+                    placeholder={L('From', 'शुरुआती')}
+                    className="h-10 py-1.5"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-[11px] font-semibold uppercase tracking-wider text-slate-600">
+                    {L('Check-out to', 'तक चेक-आउट')}
+                  </label>
+                  <DatePicker
+                    variant="admin"
+                    value={to}
+                    onChange={(e) => setTo(e.target.value)}
+                    min={from}
+                    placeholder={L('Until', 'अंतिम')}
+                    className="h-10 py-1.5"
+                  />
+                </div>
+              </div>
+
+              {/* Done button */}
+              <button
+                type="button"
+                onClick={() => setShowMobileFilters(false)}
+                className="w-full rounded-xl bg-slate-900 py-2.5 text-xs font-semibold text-white shadow-xs hover:bg-slate-800 transition mt-2"
+              >
+                {L('Done / View Results', 'लागू करें / परिणाम देखें')} ({rows.length})
+              </button>
+            </div>
+          )}
+        </div>
+
+        {/* Desktop View: Full 5-Column Grid */}
+        <div className="hidden lg:grid grid-cols-5 gap-3">
           {/* Search */}
           <div className="space-y-1">
             <label className="text-[11px] font-semibold uppercase tracking-wider text-slate-500">{L('Search', 'खोजें')}</label>
@@ -335,7 +502,7 @@ export default function Bookings() {
             </div>
           </div>
 
-          {/* Status (hidden if in failed tab since all are failed) */}
+          {/* Status */}
           <div className="space-y-1">
             <label className="text-[11px] font-semibold uppercase tracking-wider text-slate-500">{L('Status', 'स्थिति')}</label>
             <select

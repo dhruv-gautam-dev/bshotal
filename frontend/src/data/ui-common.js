@@ -21,7 +21,7 @@ export const COMMON = {
     'feat.title': 'Loved at our table', 'feat.sub': 'A taste of the Delicee menu',
     'rooms.title': 'Rooms for every family', 'rooms.sub': 'Restful stays, minutes from Mathura–Vrindavan',
     'events.title': 'Celebrate with us', 'events.sub': 'From ring ceremonies to weddings',
-    'rev.title': 'What guests say', 'rev.sub': 'Sample reviews shown until real ones are approved',
+    'rev.title': 'What guests say', 'rev.sub': 'Our Stay, Their Words.',
     'why.title': 'Why choose B.S. Hotel',
     'loc.title': 'Find us on NH-2', 'cta.final': 'Ready to plan your stay or celebration?',
     'cta.finalSub': 'Call or message us on WhatsApp. We reply quickly.',

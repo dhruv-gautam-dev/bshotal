@@ -463,6 +463,15 @@ export const entities = {
       const list = await this.list()
       return list.find((r) => r.id === id) || null
     },
+    async checkAvailability(checkIn, checkOut, guests = 2, rooms = 1) {
+      const q = new URLSearchParams({
+        check_in: checkIn,
+        check_out: checkOut,
+        guests: String(guests || 2),
+        rooms: String(rooms || 1),
+      });
+      return await request(`/public/rooms/availability?${q.toString()}`);
+    },
     async create(data) {
       this.invalidateCache();
       const totalInventory = Number(data.total_rooms || data.total_inventory || 1)

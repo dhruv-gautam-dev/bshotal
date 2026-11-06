@@ -27,7 +27,7 @@ export default function Gallery() {
   const shown = PHOTOS.filter((p) => filter === 'all' || p.cat === filter);
   return (
     <>
-      <PageHero title={t('nav.gallery')} sub="[REPLACE WITH REAL PHOTOS OF ROOMS, FOOD AND VENUE]" />
+      <PageHero title={t('nav.gallery')} sub="Take a look around and feel at home already." />
       <section className="mx-auto max-w-7xl px-4 py-12">
         <div className="mb-8 flex flex-wrap justify-center gap-2">
           {FILTERS.map(([k, en, hi]) => <button key={k} type="button" onClick={() => setFilter(k)} aria-pressed={filter === k} className={`min-h-[44px] rounded-full px-5 text-sm font-medium ${filter === k ? 'bg-primary text-primary-foreground' : 'border border-primary/30'}`}>{L(en, hi)}</button>)}

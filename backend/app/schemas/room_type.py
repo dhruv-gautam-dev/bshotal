@@ -96,3 +96,5 @@ class RoomTypeQuote(BaseSchema):
     tax_percent: Decimal
     tax_amount: Decimal
     total_amount: Decimal
+    available_dates: list[date] = []
+    booked_dates: list[date] = []

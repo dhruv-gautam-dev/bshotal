@@ -18,7 +18,7 @@ export default function HomeHero() {
         <p className="mt-4 max-w-xl text-base text-foreground/85 md:text-lg">{t('hero.sub')}</p>
         <p className="mt-2 font-heading text-xl italic text-primary">{tr(SITE.tagline)}</p>
         <div className="mt-8 flex flex-wrap gap-3">
-          <Link to="/booking" className="btn-gold">{t('cta.bookRoom')}</Link>
+          <Link to="/rooms" className="btn-gold">{t('cta.bookRoom')}</Link>
           <Link to="/restaurant" className="btn-outline bg-background/40">{t('cta.orderFood')}</Link>
           <a href={`tel:${bookingsTel}`} className="btn-outline bg-background/40"><Phone size={18} />{t('cta.callUs')}</a>
         </div>

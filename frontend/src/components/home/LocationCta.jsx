@@ -22,7 +22,7 @@ export default function LocationCta() {
         <h2 className="px-4 text-3xl font-semibold md:text-4xl">{t('cta.final')}</h2>
         <p className="mx-auto mt-2 max-w-lg px-4 text-muted-foreground">{t('cta.finalSub')}</p>
         <div className="mt-6 flex flex-wrap justify-center gap-3 px-4">
-          <Link to="/booking" className="btn-gold">{t('cta.bookRoom')}</Link>
+          <Link to="/rooms" className="btn-gold">{t('cta.bookRoom')}</Link>
           <a href={`tel:${bookingsTel}`} className="btn-outline"><Phone size={18} />{bookingsPhone}</a>
         </div>
       </section>
