@@ -1,3 +1,4 @@
+import json
 import logging
 from contextlib import asynccontextmanager
 
@@ -83,11 +84,33 @@ def create_app() -> FastAPI:
             else [settings.ALLOWED_HOSTS],
         )
 
+    cors_origins = settings.CORS_ORIGINS
+    if isinstance(cors_origins, str):
+        try:
+            parsed = json.loads(cors_origins)
+            origins_list = parsed if isinstance(parsed, list) else [cors_origins]
+        except Exception:
+            origins_list = [i.strip() for i in cors_origins.split(",") if i.strip()]
+    elif isinstance(cors_origins, list):
+        origins_list = [str(o) for o in cors_origins]
+    else:
+        origins_list = ["*"]
+
+    base_defaults = [
+        "https://bshotal.vercel.app",
+        "http://localhost:5173",
+        "http://localhost:3000",
+        "http://127.0.0.1:5173",
+    ]
+    if "*" not in origins_list:
+        for d in base_defaults:
+            if d not in origins_list:
+                origins_list.append(d)
+
     app.add_middleware(
         CORSMiddleware,
-        allow_origins=settings.CORS_ORIGINS
-        if isinstance(settings.CORS_ORIGINS, list)
-        else [settings.CORS_ORIGINS],
+        allow_origins=origins_list,
+        allow_origin_regex=r"^https:\/\/.*\.vercel\.app$",
         allow_credentials=True,
         allow_methods=["*"],
         allow_headers=["*"],
