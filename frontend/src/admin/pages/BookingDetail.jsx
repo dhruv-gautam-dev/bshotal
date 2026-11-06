@@ -10,6 +10,7 @@ import {
 } from '../lib/adminData';
 import StatusPill from '../components/StatusPill';
 import Confirm from '../components/Confirm';
+import DatePicker from '@/components/ui/date-picker';
 
 export default function BookingDetail() {
   const { id } = useParams();
@@ -85,11 +86,14 @@ export default function BookingDetail() {
   };
 
   const cancel = async () => {
+    const reasonInput = document.getElementById('cancel-reason');
+    const reason = reasonInput?.value?.trim() || 'Cancelled by staff/guest request';
     await save({
       status: 'cancelled',
-      cancel_reason: document.getElementById('cancel-reason')?.value || '',
-      history: [...(b.history || []), { status: 'cancelled', at: new Date().toISOString(), by: me?.email || 'staff' }],
-    }, `Cancelled ${b.guest_name}`);
+      cancellation_reason: reason,
+      cancel_reason: reason,
+      history: [...(b.history || []), { status: 'cancelled', at: new Date().toISOString(), by: me?.email || 'staff', reason }],
+    }, `Cancelled ${b.guest_name}: ${reason}`);
     setCancelOpen(false);
   };
 
@@ -190,12 +194,13 @@ export default function BookingDetail() {
         {b.special_requests && <p className="mt-3 rounded-lg bg-slate-50 px-3 py-2 text-sm text-slate-700"><b>{L('Requests', 'अनुरोध')}:</b> {b.special_requests}</p>}
 
         <div className="mt-4 flex flex-wrap gap-2">
-          {b.status === 'pending' && <button onClick={() => setStatus('confirmed', `Confirmed ${b.ref}`)} disabled={busy} className="flex items-center gap-1.5 rounded-xl bg-emerald-600 px-3 py-2.5 text-sm font-semibold text-white"><CheckCircle2 size={15} />{L('Confirm', 'कन्फ़र्म')}</button>}
+          {b.status === 'pending' && <button onClick={() => setStatus('confirmed', `Confirmed ${b.ref}`)} disabled={busy} className="flex items-center gap-1.5 rounded-xl bg-emerald-600 px-3 py-2.5 text-sm font-semibold text-white"><CheckCircle2 size={15} />{L('Confirm booking', 'बुकिंग कन्फ़र्म करें')}</button>}
           {['pending', 'confirmed'].includes(b.status) && <button onClick={checkIn} disabled={busy} className="flex items-center gap-1.5 rounded-xl bg-blue-600 px-3 py-2.5 text-sm font-semibold text-white"><LogIn size={15} />{L('Check in', 'चेक-इन')}</button>}
           {b.status === 'checked_in' && <button onClick={checkOut} disabled={busy} className="flex items-center gap-1.5 rounded-xl bg-slate-900 px-3 py-2.5 text-sm font-semibold text-white"><LogOut size={15} />{L('Check out', 'चेक-आउट')}</button>}
+          {['cancelled', 'no_show'].includes(b.status) && <button onClick={() => setStatus('confirmed', `Reopened ${b.ref}`)} disabled={busy} className="flex items-center gap-1.5 rounded-xl border border-amber-300 bg-amber-50 px-3 py-2.5 text-sm font-semibold text-amber-800"><CheckCircle2 size={15} />{L('Reopen booking', 'बुकिंग पुनः खोलें')}</button>}
           {!isStaff && <button onClick={() => setPay({ ...pay, open: true })} className="flex items-center gap-1.5 rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-sm font-semibold text-slate-700"><Plus size={15} />{L('Payment', 'भुगतान')}</button>}
           <button onClick={invoice} className="flex items-center gap-1.5 rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-sm font-semibold text-slate-700"><Printer size={15} />{L('Invoice', 'बिल')}</button>
-          {!isStaff && ['pending', 'confirmed'].includes(b.status) && <button onClick={() => setCancelOpen(true)} className="flex items-center gap-1.5 rounded-xl border border-red-200 bg-red-50 px-3 py-2.5 text-sm font-semibold text-red-700"><XCircle size={15} />{L('Cancel', 'रद्द')}</button>}
+          {['pending', 'confirmed', 'checked_in'].includes(b.status) && <button onClick={() => setCancelOpen(true)} className="flex items-center gap-1.5 rounded-xl border border-red-200 bg-red-50 px-3 py-2.5 text-sm font-semibold text-red-700"><XCircle size={15} />{L('Cancel booking', 'बुकिंग रद्द करें')}</button>}
           {canDelete && <button onClick={() => setDelOpen(true)} className="ml-auto flex items-center gap-1.5 rounded-xl border border-slate-200 px-3 py-2.5 text-sm font-semibold text-slate-500"><Trash2 size={15} /></button>}
         </div>
       </div>
@@ -214,9 +219,15 @@ export default function BookingDetail() {
 
           <h2 className="mb-2 mt-5 font-semibold text-slate-900">{L('Change dates', 'तारीखें बदलें')}</h2>
           <div className="flex flex-wrap items-end gap-2">
-            <label className="text-xs text-slate-500">{L('In', 'से')}<input type="date" defaultValue={b.check_in} onChange={(e) => setEdit({ ...(edit || {}), check_in: e.target.value })} className="mt-1 block rounded-lg border border-slate-300 px-2 py-2 text-sm" /></label>
-            <label className="text-xs text-slate-500">{L('Out', 'तक')}<input type="date" defaultValue={b.check_out} onChange={(e) => setEdit({ ...(edit || {}), check_out: e.target.value })} className="mt-1 block rounded-lg border border-slate-300 px-2 py-2 text-sm" /></label>
-            <button onClick={saveDates} disabled={!edit?.check_in || !edit?.check_out} className="rounded-lg border border-slate-300 px-3 py-2 text-sm font-semibold text-slate-700 disabled:opacity-50">{L('Update', 'अपडेट')}</button>
+            <div className="w-36">
+              <span className="text-xs text-slate-500 font-medium">{L('In', 'से')}</span>
+              <DatePicker variant="admin" value={edit?.check_in || b.check_in} onChange={(e) => setEdit({ ...(edit || {}), check_in: e.target.value })} className="mt-1 min-h-[38px] py-1.5" />
+            </div>
+            <div className="w-36">
+              <span className="text-xs text-slate-500 font-medium">{L('Out', 'तक')}</span>
+              <DatePicker variant="admin" min={edit?.check_in || b.check_in} value={edit?.check_out || b.check_out} onChange={(e) => setEdit({ ...(edit || {}), check_out: e.target.value })} className="mt-1 min-h-[38px] py-1.5" />
+            </div>
+            <button onClick={saveDates} disabled={!edit?.check_in && !edit?.check_out} className="rounded-xl bg-slate-900 px-4 py-2 text-sm font-semibold text-white disabled:opacity-50">{L('Update dates', 'तारीखें अपडेट करें')}</button>
           </div>
         </div>
 

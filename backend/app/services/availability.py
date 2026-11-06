@@ -56,12 +56,12 @@ async def check_room_availability(
         await db.execute(rooms_count_stmt)
     ).scalar() or room_type.total_inventory
 
-    # 4. Count overlapping active bookings
+    # 4. Count overlapping active bookings (only confirmed and checked_in bookings hold inventory; pending are requests)
     # Overlap condition: booking.check_in_date < check_out AND booking.check_out_date > check_in
     overlap_stmt = select(func.coalesce(func.sum(Booking.num_rooms), 0)).where(
         Booking.room_type_id == room_type_id,
         Booking.is_deleted == False,
-        Booking.booking_status.not_in(["cancelled", "no_show"]),
+        Booking.booking_status.in_(["confirmed", "checked_in"]),
         Booking.check_in_date < check_out,
         Booking.check_out_date > check_in,
     )

@@ -26,10 +26,11 @@ export default function AvailabilityCalendar({ roomTypes = [], bookings = [], bl
 
   const cell = (type, iso) => {
     const booked = safeBookings.filter((b) => BLOCKING.includes(b?.status) && b?.room_type_id === type?.id && (b?.check_in || '') <= iso && (b?.check_out || '') > iso).length;
+    const pending = safeBookings.filter((b) => b?.status === 'pending' && b?.room_type_id === type?.id && (b?.check_in || '') <= iso && (b?.check_out || '') > iso).length;
     const blocked = safeBlocks.filter((b) => !b?.room_id && b?.room_type_id === type?.id && (b?.start_date || '') <= iso && (b?.end_date || '') > iso).length;
     const total = Number(type?.total_rooms) || 1;
     const free = total - booked - blocked;
-    return { booked, blocked, free, total };
+    return { booked, pending, blocked, free, total };
   };
 
   return (
@@ -58,8 +59,11 @@ export default function AvailabilityCalendar({ roomTypes = [], bookings = [], bl
                   const c = cell(t, d.iso);
                   const tone = c.free <= 0 ? 'bg-red-100 text-red-700' : c.free < c.total ? 'bg-amber-100 text-amber-800' : 'bg-emerald-50 text-emerald-700';
                   return (
-                    <td key={d.iso} className={`border border-white p-0 text-center ${tone}`} title={`${t.name_en} · ${d.iso} · ${c.free}/${c.total} ${L('free', 'खाली')}`}>
-                      <span className="block py-1.5 text-[10px] font-semibold">{c.free > 0 ? c.free : '·'}</span>
+                    <td key={d.iso} className={`border border-white p-0 text-center ${tone}`} title={`${t.name_en} · ${d.iso} · ${c.free}/${c.total} ${L('free', 'खाली')}${c.pending > 0 ? ` (${c.pending} ${L('pending request', 'अनुरोध लंबित')})` : ''}`}>
+                      <span className="relative block py-1.5 text-[10px] font-semibold">
+                        {c.free > 0 ? c.free : '·'}
+                        {c.pending > 0 && <span className="absolute top-0.5 right-0.5 h-1.5 w-1.5 rounded-full bg-amber-500" />}
+                      </span>
                     </td>
                   );
                 })}

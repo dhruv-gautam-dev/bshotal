@@ -3,7 +3,8 @@
 // who may read or write each table (owner = app role "admin", staff = staff_role).
 import { apiClient } from '@/api/apiClient';
 
-export const BLOCKING = ['pending', 'confirmed', 'checked_in'];
+// Only confirmed and checked_in bookings lock inventory; pending are requests awaiting confirmation
+export const BLOCKING = ['confirmed', 'checked_in'];
 
 export const todayISO = () => new Date().toISOString().slice(0, 10);
 

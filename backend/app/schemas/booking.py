@@ -1,7 +1,8 @@
 from datetime import date, datetime
 from decimal import Decimal
+from typing import Any
 
-from pydantic import EmailStr, Field, field_validator
+from pydantic import EmailStr, Field, field_validator, model_validator
 
 from app.schemas.common import BaseSchema
 from app.schemas.payment import PaymentOut
@@ -61,6 +62,14 @@ class BookingCreateAdmin(BaseSchema):
     id_proof_type: str | None = None
     id_proof_number: str | None = None
 
+    @field_validator("check_out_date")
+    @classmethod
+    def validate_dates(cls, v: date, info):
+        check_in = info.data.get("check_in_date")
+        if check_in and v <= check_in:
+            raise ValueError("Check-out date must be strictly after check-in date")
+        return v
+
 
 class BookingUpdateAdmin(BaseSchema):
     assigned_room_id: str | None = None
@@ -80,6 +89,21 @@ class BookingStatusUpdate(BaseSchema):
     )
     cancellation_reason: str | None = None
     admin_notes: str | None = None
+
+    @model_validator(mode="before")
+    @classmethod
+    def normalize_status_payload(cls, data: Any) -> Any:
+        if isinstance(data, dict):
+            # Accept booking_status as an alias for status
+            if "status" not in data and "booking_status" in data:
+                data["status"] = data["booking_status"]
+            # Accept cancel_reason or reason as aliases for cancellation_reason
+            if not data.get("cancellation_reason"):
+                data["cancellation_reason"] = data.get("cancel_reason") or data.get("reason")
+            # Default cancellation reason if cancelling
+            if data.get("status") == "cancelled" and not data.get("cancellation_reason"):
+                data["cancellation_reason"] = "Cancelled by staff/guest request"
+        return data
 
 
 class BookingOut(BaseSchema):

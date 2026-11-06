@@ -5,7 +5,7 @@ import { useI18n } from '@/lib/i18n';
 import { checkAvailability, rateForStay, money, todayISO, nightsBetween } from '../lib/adminData';
 import DatePicker from '@/components/ui/date-picker';
 
-const empty = { name: '', phone: '', email: '', roomTypeId: '', checkIn: todayISO(), checkOut: '', guests: 2, source: 'phone', special: '', amount: '', advance: 0, payment_mode: 'none', notes: '' };
+const empty = { name: '', phone: '', email: '', roomTypeId: '', checkIn: todayISO(), checkOut: '', guests: 2, source: 'phone', special: '', amount: '', advance: 0, payment_mode: 'none', status: 'confirmed', notes: '' };
 const ref = () => `RM-${Math.random().toString(36).slice(2, 7).toUpperCase()}`;
 
 export default function BookingForm({ open, onClose, onSaved }) {
@@ -73,10 +73,10 @@ export default function BookingForm({ open, onClose, onSaved }) {
         advance_paid: advance,
         balance: Math.max(0, amount - advance),
         payment_mode: f.payment_mode,
-        status: 'pending',
+        status: f.status || 'confirmed',
         source: f.source,
         notes: f.notes,
-        history: [{ status: 'pending', at: new Date().toISOString(), by: 'dashboard' }],
+        history: [{ status: f.status || 'confirmed', at: new Date().toISOString(), by: 'admin-dashboard' }],
       });
       if (advance > 0) {
         await apiClient.entities.Payment.create({
@@ -132,6 +132,13 @@ export default function BookingForm({ open, onClose, onSaved }) {
               <option value="walkin">{L('Walk-in', 'वॉक-इन')}</option>
               <option value="whatsapp">WhatsApp</option>
               <option value="website">{L('Website', 'वेबसाइट')}</option>
+            </select>
+          </label>
+          <label className="text-sm font-medium text-slate-700">{L('Initial status', 'शुरुआती स्थिति')}
+            <select className={input} value={f.status} onChange={set('status')}>
+              <option value="confirmed">{L('Confirmed (Active)', 'कन्फ़र्म')}</option>
+              <option value="checked_in">{L('Checked-in (At counter)', 'चेक-इन')}</option>
+              <option value="pending">{L('Pending (Review)', 'लंबित')}</option>
             </select>
           </label>
           <label className="text-sm font-medium text-slate-700">{L('Total amount', 'कुल राशि')}<input className={input} type="number" min="0" value={f.amount} onChange={set('amount')} /></label>

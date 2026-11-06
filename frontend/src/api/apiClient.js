@@ -83,7 +83,17 @@ async function request(path, options = {}) {
     let errorDetail = `Request failed (${res.status})`
     try {
       const errJson = await res.json()
-      errorDetail = errJson.detail || errJson.error || errJson.message || errorDetail
+      if (Array.isArray(errJson.detail)) {
+        errorDetail = errJson.detail
+          .map((d) => (d.loc ? `${d.loc.slice(1).join('.')}: ${d.msg}` : d.msg || JSON.stringify(d)))
+          .join('; ')
+      } else if (typeof errJson.detail === 'string') {
+        errorDetail = errJson.detail
+      } else if (errJson.error) {
+        errorDetail = typeof errJson.error === 'string' ? errJson.error : JSON.stringify(errJson.error)
+      } else if (errJson.message) {
+        errorDetail = typeof errJson.message === 'string' ? errJson.message : JSON.stringify(errJson.message)
+      }
     } catch {
       // ignore
     }
@@ -648,19 +658,23 @@ export const entities = {
       })
     },
     async update(id, data) {
-      if (data.status) {
+      if (data.status || data.booking_status) {
+        const statusVal = data.status || data.booking_status;
+        const reasonVal = data.cancellation_reason || data.cancel_reason || null;
         return await request(`/admin/bookings/${id}/status`, {
           method: 'PATCH',
           body: JSON.stringify({
-            booking_status: data.status,
-            cancellation_reason: data.cancellation_reason || null,
+            status: statusVal,
+            booking_status: statusVal,
+            cancellation_reason: reasonVal,
+            admin_notes: data.admin_notes || null,
           }),
-        })
+        });
       }
       return await request(`/admin/bookings/${id}`, {
         method: 'PUT',
         body: JSON.stringify(data),
-      })
+      });
     },
     async delete(id) {
       return await request(`/admin/bookings/${id}/status`, {

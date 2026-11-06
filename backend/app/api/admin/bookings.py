@@ -98,7 +98,7 @@ async def get_booking_detail(
 async def create_admin_booking(
     data: BookingCreateAdmin,
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(require_manager),
+    current_user: User = Depends(require_staff),
 ):
     customer = await get_or_create_customer(
         db, phone=data.guest_phone, name=data.guest_name, email=data.guest_email
@@ -160,7 +160,7 @@ async def update_booking_details(
     booking_id: str,
     data: BookingUpdateAdmin,
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(require_manager),
+    current_user: User = Depends(require_staff),
 ):
     booking = await db.get(Booking, booking_id)
     if not booking or booking.is_deleted:

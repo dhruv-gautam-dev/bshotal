@@ -53,6 +53,16 @@ export default function Bookings() {
   const closeForm = () => { setOpen(false); setParams({}); };
   const saved = () => qc.invalidateQueries({ queryKey: ['admin-bookings'] });
 
+  const confirmQuick = async (e, booking) => {
+    e.stopPropagation();
+    try {
+      await apiClient.entities.Booking.update(booking.id, { status: 'confirmed' });
+      qc.invalidateQueries({ queryKey: ['admin-bookings'] });
+    } catch (err) {
+      alert(err.message || 'Could not confirm booking');
+    }
+  };
+
   const exportCsv = () => downloadCsv('bookings.csv', rows, [
     { label: 'Ref', value: (b) => b.ref },
     { label: 'Guest', value: (b) => b.guest_name },
@@ -128,7 +138,18 @@ export default function Bookings() {
                     <td className="px-4 py-3 text-slate-600">{b.room_type_name}</td>
                     <td className="px-4 py-3"><StatusPill kind="booking" value={b.status} /></td>
                     <td className="px-4 py-3 text-right font-medium tabular-nums">{inr(b.balance)}</td>
-                    <td className="px-4 py-3 text-right"><Link to={`/admin/bookings/${b.id}`} className="font-semibold text-amber-700">{L('Open', 'खोलें')}</Link></td>
+                    <td className="px-4 py-3 text-right space-x-2 whitespace-nowrap">
+                      {b.status === 'pending' && (
+                        <button
+                          type="button"
+                          onClick={(e) => confirmQuick(e, b)}
+                          className="inline-flex items-center rounded-lg bg-emerald-600 px-2.5 py-1 text-xs font-semibold text-white hover:bg-emerald-700"
+                        >
+                          {L('Confirm', 'कन्फ़र्म')}
+                        </button>
+                      )}
+                      <Link to={`/admin/bookings/${b.id}`} className="font-semibold text-amber-700 hover:text-amber-800">{L('Open', 'खोलें')}</Link>
+                    </td>
                   </tr>
                 ))}
               </tbody>

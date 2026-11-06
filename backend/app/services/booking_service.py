@@ -20,11 +20,11 @@ _booking_locks: dict[str, asyncio.Lock] = defaultdict(asyncio.Lock)
 
 ALLOWED_BOOKING_TRANSITIONS = {
     "pending": {"confirmed", "cancelled"},
-    "confirmed": {"checked_in", "cancelled", "no_show"},
-    "checked_in": {"checked_out"},
+    "confirmed": {"checked_in", "cancelled", "no_show", "pending"},
+    "checked_in": {"checked_out", "cancelled"},
     "checked_out": set(),
-    "cancelled": set(),
-    "no_show": set(),
+    "cancelled": {"pending", "confirmed"},
+    "no_show": {"confirmed", "pending"},
 }
 
 
@@ -142,7 +142,19 @@ async def update_booking_status(
             detail=f"Cannot transition booking from '{current_status}' to '{new_status}'. Allowed transitions: {sorted(list(allowed_next))}",
         )
 
-    # Manage room status changes on check-in and check-out
+    # When confirming a booking, verify inventory is actually available
+    if new_status == "confirmed" and current_status != "confirmed":
+        is_avail, avail_count, r_type = await check_room_availability(
+            db, booking.room_type_id, booking.check_in_date, booking.check_out_date, requested_rooms=booking.num_rooms
+        )
+        if not is_avail:
+            type_name = r_type.name if r_type else "Room"
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Cannot confirm booking: {type_name} is fully booked for {booking.check_in_date} to {booking.check_out_date}. Only {avail_count} room(s) available.",
+            )
+
+    # Manage room status changes on check-in, check-out, or cancellation
     if new_status == "checked_in" and booking.assigned_room_id:
         room = await db.get(Room, booking.assigned_room_id)
         if room:
@@ -150,6 +162,10 @@ async def update_booking_status(
     elif new_status == "checked_out" and booking.assigned_room_id:
         room = await db.get(Room, booking.assigned_room_id)
         if room:
+            room.status = "cleaning"
+    elif new_status in ("cancelled", "no_show") and booking.assigned_room_id:
+        room = await db.get(Room, booking.assigned_room_id)
+        if room and room.status == "occupied":
             room.status = "cleaning"
 
     # Save previous and update
