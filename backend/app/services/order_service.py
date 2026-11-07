@@ -83,9 +83,9 @@ def compute_haversine_distance_km(lat1: float, lon1: float, lat2: float, lon2: f
     return R * c
 
 ALLOWED_ORDER_TRANSITIONS = {
-    "new": {"accepted", "cancelled"},
-    "accepted": {"preparing", "cancelled"},
-    "preparing": {"ready", "cancelled"},
+    "new": {"accepted", "preparing", "ready", "cancelled"},
+    "accepted": {"preparing", "ready", "out_for_delivery", "served", "completed", "cancelled"},
+    "preparing": {"ready", "out_for_delivery", "served", "completed", "cancelled"},
     "ready": {"out_for_delivery", "served", "completed", "cancelled"},
     "out_for_delivery": {"completed", "cancelled"},
     "served": {"completed", "cancelled"},

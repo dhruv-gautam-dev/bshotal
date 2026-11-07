@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState, useRef } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useSelector, useDispatch } from 'react-redux';
@@ -16,6 +16,7 @@ import {
   setOrdersData,
   setActiveOrder,
   updateOrderOptimistic,
+  revertOrderOptimistic,
 } from '@/store/slices/ordersSlice';
 
 const COLUMNS = ['new', 'accepted', 'preparing', 'ready', 'out_for_delivery', 'completed'];
@@ -34,6 +35,7 @@ export default function Orders() {
   const [orderPriceModal, setOrderPriceModal] = useState({ open: false, total: '' });
   const [screenshotModal, setScreenshotModal] = useState(null);
   const [settings, setSettings] = useState(null);
+  const mutationQueues = useRef({});
   const qc = useQueryClient();
   const dispatch = useDispatch();
 
@@ -67,6 +69,16 @@ export default function Orders() {
 
   const orders = isOrdersLoaded ? reduxOrders : (Array.isArray(rawOrders) ? rawOrders : []);
 
+  // Keep active modal order synchronized with the latest order state in Redux
+  useEffect(() => {
+    if (active) {
+      const match = orders.find((o) => o.id === active.id);
+      if (match && (match.status !== active.status || match.payment_status !== active.payment_status || match.total !== active.total)) {
+        setActive(match);
+      }
+    }
+  }, [orders, active?.id]);
+
   // Live board: safe listener if real-time subscription is supported
   useEffect(() => {
     if (typeof apiClient?.entities?.Order?.subscribe === 'function') {
@@ -76,25 +88,54 @@ export default function Orders() {
   }, [qc]);
 
   const move = async (order, status) => {
-    // Instant optimistic status transition
+    // 1. Instant optimistic status transition in Redux and local modal state
     dispatch(updateOrderOptimistic({ id: order.id, status }));
     setActive((a) => (a && a.id === order.id ? { ...a, status } : a));
 
-    try {
-      await apiClient.entities.Order.update(order.id, { status });
-      audit(me, 'status', 'orders', 'Order', order.id, `${order.ref}: ${order.status} → ${status}`).catch(() => {});
-      qc.invalidateQueries({ queryKey: ['admin-orders'] });
-    } catch (err) {
-      alert(err.message || 'Failed to update order status');
-      qc.invalidateQueries({ queryKey: ['admin-orders'] });
-    }
+    // 2. Instant optimistic status update in React Query cache so background readers never see old status
+    qc.setQueryData(['admin-orders'], (old) => {
+      const list = Array.isArray(old?.items) ? old.items : (Array.isArray(old) ? old : []);
+      const updated = list.map((item) => (item.id === order.id ? { ...item, status } : item));
+      return Array.isArray(old?.items) ? { ...old, items: updated } : updated;
+    });
+
+    // 3. Sequential promise chaining per order ID so rapid multi-clicks execute in exact order
+    const prevTask = mutationQueues.current[order.id] || Promise.resolve();
+    const currentTask = prevTask
+      .catch(() => {}) // Don't let previous error fail the next transition
+      .then(async () => {
+        await apiClient.entities.Order.update(order.id, { status });
+        audit(me, 'status', 'orders', 'Order', order.id, `${order.ref}: → ${status}`).catch(() => {});
+      })
+      .catch((err) => {
+        console.error('Failed to update order status:', err);
+        alert(err.message || 'Failed to update order status');
+        dispatch(revertOrderOptimistic({ id: order.id, originalOrder: order }));
+      })
+      .finally(() => {
+        // Only trigger query invalidation when the last queued action for this order has settled
+        if (mutationQueues.current[order.id] === currentTask) {
+          delete mutationQueues.current[order.id];
+          qc.invalidateQueries({ queryKey: ['admin-orders'] });
+        }
+      });
+
+    mutationQueues.current[order.id] = currentTask;
   };
 
   const markPaid = async (order) => {
     const payment_mode = order.payment_mode === 'none' ? 'cash' : order.payment_mode;
-    // Instant optimistic payment update
+
+    // 1. Instant optimistic payment update in Redux and local modal state
     dispatch(updateOrderOptimistic({ id: order.id, payment_status: 'paid', payment_mode }));
     setActive((a) => (a && a.id === order.id ? { ...a, payment_status: 'paid', payment_mode } : a));
+
+    // 2. Instant optimistic payment update in React Query cache
+    qc.setQueryData(['admin-orders'], (old) => {
+      const list = Array.isArray(old?.items) ? old.items : (Array.isArray(old) ? old : []);
+      const updated = list.map((item) => (item.id === order.id ? { ...item, payment_status: 'paid', payment_mode } : item));
+      return Array.isArray(old?.items) ? { ...old, items: updated } : updated;
+    });
 
     try {
       await apiClient.entities.Order.update(order.id, { payment_status: 'paid', payment_mode });

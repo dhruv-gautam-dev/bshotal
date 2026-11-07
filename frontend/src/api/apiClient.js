@@ -919,7 +919,7 @@ export const entities = {
       }
 
       if (data.status) {
-        await request(`/admin/orders/${id}/status`, {
+        const patchRes = await request(`/admin/orders/${id}/status`, {
           method: 'PATCH',
           body: JSON.stringify({
             status: data.status,
@@ -928,6 +928,10 @@ export const entities = {
             cancellation_reason: data.cancellation_reason || null,
           }),
         });
+        const otherKeys = Object.keys(payload).filter((k) => !['status', 'cancellation_reason', 'payment_status', 'payment_mode'].includes(k));
+        if (otherKeys.length === 0) {
+          return patchRes;
+        }
       }
 
       const otherKeys = Object.keys(payload).filter((k) => !['status', 'cancellation_reason'].includes(k));
