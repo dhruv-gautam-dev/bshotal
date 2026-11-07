@@ -2,7 +2,7 @@
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
   <!-- Homepage -->
   <url>
-    <loc>https://bshotel.in/</loc>
+    <loc>https://bshotel.vercel.app/</loc>
     <lastmod>2026-11-08</lastmod>
     <changefreq>daily</changefreq>
     <priority>1.0</priority>
@@ -10,13 +10,13 @@
 
   <!-- Rooms & Accommodations -->
   <url>
-    <loc>https://bshotel.in/rooms</loc>
+    <loc>https://bshotel.vercel.app/rooms</loc>
     <lastmod>2026-11-08</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.9</priority>
   </url>
   <url>
-    <loc>https://bshotel.in/booking</loc>
+    <loc>https://bshotel.vercel.app/booking</loc>
     <lastmod>2026-11-08</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.9</priority>
@@ -24,13 +24,13 @@
 
   <!-- Delicee Restaurant & Food Ordering -->
   <url>
-    <loc>https://bshotel.in/restaurant</loc>
+    <loc>https://bshotel.vercel.app/restaurant</loc>
     <lastmod>2026-11-08</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.9</priority>
   </url>
   <url>
-    <loc>https://bshotel.in/order</loc>
+    <loc>https://bshotel.vercel.app/order</loc>
     <lastmod>2026-11-08</lastmod>
     <changefreq>daily</changefreq>
     <priority>0.8</priority>
@@ -38,7 +38,7 @@
 
   <!-- Events & Banquet -->
   <url>
-    <loc>https://bshotel.in/events</loc>
+    <loc>https://bshotel.vercel.app/events</loc>
     <lastmod>2026-11-08</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.8</priority>
@@ -46,19 +46,19 @@
 
   <!-- Gallery, Reviews & Contact -->
   <url>
-    <loc>https://bshotel.in/gallery</loc>
+    <loc>https://bshotel.vercel.app/gallery</loc>
     <lastmod>2026-11-08</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
-    <loc>https://bshotel.in/reviews</loc>
+    <loc>https://bshotel.vercel.app/reviews</loc>
     <lastmod>2026-11-08</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
-    <loc>https://bshotel.in/contact</loc>
+    <loc>https://bshotel.vercel.app/contact</loc>
     <lastmod>2026-11-08</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.8</priority>
@@ -66,19 +66,19 @@
 
   <!-- Policies & Legal -->
   <url>
-    <loc>https://bshotel.in/privacy-policy</loc>
+    <loc>https://bshotel.vercel.app/privacy-policy</loc>
     <lastmod>2026-11-08</lastmod>
     <changefreq>yearly</changefreq>
     <priority>0.3</priority>
   </url>
   <url>
-    <loc>https://bshotel.in/terms</loc>
+    <loc>https://bshotel.vercel.app/terms</loc>
     <lastmod>2026-11-08</lastmod>
     <changefreq>yearly</changefreq>
     <priority>0.3</priority>
   </url>
   <url>
-    <loc>https://bshotel.in/cancellation-refund</loc>
+    <loc>https://bshotel.vercel.app/cancellation-refund</loc>
     <lastmod>2026-11-08</lastmod>
     <changefreq>yearly</changefreq>
     <priority>0.3</priority>
