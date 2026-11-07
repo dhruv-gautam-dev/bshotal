@@ -88,8 +88,12 @@ export default function Booking() {
   const [done, setDone] = useState(null);
 
   useSeo(
-    'Book a Room | B.S. Hotel, Mathura NH-2',
-    'Reserve your room at B.S. Hotel near Township Nagar, NH-2, Baad (Mathura) with secure PhonePe UPI QR or Pay at Hotel.'
+    'Online Room Booking | B.S. Hotel & Restaurant, Mathura',
+    'Reserve your AC luxury room at B.S. Hotel & Restaurant near Mathura Refinery, NH-19 (NH-2), Baad, Mathura with instant PhonePe UPI QR or Pay at Hotel.',
+    {
+      keywords: 'bs hotel room booking, book bs hotel mathura, b.s. hotel reservation, hotel booking mathura nh-2',
+      image: '/images/deluxe.webp',
+    }
   );
 
   useEffect(() => {

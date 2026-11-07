@@ -16,7 +16,14 @@ export default function Contact() {
   const [err, setErr] = useState('');
   const [sent, setSent] = useState(null);
   const [busy, setBusy] = useState(false);
-  useSeo('Contact | B.S. Hotel, Township Nagar NH-2 Mathura', 'Call +91 91492 24039 for bookings, +91 92592 73735 for payments or WhatsApp B.S. Hotel & Restaurant near Township Nagar, NH-2, Baad (Mathura).');
+  useSeo(
+    'Contact & Location | B.S. Hotel & Restaurant, Mathura',
+    'Contact B.S. Hotel & Restaurant (Delicee Restaurant) in Mathura. Phone: +91 91492 24039. Located near IOCL Township Gate, Mathura Refinery, NH-19 (NH-2), Baad, Mathura - 281006.',
+    {
+      keywords: 'bs hotel contact, bs hotel address mathura, b.s. hotel phone number, bs hotel and restaurant location, hotel near mathura refinery',
+      image: '/images/hero.webp',
+    }
+  );
   const set = (k) => (e) => setF({ ...f, [k]: e?.target ? e.target.value : e });
 
   const submit = async (e) => {

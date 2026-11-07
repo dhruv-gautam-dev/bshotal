@@ -15,7 +15,14 @@ export default function Rooms() {
   const [sel, setSel] = useState(null);
   const list = (rooms && rooms.length) ? rooms : ROOMS;
 
-  useSeo('Rooms | B.S. Hotel, Mathura NH-2', 'Standard, Deluxe and Family rooms at B.S. Hotel near Township Nagar, NH-2, Baad (Mathura). AC, Wi-Fi, hot water.');
+  useSeo(
+    'Rooms & Suites | B.S. Hotel & Restaurant, Mathura',
+    'Explore Standard, Deluxe and Family AC rooms at B.S. Hotel & Restaurant near Mathura Refinery, NH-19 (NH-2), Baad, Mathura. Free Wi-Fi, 24/7 room service & best direct booking rates.',
+    {
+      keywords: 'bs hotel rooms, b.s. hotel mathura rooms, bs hotel and restaurant booking, deluxe ac rooms mathura, hotel near mathura refinery',
+      image: '/images/deluxe.webp',
+    }
+  );
 
   return (
     <>

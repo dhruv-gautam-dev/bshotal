@@ -25,7 +25,14 @@ export default function Restaurant() {
     }
   }, [menuList, active]);
 
-  useSeo('Delicee Restaurant Menu | Pure Veg Restaurant near Township Nagar Mathura', 'Full pure vegetarian menu of Delicee Restaurant at B.S. Hotel, NH-2 Mathura: kebabs, paneer, dal, Chinese, pizza, dosa, shakes. Order on WhatsApp.');
+  useSeo(
+    'Delicee Pure Veg Restaurant | B.S. Hotel & Restaurant, Mathura',
+    'Pure vegetarian dining menu of Delicee Restaurant at B.S. Hotel, Mathura NH-19 (NH-2). Enjoy North Indian, paneer delicacies, dal makhani, Chinese, tandoori, fast food, and beverages.',
+    {
+      keywords: 'bs hotel restaurant, bs hotel and resturent, delicee restaurant mathura, pure veg restaurant near refinery mathura, b.s. hotel food',
+      image: '/images/food.webp',
+    }
+  );
 
   const q = search.trim().toLowerCase();
   const cats = menuList.map((c) => ({ ...c, items: q ? c.items.filter((i) => i.name.toLowerCase().includes(q) || i.desc.toLowerCase().includes(q)) : c.items })).filter((c) => c.items.length);

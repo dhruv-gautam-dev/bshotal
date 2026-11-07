@@ -1,0 +1,10 @@
+User-agent: *
+Allow: /
+Disallow: /admin
+Disallow: /admin/
+Disallow: /staff
+Disallow: /staff/
+Disallow: /api/
+
+Sitemap: https://bshotel.in/sitemap.xml
+

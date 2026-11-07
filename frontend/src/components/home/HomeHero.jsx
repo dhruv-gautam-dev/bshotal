@@ -10,11 +10,14 @@ export default function HomeHero() {
   const { bookingsTel } = useSiteSettings();
   return (
     <section className="relative flex min-h-[88vh] items-end overflow-hidden pt-16">
-      <Image src={IMAGES.hero} alt="B.S. Hotel entrance at dusk" className="absolute inset-0 h-full w-full object-cover" loading="eager" fetchPriority="high" decoding="sync" />
+      <Image src={IMAGES.hero} alt="B.S. Hotel and Restaurant Front Entrance at Dusk, Mathura NH-19" className="absolute inset-0 h-full w-full object-cover" loading="eager" fetchPriority="high" decoding="sync" />
       <div className="absolute inset-0 bg-gradient-to-t from-background via-background/70 to-background/20" />
       <div className="relative mx-auto w-full max-w-7xl px-4 pb-24 md:pb-28">
         <p className="mb-4 text-xs font-semibold uppercase tracking-[0.3em] text-primary">{t('hero.eyebrow')}</p>
-        <h1 className="max-w-3xl font-semibold leading-[1.1]" style={{ fontSize: 'calc(2rem + 3.5vw)' }}>{t('hero.title')}</h1>
+        <h1 className="max-w-3xl font-semibold leading-[1.1]" style={{ fontSize: 'calc(2rem + 3.5vw)' }}>
+          <span className="sr-only">B.S. Hotel & Restaurant Mathura - </span>
+          {t('hero.title')}
+        </h1>
         <p className="mt-4 max-w-xl text-base text-foreground/85 md:text-lg">{t('hero.sub')}</p>
         <p className="mt-2 font-heading text-xl italic text-primary">{tr(SITE.tagline)}</p>
         <div className="mt-8 flex flex-wrap gap-3">

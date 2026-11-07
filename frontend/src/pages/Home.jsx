@@ -10,7 +10,14 @@ import LocationCta from '@/components/home/LocationCta';
 import useSeo from '@/lib/useSeo';
 
 export default function Home() {
-  useSeo('B.S. Hotel & Delicee Restaurant | Hotel in Mathura NH-2', 'Family hotel and pure vegetarian restaurant near Township Nagar, NH-2, Baad (Mathura). Book rooms, order food, plan ring ceremony, birthday or wedding.');
+  useSeo(
+    'B.S. Hotel & Restaurant | Luxury AC Rooms & Pure Veg Dining in Mathura',
+    'Welcome to B.S. Hotel & Restaurant (Delicee Restaurant), Mathura. Premium AC rooms, pure veg multi-cuisine restaurant, banquet hall near Mathura Refinery on NH-19 (NH-2). 24/7 room service & online food ordering.',
+    {
+      keywords: 'bs hotel, bs hotel and resturent, bs hotel and restaurant, b.s. hotel, bs hotel mathura, b.s. hotel and restaurant mathura, hotel bs, delicee restaurant, hotel near mathura refinery, hotel in baad mathura',
+      image: '/images/hero.webp',
+    }
+  );
   return (
     <>
       <HomeHero />

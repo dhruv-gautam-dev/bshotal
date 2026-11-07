@@ -16,7 +16,14 @@ export default function Events() {
   const { data: packages } = useEventPackages();
   const list = (packages && packages.length) ? packages : EVENTS;
 
-  useSeo('Events: Ring Ceremony, Birthday, Wedding | B.S. Hotel Mathura', 'Host your ring ceremony, birthday party or wedding at B.S. Hotel near Township Nagar, NH-2, Mathura, with pure veg catering.');
+  useSeo(
+    'Weddings & Banquet Hall | B.S. Hotel & Restaurant, Mathura',
+    'Host your ring ceremony, birthday party, anniversary or wedding at B.S. Hotel & Restaurant near Mathura Refinery, NH-19, Mathura with pure vegetarian catering & AC banquet hall.',
+    {
+      keywords: 'bs hotel banquet hall, b.s. hotel events mathura, ring ceremony venue mathura, wedding hall near mathura refinery',
+      image: '/images/wedding.webp',
+    }
+  );
   useEffect(() => { if (hash) setTimeout(() => document.querySelector(hash)?.scrollIntoView({ behavior: 'smooth' }), 100); }, [hash]);
   const enquire = (v) => { setType(v); document.getElementById('enquiry')?.scrollIntoView({ behavior: 'smooth' }); };
 

@@ -10,7 +10,14 @@ import useSeo from '@/lib/useSeo';
 export default function Reviews() {
   const { t } = useI18n();
   const reviews = useReviews();
-  useSeo('Guest Reviews | B.S. Hotel & Delicee Restaurant', 'Read guest reviews of B.S. Hotel and Delicee Restaurant, Mathura NH-2, and share your own.');
+  useSeo(
+    'Customer Reviews & Ratings | B.S. Hotel & Restaurant, Mathura',
+    'Read real guest reviews and ratings of B.S. Hotel & Delicee Restaurant near Mathura Refinery, NH-19 (NH-2), Baad, Mathura and share your experience.',
+    {
+      keywords: 'bs hotel reviews, b.s. hotel ratings mathura, delicee restaurant reviews, customer feedback bs hotel',
+      image: '/images/hero.webp',
+    }
+  );
   return (
     <>
       <PageHero title={t('rev.title')} sub={t('rev.sub')} />

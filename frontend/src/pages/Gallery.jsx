@@ -23,7 +23,14 @@ export default function Gallery() {
   const { t, L } = useI18n();
   const [filter, setFilter] = useState('all');
   const [open, setOpen] = useState(null);
-  useSeo('Gallery | B.S. Hotel & Delicee Restaurant', 'Photos of rooms, food, events and the property at B.S. Hotel, Mathura NH-2.');
+  useSeo(
+    'Photo Gallery | B.S. Hotel & Delicee Restaurant, Mathura',
+    'Explore photos of luxury AC rooms, Delicee restaurant food, banquet hall, and hotel exterior at B.S. Hotel & Restaurant, Mathura NH-19.',
+    {
+      keywords: 'bs hotel photos, b.s. hotel mathura gallery, delicee restaurant images, hotel pictures mathura',
+      image: '/images/hero.webp',
+    }
+  );
   const shown = PHOTOS.filter((p) => filter === 'all' || p.cat === filter);
   return (
     <>

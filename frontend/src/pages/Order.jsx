@@ -187,8 +187,12 @@ export default function Order() {
   const [done, setDone] = useState(null);
 
   useSeo(
-    'Order Food | Delicee Restaurant, Mathura NH-2',
-    'Order pure vegetarian food from Delicee Restaurant at B.S. Hotel with instant PhonePe UPI QR or Pay on Delivery. Fast delivery within 1 km of NH-2 Baad.'
+    'Order Food Online | B.S. Hotel & Delicee Restaurant, Mathura',
+    'Order pure vegetarian food online from B.S. Hotel & Delicee Restaurant with instant PhonePe UPI QR or Pay on Delivery. Fast delivery in Baad near Mathura Refinery.',
+    {
+      keywords: 'bs hotel food order, bs hotel and resturent delivery, delicee restaurant online order, b.s. hotel food delivery mathura',
+      image: '/images/food.webp',
+    }
   );
 
   const set = (k) => (e) => {
