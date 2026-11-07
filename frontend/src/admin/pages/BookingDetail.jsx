@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useSelector, useDispatch } from 'react-redux';
-import { ArrowLeft, Phone, MessageCircle, Printer, CheckCircle2, LogIn, LogOut, XCircle, Trash2, Plus, AlertTriangle, X, BedDouble } from 'lucide-react';
+import { ArrowLeft, Phone, MessageCircle, Printer, CheckCircle2, LogIn, LogOut, XCircle, Trash2, Plus, AlertTriangle, X, BedDouble, ShieldCheck, Eye, QrCode, Clock } from 'lucide-react';
 import { apiClient } from '@/api/apiClient';
 import { useI18n } from '@/lib/i18n';
 import { useAdmin } from '../AdminContext';
@@ -50,6 +50,7 @@ export default function BookingDetail() {
     submitting: false,
     targetStatus: 'confirmed',
   });
+  const [screenshotModal, setScreenshotModal] = useState(null);
 
   const { data, isLoading, refetch } = useQuery({
     queryKey: ['admin-booking', id],
@@ -415,6 +416,81 @@ export default function BookingDetail() {
 
         {b.special_requests && <p className="mt-3 rounded-lg bg-slate-50 px-3 py-2 text-sm text-slate-700"><b>{L('Requests', 'अनुरोध')}:</b> {b.special_requests}</p>}
 
+        {/* PhonePe UPI QR Verification Box */}
+        {(() => {
+          const isUpi = b.payment_mode === 'upi_qr' || String(b.special_requests || '').includes('PhonePe UPI') || String(b.admin_notes || '').includes('PhonePe UPI');
+          if (!isUpi) return null;
+
+          let utr = b.payment_utr || '';
+          let payer = b.payment_name || '';
+          const textToScan = `${b.special_requests || ''}\n${b.admin_notes || ''}`;
+          if (!utr) {
+            const m = textToScan.match(/UTR:\s*([A-Za-z0-9]+)/i);
+            if (m) utr = m[1];
+          }
+          if (!payer) {
+            const m = textToScan.match(/Payer:\s*([^|\]\n]+)/i);
+            if (m) payer = m[1].trim();
+          }
+
+          return (
+            <div className="mt-3.5 rounded-xl border border-amber-300 bg-amber-50/80 p-4">
+              <div className="flex flex-wrap items-center justify-between gap-2 border-b border-amber-200 pb-2.5">
+                <div className="flex items-center gap-2 text-amber-900 font-bold text-sm">
+                  <div className="flex h-6 w-6 items-center justify-center rounded-md bg-purple-600 text-white font-bold text-xs">पे</div>
+                  <span>{L('PhonePe UPI Payment Proof Submitted', 'PhonePe UPI भुगतान प्रमाण प्राप्त हुआ')}</span>
+                </div>
+                <span className="rounded-md bg-amber-200/90 px-2 py-0.5 text-xs font-bold text-amber-900">
+                  {b.payment_status === 'paid' ? L('Verified ✓', 'सत्यापित ✓') : L('Verify with Bank/Soundbox', 'बैंक/साउंडबॉक्स से मिलान करें')}
+                </span>
+              </div>
+
+              <div className="mt-3 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-2.5 text-xs text-slate-800">
+                <div>
+                  <span className="text-slate-500 block text-[11px]">{L('Submitted UTR / Ref No.', 'दर्ज UTR नंबर')}</span>
+                  <code className="font-mono font-bold bg-white px-2 py-0.5 rounded border border-amber-200 text-slate-900 select-all">
+                    {utr || L('Screenshot only', 'केवल स्क्रीनशॉट')}
+                  </code>
+                </div>
+                <div>
+                  <span className="text-slate-500 block text-[11px]">{L('Payer Name on UPI', 'खाताधारक का नाम')}</span>
+                  <span className="font-bold text-slate-900">{payer || b.guest_name}</span>
+                </div>
+                <div>
+                  <span className="text-slate-500 block text-[11px]">{L('Payee UPI ID', 'होटल UPI ID')}</span>
+                  <span className="font-mono font-semibold text-slate-700">6377682442-6@ibl</span>
+                </div>
+                <div>
+                  <span className="text-slate-500 block text-[11px]">{L('Amount', 'राशि')}</span>
+                  <span className="font-black text-slate-900">{inr(b.amount)}</span>
+                </div>
+              </div>
+
+              {b.payment_screenshot && (
+                <div className="mt-3 pt-2.5 border-t border-amber-200 flex items-center justify-between">
+                  <span className="text-xs font-semibold text-amber-900">{L('Guest Payment Screenshot:', 'मेहमान द्वारा भेजा गया स्क्रीनशॉट:')}</span>
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setScreenshotModal(b.payment_screenshot)}
+                      className="flex items-center gap-1.5 rounded-lg border border-amber-300 bg-white px-2.5 py-1 text-xs font-bold text-amber-900 hover:bg-amber-100 transition shadow-xs"
+                    >
+                      <Eye size={13} />
+                      <span>{L('View Full Screenshot', 'स्क्रीनशॉट देखें')}</span>
+                    </button>
+                    <img
+                      src={b.payment_screenshot}
+                      alt="Payment proof"
+                      onClick={() => setScreenshotModal(b.payment_screenshot)}
+                      className="h-9 w-9 object-cover rounded-lg border border-amber-300 cursor-pointer hover:opacity-80"
+                    />
+                  </div>
+                </div>
+              )}
+            </div>
+          );
+        })()}
+
         <div className="mt-4 flex flex-wrap gap-2">
           {b.status === 'pending' && <button onClick={() => openConfirmDialog('confirmed')} disabled={busy} className="flex items-center gap-1.5 rounded-xl bg-emerald-600 px-3 py-2.5 text-sm font-semibold text-white hover:bg-emerald-700 shadow-sm"><CheckCircle2 size={15} />{L('Confirm booking', 'बुकिंग कन्फ़र्म करें')}</button>}
           {['pending', 'confirmed'].includes(b.status) && <button onClick={checkIn} disabled={busy} className="flex items-center gap-1.5 rounded-xl bg-blue-600 px-3 py-2.5 text-sm font-semibold text-white"><LogIn size={15} />{L('Check in', 'चेक-इन')}</button>}
@@ -697,6 +773,38 @@ export default function BookingDetail() {
               </button>
             </div>
           </form>
+        </div>
+      )}
+
+      {/* Screenshot Lightbox Modal */}
+      {screenshotModal && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/80 p-4 backdrop-blur-xs animate-in fade-in duration-150"
+          onClick={() => setScreenshotModal(null)}
+        >
+          <div
+            className="relative max-w-2xl max-h-[90vh] bg-white rounded-2xl p-3 shadow-2xl overflow-auto"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between pb-2 border-b border-slate-200 mb-2">
+              <span className="text-xs font-bold text-slate-900 flex items-center gap-1.5">
+                <ShieldCheck size={16} className="text-emerald-600" />
+                {L('UPI Payment Screenshot Proof', 'UPI भुगतान स्क्रीनशॉट प्रमाण')}
+              </span>
+              <button
+                type="button"
+                onClick={() => setScreenshotModal(null)}
+                className="rounded-full bg-slate-100 p-1.5 text-slate-500 hover:bg-slate-200 transition"
+              >
+                <X size={16} />
+              </button>
+            </div>
+            <img
+              src={screenshotModal}
+              alt="UPI Screenshot Proof"
+              className="w-full h-auto rounded-xl object-contain max-h-[78vh]"
+            />
+          </div>
         </div>
       )}
     </div>

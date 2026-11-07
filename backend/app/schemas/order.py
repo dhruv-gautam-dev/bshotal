@@ -33,6 +33,16 @@ class OrderCreatePublic(BaseSchema):
     items: list[OrderItemInput] = Field(..., min_length=1)
     kitchen_notes: str | None = None
     honeypot: str | None = None  # Anti-spam
+    # Payment fields (PhonePe UPI QR support)
+    payment_mode: str | None = "cash"
+    payment_utr: str | None = None
+    payment_name: str | None = None
+    payment_screenshot: str | None = None
+    # Delivery 1km verification fields
+    delivery_lat: float | None = None
+    delivery_lng: float | None = None
+    delivery_distance_km: float | None = None
+    delivery_landmark: str | None = None
 
 
 class OrderCreateAdmin(BaseSchema):

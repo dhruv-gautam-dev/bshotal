@@ -178,6 +178,18 @@ async def create_public_booking(db: AsyncSession, data: BookingCreatePublic) -> 
             db, phone=data.guest_phone, name=data.guest_name, email=data.guest_email
         )
 
+        is_upi = data.payment_mode == "upi_qr"
+        pay_notes_parts = []
+        if is_upi:
+            pay_notes_parts.append("[PhonePe UPI QR Payment Proof]")
+            if data.payment_utr:
+                pay_notes_parts.append(f"UTR: {data.payment_utr}")
+            if data.payment_name:
+                pay_notes_parts.append(f"Payer: {data.payment_name}")
+            if data.payment_screenshot:
+                pay_notes_parts.append("Screenshot: Attached")
+        admin_notes = " | ".join(pay_notes_parts) if pay_notes_parts else None
+
         booking = Booking(
             booking_reference=generate_booking_reference(),
             room_type_id=data.room_type_id,
@@ -194,20 +206,36 @@ async def create_public_booking(db: AsyncSession, data: BookingCreatePublic) -> 
             tax_amount=tax_amount,
             total_amount=total_amount,
             advance_paid=Decimal("0.00"),
-            payment_status="unpaid",
+            payment_status="submitted" if is_upi else "unpaid",
             booking_status="pending",
             source="website",
             special_requests=data.special_requests,
+            admin_notes=admin_notes,
         )
         db.add(booking)
         await db.flush()
+
+        if is_upi:
+            from app.models.payment import Payment
+            pay_rec = Payment(
+                payment_reference=f"PAY-{booking.booking_reference}",
+                booking_id=booking.id,
+                amount=total_amount,
+                currency="INR",
+                mode="upi",
+                status="pending",
+                payment_type="full",
+                transaction_id=data.payment_utr,
+                notes=f"Payer: {data.payment_name or data.guest_name} | UPI: 6377682442-6@ibl" + (" | Screenshot provided" if data.payment_screenshot else ""),
+            )
+            db.add(pay_rec)
 
         # Initial history entry
         history = BookingHistory(
             booking_id=booking.id,
             from_status="none",
             to_status="pending",
-            notes="Online booking request placed via website",
+            notes="Online booking request placed via website" + (" (UPI QR Payment Submitted)" if is_upi else ""),
         )
         db.add(history)
         await db.commit()

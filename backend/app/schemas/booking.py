@@ -28,6 +28,10 @@ class BookingCreatePublic(BaseSchema):
     num_guests: int = Field(1, ge=1, le=30)
     num_children: int = Field(0, ge=0, le=10)
     special_requests: str | None = None
+    payment_mode: str | None = "pay_at_hotel"
+    payment_utr: str | None = None
+    payment_name: str | None = None
+    payment_screenshot: str | None = None
     honeypot: str | None = None  # Anti-spam field: must be empty
 
     @field_validator("check_out_date")

@@ -1,3 +1,4 @@
+import math
 import random
 import string
 from datetime import UTC, datetime
@@ -9,9 +10,77 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.menu import MenuItem
 from app.models.order import Order, OrderItem
+from app.models.payment import Payment
 from app.models.setting import Setting
 from app.schemas.order import OrderCreatePublic, OrderStatusUpdate
 from app.services.booking_service import get_or_create_customer
+
+# Known Mathura localities that are beyond the 1 km delivery radius of B.S. Hotel (NH-2, Baad)
+KNOWN_FAR_MATHURA_AREAS = [
+    ("maholi", "Maholi Road", 8.5),
+    ("lajpat nagar", "Lajpat Nagar", 9.5),
+    ("dampier", "Dampier Nagar", 8.5),
+    ("krishna nagar", "Krishna Nagar (City)", 9.0),
+    ("civil lines", "Civil Lines", 10.0),
+    ("bsa", "BSA College Area", 8.5),
+    ("bhuteshwar", "Bhuteshwar", 9.5),
+    ("vrindavan", "Vrindavan", 22.0),
+    ("chhatikara", "Chhatikara", 18.0),
+    ("govardhan", "Govardhan", 28.0),
+    ("radha kund", "Radha Kund", 26.0),
+    ("barsana", "Barsana", 45.0),
+    ("kosi", "Kosi Kalan", 45.0),
+    ("masani", "Masani", 11.0),
+    ("govind nagar", "Govind Nagar", 10.0),
+    ("janmabhoomi", "Janmabhoomi Area", 10.5),
+    ("aurangabad", "Aurangabad", 5.5),
+    ("highway city", "Highway City", 8.0),
+    ("chandan van", "Chandan Van", 7.5),
+    ("radhika vihar", "Radhika Vihar", 9.0),
+    ("shri nagar", "Shri Nagar", 8.5),
+    ("gokul", "Gokul", 9.5),
+    ("farah", "Farah", 12.0),
+    ("raya", "Raya", 16.0),
+    ("sonkh", "Sonkh", 18.0),
+    ("baldeo", "Baldeo", 22.0),
+    ("cantt", "Mathura Cantt", 11.0),
+    ("holi gate", "Holi Gate", 10.0),
+    ("vishram ghat", "Vishram Ghat", 10.5),
+    ("deeg gate", "Deeg Gate", 10.0),
+    ("bharatpur gate", "Bharatpur Gate", 9.5),
+    ("manoharpura", "Manoharpura", 9.0),
+    ("motikunj", "Motikunj", 8.5),
+]
+
+
+def check_mathura_out_of_range(address_text: str) -> tuple[str, float] | None:
+    txt = (address_text or "").lower()
+    for kw, name, dist in KNOWN_FAR_MATHURA_AREAS:
+        if kw in txt:
+            # Special case: don't flag "Krishna Nagar Ext" near Baad
+            if kw == "krishna nagar" and ("ext" in txt or "baad" in txt):
+                continue
+            return name, dist
+    return None
+
+
+HOTEL_LAT = 27.4250
+HOTEL_LNG = 77.6920
+MAX_DELIVERY_RADIUS_KM = 1.25  # Strict 1 km + minor GPS tolerance buffer
+
+
+def compute_haversine_distance_km(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
+    R = 6371.0  # Earth radius in km
+    dlat = math.radians(lat2 - lat1)
+    dlon = math.radians(lon2 - lon1)
+    a = (
+        math.sin(dlat / 2) ** 2
+        + math.cos(math.radians(lat1))
+        * math.cos(math.radians(lat2))
+        * math.sin(dlon / 2) ** 2
+    )
+    c = 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a))
+    return R * c
 
 ALLOWED_ORDER_TRANSITIONS = {
     "new": {"accepted", "cancelled"},
@@ -92,12 +161,62 @@ async def create_public_order(db: AsyncSession, data: OrderCreatePublic) -> Orde
             }
         )
 
-    # Minimum order check for delivery
-    if data.order_type == "delivery" and subtotal < min_delivery_order:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Minimum order amount for delivery is Rs. {min_delivery_order:.2f}",
-        )
+    # Delivery radius and minimum order check
+    detected_distance = None
+    delivery_addr = data.delivery_address or ""
+
+    if data.order_type == "delivery":
+        if subtotal < min_delivery_order:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Minimum order amount for delivery is Rs. {min_delivery_order:.2f}",
+            )
+
+        # Check text-based Mathura locality blacklist / distance match
+        out_of_range_match = check_mathura_out_of_range(f"{data.delivery_address} {data.delivery_landmark or ''}")
+        if out_of_range_match:
+            area_name, approx_dist = out_of_range_match
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=(
+                    f"Delivery is strictly limited to 1 km around B.S. Hotel (NH-2, Baad). "
+                    f"'{area_name}' is approximately {approx_dist:.1f} km away. "
+                    f"Please choose 'Pickup' or contact the restaurant at +91 91492 24039."
+                ),
+            )
+
+        # 1 km distance verification via GPS coordinates
+        if data.delivery_lat is not None and data.delivery_lng is not None:
+            detected_distance = compute_haversine_distance_km(
+                HOTEL_LAT, HOTEL_LNG, float(data.delivery_lat), float(data.delivery_lng)
+            )
+            if detected_distance > MAX_DELIVERY_RADIUS_KM:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail=(
+                        f"Delivery is strictly limited to 1 km around B.S. Hotel & Restaurant. "
+                        f"Your location is ~{detected_distance:.2f} km away. "
+                        f"Please choose 'Pickup' or contact the restaurant at +91 91492 24039."
+                    ),
+                )
+
+        # Distance verification via explicitly sent distance_km
+        if data.delivery_distance_km is not None and data.delivery_distance_km > MAX_DELIVERY_RADIUS_KM:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=(
+                    f"Selected delivery location is beyond our 1 km radius (~{data.delivery_distance_km:.2f} km). "
+                    f"Please choose 'Pickup' or contact the restaurant directly."
+                ),
+            )
+
+        # Enrich delivery address with landmark and distance
+        if data.delivery_landmark:
+            delivery_addr = f"{delivery_addr} (Landmark: {data.delivery_landmark})"
+        if detected_distance is not None:
+            delivery_addr = f"{delivery_addr} [~{detected_distance:.2f} km from hotel]"
+        elif data.delivery_distance_km is not None:
+            delivery_addr = f"{delivery_addr} [~{data.delivery_distance_km:.2f} km from hotel]"
 
     # Delivery fee calculation
     delivery_fee = Decimal("0.00")
@@ -115,6 +234,18 @@ async def create_public_order(db: AsyncSession, data: OrderCreatePublic) -> Orde
         db, phone=data.customer_phone, name=data.customer_name, email=data.customer_email
     )
 
+    is_upi = (data.payment_mode or "").lower() in ("upi_qr", "upi")
+    notes_list = []
+    if is_upi:
+        notes_list.append(
+            f"[PhonePe UPI QR | UTR: {data.payment_utr or 'N/A'} | Payer: {data.payment_name or data.customer_name}]"
+        )
+        if data.payment_screenshot:
+            notes_list.append(f"[Screenshot proof attached: {data.payment_screenshot[:60]}...]")
+    if data.kitchen_notes:
+        notes_list.append(data.kitchen_notes)
+    final_notes = "\n".join(notes_list) if notes_list else None
+
     order = Order(
         order_reference=generate_order_reference(),
         customer_id=customer.id,
@@ -123,19 +254,39 @@ async def create_public_order(db: AsyncSession, data: OrderCreatePublic) -> Orde
         customer_email=data.customer_email,
         order_type=data.order_type,
         table_number=data.table_number,
-        delivery_address=data.delivery_address,
+        delivery_address=delivery_addr if data.order_type == "delivery" else None,
         subtotal=subtotal,
         tax_amount=tax_amount,
         delivery_fee=delivery_fee,
         discount_amount=Decimal("0.00"),
         total_amount=total_amount,
         status="new",
-        payment_status="unpaid",
-        kitchen_notes=data.kitchen_notes,
+        payment_status="submitted" if is_upi else "unpaid",
+        payment_mode="upi" if is_upi else (data.payment_mode or "cash"),
+        kitchen_notes=final_notes,
         estimated_prep_minutes=25 if data.order_type != "delivery" else 40,
     )
     db.add(order)
     await db.flush()
+
+    # If UPI QR, record linked Payment record
+    if is_upi:
+        pay_rec = Payment(
+            payment_reference=f"PAY-{order.order_reference}",
+            order_id=order.id,
+            amount=total_amount,
+            currency="INR",
+            mode="upi",
+            status="pending",
+            payment_type="full",
+            transaction_id=data.payment_utr,
+            notes=(
+                f"PhonePe UPI QR payment proof. Payer: {data.payment_name or data.customer_name} | "
+                f"UPI: 6377682442-6@ibl"
+                + (" | Screenshot provided" if data.payment_screenshot else "")
+            ),
+        )
+        db.add(pay_rec)
 
     for item_data in order_items_to_create:
         order_item = OrderItem(order_id=order.id, **item_data)

@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useSelector, useDispatch } from 'react-redux';
-import { Plus, Download, Printer, X, Phone } from 'lucide-react';
+import { Plus, Download, Printer, X, Phone, Eye } from 'lucide-react';
 import { apiClient } from '@/api/apiClient';
 import { useI18n } from '@/lib/i18n';
 import { useAdmin } from '../AdminContext';
@@ -32,6 +32,7 @@ export default function Orders() {
   const [openForm, setOpenForm] = useState(params.get('new') === '1');
   const [active, setActive] = useState(null);
   const [orderPriceModal, setOrderPriceModal] = useState({ open: false, total: '' });
+  const [screenshotModal, setScreenshotModal] = useState(null);
   const [settings, setSettings] = useState(null);
   const qc = useQueryClient();
   const dispatch = useDispatch();
@@ -213,12 +214,20 @@ export default function Orders() {
                       >
                         {/* Top Meta: Ref Badge + Order Type Pill */}
                         <div className="flex items-center justify-between gap-1.5 min-w-0">
-                          <span
-                            className="font-mono text-[10px] font-bold text-slate-500 bg-slate-100 px-1.5 py-0.5 rounded border border-slate-200/60 truncate"
-                            title={o.ref}
-                          >
-                            {o.ref.startsWith('ORD-') ? `#${o.ref.slice(9)}` : o.ref}
-                          </span>
+                          <div className="flex items-center gap-1 min-w-0">
+                            <span
+                              className="font-mono text-[10px] font-bold text-slate-500 bg-slate-100 px-1.5 py-0.5 rounded border border-slate-200/60 truncate"
+                              title={o.ref}
+                            >
+                              {o.ref.startsWith('ORD-') ? `#${o.ref.slice(9)}` : o.ref}
+                            </span>
+                            {(o.payment_mode === 'upi' || o.payment_mode === 'upi_qr' || String(o.notes || '').includes('PhonePe UPI')) && (
+                              <span className="rounded-full bg-purple-100 border border-purple-200 px-1.5 py-0.5 text-[9px] font-bold text-purple-800 inline-flex items-center gap-0.5 shrink-0" title="PhonePe UPI Payment Proof">
+                                <span className="font-bold text-[8px] bg-purple-700 text-white rounded-xs px-0.5">पे</span>
+                                <span>UPI</span>
+                              </span>
+                            )}
+                          </div>
                           <span
                             className={`shrink-0 rounded px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wider border ${
                               o.type === 'dine_in'
@@ -298,7 +307,18 @@ export default function Orders() {
               {orders.map((o) => (
                 <tr key={o.id} className="cursor-pointer hover:bg-slate-50" onClick={() => setActive(o)}>
                   <td className="px-4 py-3"><span className="font-medium">{o.ref}</span><span className="block text-xs text-slate-500">{new Date(o.created_date || o.created_at || Date.now()).toLocaleDateString('en-IN')}</span></td>
-                  <td className="px-4 py-3">{o.customer_name}<span className="block text-xs text-slate-500">{o.phone}</span></td>
+                  <td className="px-4 py-3">
+                    <div className="flex items-center gap-1.5 flex-wrap">
+                      <span className="font-semibold text-slate-900">{o.customer_name}</span>
+                      {(o.payment_mode === 'upi' || o.payment_mode === 'upi_qr' || String(o.notes || '').includes('PhonePe UPI')) && (
+                        <span className="rounded-full bg-purple-100 border border-purple-200 px-1.5 py-0.5 text-[9px] font-bold text-purple-800 inline-flex items-center gap-0.5">
+                          <span className="font-bold text-[8px] bg-purple-700 text-white rounded-xs px-0.5">पे</span>
+                          <span>UPI</span>
+                        </span>
+                      )}
+                    </div>
+                    <span className="block text-xs text-slate-500">{o.phone}</span>
+                  </td>
                   <td className="px-4 py-3 capitalize">{o.type}</td>
                   <td className="px-4 py-3 tabular-nums">{inr(o.total)}</td>
                   <td className="px-4 py-3"><StatusPill kind="order" value={o.status} /></td>
@@ -355,6 +375,83 @@ export default function Orders() {
               </div>
             </div>
             {active.notes && <p className="mt-2 rounded-lg bg-amber-50 px-3 py-2 text-sm text-amber-900">{active.notes}</p>}
+
+            {/* PhonePe UPI QR Verification Box */}
+            {(() => {
+              const isUpi = active.payment_mode === 'upi' || active.payment_mode === 'upi_qr' || String(active.notes || '').includes('PhonePe UPI');
+              if (!isUpi) return null;
+
+              let utr = active.payment_utr || '';
+              let payer = active.payment_name || '';
+              const notesStr = String(active.notes || '');
+              if (!utr) {
+                const m = notesStr.match(/UTR:\s*([A-Za-z0-9]+)/i);
+                if (m) utr = m[1];
+              }
+              if (!payer) {
+                const m = notesStr.match(/Payer:\s*([^|\]\n]+)/i);
+                if (m) payer = m[1].trim();
+              }
+
+              const screenshot = active.payment_screenshot;
+
+              return (
+                <div className="mt-3 rounded-xl border border-amber-300 bg-amber-50/80 p-3.5 space-y-2.5">
+                  <div className="flex items-center justify-between border-b border-amber-200/80 pb-2">
+                    <div className="flex items-center gap-1.5 text-xs font-bold text-amber-900">
+                      <div className="flex h-5 w-5 items-center justify-center rounded-md bg-purple-600 text-white font-bold text-[10px]">पे</div>
+                      <span>{L('PhonePe UPI Payment Proof', 'PhonePe UPI भुगतान प्रमाण')}</span>
+                    </div>
+                    <span className="rounded bg-amber-200/90 px-2 py-0.5 text-[10px] font-bold text-amber-900">
+                      {active.payment_status === 'paid' ? L('Verified ✓', 'सत्यापित ✓') : L('Verify with Bank / Soundbox', 'बैंक / साउंडबॉक्स से मिलान करें')}
+                    </span>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-2 text-xs">
+                    <div>
+                      <span className="text-[10px] text-slate-500 block">{L('Submitted UTR / Ref No.', 'दर्ज UTR नंबर')}</span>
+                      <code className="font-mono font-bold text-slate-900 bg-white px-1.5 py-0.5 rounded border border-amber-200 text-[11px] select-all">
+                        {utr || L('Screenshot only', 'केवल स्क्रीनशॉट')}
+                      </code>
+                    </div>
+                    <div>
+                      <span className="text-[10px] text-slate-500 block">{L('Payer Name on UPI', 'खाताधारक का नाम')}</span>
+                      <span className="font-semibold text-slate-900">{payer || active.customer_name}</span>
+                    </div>
+                    <div>
+                      <span className="text-[10px] text-slate-500 block">{L('Payee UPI ID', 'होटल UPI ID')}</span>
+                      <span className="font-mono text-[11px] text-slate-700">6377682442-6@ibl</span>
+                    </div>
+                    <div>
+                      <span className="text-[10px] text-slate-500 block">{L('Total Amount', 'कुल राशि')}</span>
+                      <span className="font-bold text-slate-900">{inr(active.total)}</span>
+                    </div>
+                  </div>
+
+                  {screenshot && (
+                    <div className="pt-2 border-t border-amber-200/80 flex items-center justify-between">
+                      <span className="text-[11px] font-semibold text-amber-900">{L('Guest Payment Screenshot:', 'मेहमान का स्क्रीनशॉट:')}</span>
+                      <div className="flex items-center gap-2">
+                        <button
+                          type="button"
+                          onClick={() => setScreenshotModal(screenshot)}
+                          className="inline-flex items-center gap-1 rounded bg-white border border-amber-300 px-2 py-1 text-xs font-bold text-amber-900 hover:bg-amber-100"
+                        >
+                          <Eye size={12} />
+                          <span>{L('View Full Screenshot', 'स्क्रीनशॉट देखें')}</span>
+                        </button>
+                        <img
+                          src={screenshot}
+                          alt="Payment proof"
+                          onClick={() => setScreenshotModal(screenshot)}
+                          className="h-8 w-8 object-cover rounded border border-amber-300 cursor-pointer"
+                        />
+                      </div>
+                    </div>
+                  )}
+                </div>
+              );
+            })()}
 
             <p className="mt-4 text-xs font-semibold uppercase text-slate-500">{L('Move to', 'स्थिति बदलें')}</p>
             <div className="mt-1 flex flex-wrap gap-1.5">
@@ -426,6 +523,38 @@ export default function Orders() {
               </button>
             </div>
           </form>
+        </div>
+      )}
+      {/* Screenshot Lightbox Modal */}
+      {screenshotModal && (
+        <div
+          className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 p-4 backdrop-blur-xs"
+          onClick={() => setScreenshotModal(null)}
+        >
+          <div
+            className="relative max-h-[90vh] max-w-xl overflow-hidden rounded-2xl bg-slate-900 p-2 shadow-2xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between border-b border-slate-800 p-3 text-white">
+              <span className="text-xs font-bold uppercase tracking-wider text-amber-400">
+                {L('Guest Payment Screenshot Proof', 'मेहमान द्वारा भेजा गया स्क्रीनशॉट')}
+              </span>
+              <button
+                type="button"
+                onClick={() => setScreenshotModal(null)}
+                className="rounded-lg p-1 text-slate-400 hover:bg-slate-800 hover:text-white"
+              >
+                <X size={20} />
+              </button>
+            </div>
+            <div className="max-h-[75vh] overflow-auto p-2 flex items-center justify-center">
+              <img
+                src={screenshotModal}
+                alt="Payment Full Screenshot"
+                className="max-h-[72vh] w-auto rounded-lg object-contain"
+              />
+            </div>
+          </div>
         </div>
       )}
     </div>

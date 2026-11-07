@@ -172,6 +172,12 @@ export async function fetchEventPackages() {
 export async function createBookingRequest(data) {
   const formattedPhone = cleanPhone(data.phone);
 
+  let formattedSpecial = data.special_requests || '';
+  if (data.payment_mode === 'upi_qr') {
+    const payLine = `[PAYMENT: PhonePe UPI QR] [UTR: ${data.payment_utr || 'Screenshot uploaded'}] [Payer: ${data.payment_name || data.guest_name}]`;
+    formattedSpecial = formattedSpecial ? `${payLine}\n${formattedSpecial}` : payLine;
+  }
+
   try {
     const created = await apiClient.entities.Booking.create({
       room_type_id: data.room_type_id,
@@ -182,7 +188,11 @@ export async function createBookingRequest(data) {
       check_out: data.check_out,
       rooms: Number(data.rooms) || 1,
       guests: Number(data.guests) || 1,
-      special_requests: data.special_requests || '',
+      special_requests: formattedSpecial,
+      payment_mode: data.payment_mode || 'pay_at_hotel',
+      payment_utr: data.payment_utr || null,
+      payment_name: data.payment_name || null,
+      payment_screenshot: data.payment_screenshot || null,
     });
 
     return {
@@ -190,10 +200,18 @@ export async function createBookingRequest(data) {
       ref: created.booking_reference || created.ref,
       name: data.guest_name,
       phone: formattedPhone,
+      email: data.email || null,
       roomName: data.room_type_name || '',
       checkIn: data.check_in,
       checkOut: data.check_out,
-      special: data.special_requests,
+      nights: data.nights || 1,
+      guests: data.guests || 2,
+      amount: data.amount || 0,
+      special: formattedSpecial,
+      payment_mode: data.payment_mode || 'pay_at_hotel',
+      payment_utr: data.payment_utr || null,
+      payment_name: data.payment_name || null,
+      payment_screenshot: data.payment_screenshot || null,
     };
   } catch (err) {
     // If backend reports true room unavailability (e.g. 409 Conflict), propagate the error
@@ -215,8 +233,12 @@ export async function createBookingRequest(data) {
       checkOut: data.check_out,
       nights: data.nights || 1,
       guests: data.guests || 2,
-      special: data.special_requests || '',
+      special: formattedSpecial,
       amount: data.amount || 0,
+      payment_mode: data.payment_mode || 'pay_at_hotel',
+      payment_utr: data.payment_utr || null,
+      payment_name: data.payment_name || null,
+      payment_screenshot: data.payment_screenshot || null,
       fallback: true,
     };
   }
@@ -243,14 +265,33 @@ export async function createOrder(data) {
       address: data.address || '',
       items,
       notes: data.notes || '',
+      payment_mode: data.payment_mode || 'cash',
+      payment_utr: data.payment_utr || null,
+      payment_name: data.payment_name || null,
+      payment_screenshot: data.payment_screenshot || null,
+      delivery_lat: data.delivery_lat != null ? Number(data.delivery_lat) : null,
+      delivery_lng: data.delivery_lng != null ? Number(data.delivery_lng) : null,
+      delivery_distance_km: data.delivery_distance_km != null ? Number(data.delivery_distance_km) : null,
+      delivery_landmark: data.delivery_landmark || null,
     });
 
     return {
       ...created,
       ref: created.order_reference || created.ref,
       total: Number(created.total_amount || created.total || 0),
+      payment_mode: data.payment_mode || 'cash',
+      payment_utr: data.payment_utr || null,
+      payment_name: data.payment_name || null,
+      payment_screenshot: data.payment_screenshot || null,
+      delivery_distance_km: data.delivery_distance_km || null,
+      delivery_landmark: data.delivery_landmark || null,
     };
   } catch (err) {
+    // If backend reports distance limit or business validation error, bubble it up to show user
+    if (err.status === 400 || (err.message && (err.message.includes('1 km') || err.message.includes('radius') || err.message.includes('Minimum order')))) {
+      throw err;
+    }
+
     console.warn('Order API returned error or 405 static response; activating resilient order confirmation:', err);
     const fallbackRef = `BSO-${Math.random().toString(36).slice(2, 8).toUpperCase()}`;
     const subtotal = items.reduce((acc, it) => acc + it.price * it.qty, 0);
@@ -266,6 +307,12 @@ export async function createOrder(data) {
       items,
       notes: data.notes || '',
       total: data.total || subtotal,
+      payment_mode: data.payment_mode || 'cash',
+      payment_utr: data.payment_utr || null,
+      payment_name: data.payment_name || null,
+      payment_screenshot: data.payment_screenshot || null,
+      delivery_distance_km: data.delivery_distance_km || null,
+      delivery_landmark: data.delivery_landmark || null,
       fallback: true,
     };
   }

@@ -754,7 +754,15 @@ export default function Bookings() {
                 {rows.map((b) => (
                   <tr key={b.id} className="hover:bg-slate-50/70 transition">
                     <td className="px-4 py-3">
-                      <p className="font-semibold text-slate-900">{b.guest_name}</p>
+                      <div className="flex items-center gap-1.5 flex-wrap">
+                        <p className="font-semibold text-slate-900">{b.guest_name}</p>
+                        {(b.payment_mode === 'upi_qr' || String(b.special_requests || '').includes('PhonePe UPI')) && (
+                          <span className="rounded-full bg-purple-100 border border-purple-200 px-2 py-0.5 text-[10px] font-bold text-purple-800 inline-flex items-center gap-0.5">
+                            <span className="font-bold text-[9px] bg-purple-700 text-white rounded-xs px-1">पे</span>
+                            <span>UPI Proof</span>
+                          </span>
+                        )}
+                      </div>
                       <p className="text-xs text-slate-500">{b.phone} · <span className="font-mono text-[11px]">#{b.ref}</span></p>
                     </td>
                     <td className="px-4 py-3 text-slate-600">
@@ -807,7 +815,15 @@ export default function Bookings() {
               <div key={b.id} className="w-full rounded-2xl border border-slate-200 bg-white p-4 shadow-sm space-y-2">
                 <div className="flex items-start justify-between gap-2">
                   <div>
-                    <p className="font-semibold text-slate-900">{b.guest_name}</p>
+                    <div className="flex items-center gap-1.5 flex-wrap">
+                      <p className="font-semibold text-slate-900">{b.guest_name}</p>
+                      {(b.payment_mode === 'upi_qr' || String(b.special_requests || '').includes('PhonePe UPI')) && (
+                        <span className="rounded-full bg-purple-100 border border-purple-200 px-2 py-0.5 text-[10px] font-bold text-purple-800 inline-flex items-center gap-0.5">
+                          <span className="font-bold text-[9px] bg-purple-700 text-white rounded-xs px-1">पे</span>
+                          <span>UPI Proof</span>
+                        </span>
+                      )}
+                    </div>
                     <p className="text-xs text-slate-500">{b.phone} · #{b.ref}</p>
                   </div>
                   <StatusPill kind="booking" value={b.status} />

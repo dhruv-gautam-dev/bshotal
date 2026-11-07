@@ -5,6 +5,7 @@ import { createBookingRequest, createOrder, createEnquiry, createContactMessage 
 import { ORDER_CONFIG } from '@/data/site';
 
 export function bookingMessage(b) {
+  const isUpi = b.payment_mode === 'upi_qr';
   return [
     `*Room Booking Request* (Ref: ${b.ref})`,
     `Name: ${b.name}`,
@@ -14,7 +15,12 @@ export function bookingMessage(b) {
     `Check-in: ${b.checkIn}`,
     `Check-out: ${b.checkOut} (${b.nights} night${b.nights > 1 ? 's' : ''})`,
     `Guests: ${b.guests}`,
-    b.special ? `Requests: ${b.special}` : null,
+    b.amount ? `Total Amount: ₹${Number(b.amount).toLocaleString('en-IN')}` : null,
+    isUpi ? `\n*UPI Payment Proof (PhonePe):*` : `Payment Mode: Pay at Hotel desk`,
+    isUpi && b.payment_utr ? `UTR No: ${b.payment_utr}` : null,
+    isUpi && b.payment_name ? `Payer Name: ${b.payment_name}` : null,
+    isUpi && b.payment_screenshot ? `Screenshot: Attached in booking` : null,
+    b.special ? `\nSpecial Requests: ${b.special}` : null,
   ].filter(Boolean).join('\n');
 }
 
@@ -30,12 +36,18 @@ export async function submitBooking(data) {
     guests: data.guests,
     special_requests: data.special,
     amount: data.amount,
+    payment_mode: data.payment_mode,
+    payment_utr: data.payment_utr,
+    payment_name: data.payment_name,
+    payment_screenshot: data.payment_screenshot,
   });
   return created;
 }
 
 export function orderMessage(o) {
   const lines = (o.items || []).map((i, n) => `${n + 1}. ${i.name} x${i.qty} = ${inr(i.qty * i.price)}${i.note ? ` (${i.note})` : ''}`);
+  const isUpi = o.payment_mode === 'upi_qr' || o.payment_mode === 'upi';
+
   return [
     `*Food Order* (Ref: ${o.ref})`,
     ...lines,
@@ -45,8 +57,14 @@ export function orderMessage(o) {
     `*Total: ${inr(o.total)}*`,
     `Order type: ${o.type}${o.table ? ` (Table ${o.table})` : ''}`,
     o.address ? `Address: ${o.address}` : null,
+    o.delivery_landmark ? `Landmark: ${o.delivery_landmark}` : null,
+    o.delivery_distance_km ? `Distance: ~${Number(o.delivery_distance_km).toFixed(2)} km (Within 1 km delivery radius)` : null,
     `Name: ${o.customer_name || o.name}`,
     `Phone: ${o.phone}`,
+    isUpi ? `*Payment:* PhonePe UPI QR (Submitted)` : `*Payment:* ${o.type === 'delivery' || o.type === 'Delivery' ? 'Cash on Delivery' : 'Pay at Restaurant'}`,
+    isUpi && o.payment_utr ? `UTR No: ${o.payment_utr}` : null,
+    isUpi && o.payment_name ? `Payer Name: ${o.payment_name}` : null,
+    isUpi && o.payment_screenshot ? `Payment Screenshot: Attached` : null,
     o.notes ? `Notes: ${o.notes}` : null,
   ].filter(Boolean).join('\n');
 }
@@ -68,8 +86,36 @@ export async function submitOrder(data) {
     address: data.address,
     items: (data.items || []).map((i) => ({ id: i.id, name: i.name, price: i.price, qty: i.qty, note: i.note })),
     notes: data.notes,
+    payment_mode: data.payment_mode || 'cash',
+    payment_utr: data.payment_utr || null,
+    payment_name: data.payment_name || null,
+    payment_screenshot: data.payment_screenshot || null,
+    delivery_lat: data.delivery_lat || null,
+    delivery_lng: data.delivery_lng || null,
+    delivery_distance_km: data.delivery_distance_km || null,
+    delivery_landmark: data.delivery_landmark || null,
   });
-  return { ...created, name: data.name };
+  return {
+    ...created,
+    name: data.name,
+    customer_name: data.name,
+    phone: data.phone,
+    type: data.type,
+    table: data.table,
+    address: data.address,
+    items: data.items,
+    subtotal: data.subtotal,
+    delivery: data.delivery,
+    tax: data.tax,
+    total: data.total,
+    payment_mode: data.payment_mode,
+    payment_utr: data.payment_utr,
+    payment_name: data.payment_name,
+    payment_screenshot: data.payment_screenshot,
+    delivery_distance_km: data.delivery_distance_km,
+    delivery_landmark: data.delivery_landmark,
+    notes: data.notes,
+  };
 }
 
 export function enquiryMessage(e) {
