@@ -16,7 +16,7 @@ export function I18nProvider({ children }) {
     localStorage.setItem('bsh_lang', lang);
     document.documentElement.lang = lang === 'hi' ? 'hi' : 'en';
   }, [lang]);
-  const t = useCallback((key) => DICT[lang][key] ?? DICT.en[key] ?? key, [lang]);
+  const t = useCallback((key, fallback) => DICT[lang][key] ?? DICT.en[key] ?? fallback ?? key, [lang]);
   // pick a {en, hi} object value
   const tr = useCallback((obj) => (obj && typeof obj === 'object' ? obj[lang] ?? obj.en : obj), [lang]);
   const L = useCallback((en, hi) => (lang === 'hi' && hi ? hi : en), [lang]);
