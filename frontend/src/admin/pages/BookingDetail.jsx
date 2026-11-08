@@ -7,7 +7,7 @@ import { apiClient } from '@/api/apiClient';
 import { useI18n } from '@/lib/i18n';
 import { useAdmin } from '../AdminContext';
 import {
-  getSettings, checkAvailability, audit, inr, money, printHtml, todayISO, nightsBetween,
+  getSettings, checkAvailability, audit, inr, money, printHtml, todayISO, nightsBetween, cleanSpecialRequests,
 } from '../lib/adminData';
 import StatusPill from '../components/StatusPill';
 import Confirm from '../components/Confirm';
@@ -414,7 +414,15 @@ export default function BookingDetail() {
           <div><dt className="text-xs text-slate-500">{L('Payment mode', 'भुगतान')}</dt><dd className="font-medium capitalize">{b.payment_mode}</dd></div>
         </dl>
 
-        {b.special_requests && <p className="mt-3 rounded-lg bg-slate-50 px-3 py-2 text-sm text-slate-700"><b>{L('Requests', 'अनुरोध')}:</b> {b.special_requests}</p>}
+        {(() => {
+          const cleanReq = cleanSpecialRequests(b.special_requests);
+          if (!cleanReq) return null;
+          return (
+            <p className="mt-3 rounded-lg bg-slate-50 px-3 py-2 text-sm text-slate-700">
+              <b>{L('Requests', 'अनुरोध')}:</b> {cleanReq}
+            </p>
+          );
+        })()}
 
         {/* PhonePe UPI QR Verification Box */}
         {(() => {

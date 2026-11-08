@@ -5,7 +5,7 @@ import { useSelector, useDispatch } from 'react-redux';
 import { Plus, Search, Download, X, AlertTriangle, CheckCircle2, BedDouble, Calendar, User, Phone, MessageSquare, SlidersHorizontal, ChevronDown, Eye, ShieldCheck, ExternalLink } from 'lucide-react';
 import { apiClient } from '@/api/apiClient';
 import { useI18n } from '@/lib/i18n';
-import { BOOKING_STATUS, inr, downloadCsv } from '../lib/adminData';
+import { BOOKING_STATUS, inr, downloadCsv, cleanSpecialRequests } from '../lib/adminData';
 import StatusPill from '../components/StatusPill';
 import Empty from '../components/Empty';
 import BookingForm from '../components/BookingForm';
@@ -233,7 +233,7 @@ export default function Bookings() {
         { label: 'Check-out', value: (b) => b.check_out },
         { label: 'Guests', value: (b) => b.guests },
         { label: 'Status', value: () => 'Unavailable / Failed' },
-        { label: 'Unavailability Reason & Dates', value: (b) => b.cancellation_reason || b.admin_notes || '' },
+        { label: 'Unavailability Reason & Dates', value: (b) => cleanSpecialRequests(b.cancellation_reason || b.admin_notes || '') },
         { label: 'Attempt Time', value: (b) => b.created_date || '' },
       ]);
     }

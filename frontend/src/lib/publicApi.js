@@ -171,13 +171,7 @@ export async function fetchEventPackages() {
 /** Public booking request — creates booking row in Supabase and returns confirmation with WhatsApp URL */
 export async function createBookingRequest(data) {
   const formattedPhone = cleanPhone(data.phone);
-
-  let formattedSpecial = data.special_requests || '';
-  if (data.payment_mode === 'upi_qr') {
-    const payLine = `[PAYMENT: PhonePe UPI QR] [UTR: ${data.payment_utr || 'Screenshot uploaded'}] [Payer: ${data.payment_name || data.guest_name}]`;
-    const screenshotLine = data.payment_screenshot ? `\n[PAYMENT_SCREENSHOT: ${data.payment_screenshot}]` : '';
-    formattedSpecial = formattedSpecial ? `${payLine}${screenshotLine}\n${formattedSpecial}` : `${payLine}${screenshotLine}`;
-  }
+  const cleanSpecial = data.special_requests ? data.special_requests.trim() : null;
 
   try {
     const created = await apiClient.entities.Booking.create({
@@ -189,7 +183,7 @@ export async function createBookingRequest(data) {
       check_out: data.check_out,
       rooms: Number(data.rooms) || 1,
       guests: Number(data.guests) || 1,
-      special_requests: formattedSpecial,
+      special_requests: cleanSpecial,
       payment_mode: data.payment_mode || 'pay_at_hotel',
       payment_utr: data.payment_utr || null,
       payment_name: data.payment_name || null,
@@ -256,12 +250,7 @@ export async function createOrder(data) {
     note: i.note || '',
   }));
 
-  let formattedNotes = data.notes || '';
-  if (data.payment_mode === 'upi_qr' || data.payment_mode === 'upi') {
-    const payLine = `[PAYMENT: PhonePe UPI QR] [UTR: ${data.payment_utr || 'Screenshot uploaded'}] [Payer: ${data.payment_name || data.customer_name}]`;
-    const screenshotLine = data.payment_screenshot ? `\n[PAYMENT_SCREENSHOT: ${data.payment_screenshot}]` : '';
-    formattedNotes = formattedNotes ? `${payLine}${screenshotLine}\n${formattedNotes}` : `${payLine}${screenshotLine}`;
-  }
+  const cleanOrderNotes = data.notes ? data.notes.trim() : null;
 
   try {
     const created = await apiClient.entities.Order.create({
@@ -272,7 +261,7 @@ export async function createOrder(data) {
       table_no: data.table_no || '',
       address: data.address || '',
       items,
-      notes: formattedNotes,
+      notes: cleanOrderNotes,
       payment_mode: data.payment_mode || 'cash',
       payment_utr: data.payment_utr || null,
       payment_name: data.payment_name || null,

@@ -232,3 +232,19 @@ export function printHtml(title, body) {
   w.focus();
   setTimeout(() => w.print(), 350);
 }
+
+/** Clean special requests or notes of raw technical tags (base64 screenshots, UTR lines, etc.) */
+export function cleanSpecialRequests(text) {
+  if (!text) return '';
+  return String(text)
+    .replace(/\[PAYMENT_SCREENSHOT:\s*[^\]]+\]/gi, '')
+    .replace(/data:image\/[a-zA-Z0-9+.-]+;base64,[A-Za-z0-9+/=\s]+/gi, '')
+    .replace(/\[PAYMENT:\s*[^\]]+\]/gi, '')
+    .replace(/\[UTR:\s*[^\]]+\]/gi, '')
+    .replace(/\[Payer:\s*[^\]]+\]/gi, '')
+    .replace(/\[PhonePe UPI[^\]]*\]/gi, '')
+    .replace(/^Requests:\s*/i, '')
+    .replace(/^Notes:\s*/i, '')
+    .replace(/^\|\s*|\s*\|\s*$/g, '')
+    .trim();
+}

@@ -7,7 +7,7 @@ import { apiClient } from '@/api/apiClient';
 import { useI18n } from '@/lib/i18n';
 import { useAdmin } from '../AdminContext';
 import {
-  ORDER_STATUS, ORDER_TYPES, getSettings, inr, money, audit, downloadCsv, printHtml, todayISO,
+  ORDER_STATUS, ORDER_TYPES, getSettings, inr, money, audit, downloadCsv, printHtml, todayISO, cleanSpecialRequests,
 } from '../lib/adminData';
 import StatusPill from '../components/StatusPill';
 import Empty from '../components/Empty';
@@ -184,7 +184,7 @@ export default function Orders() {
   const kot = (o) => printHtml(`KOT ${o.ref}`, `
     <h1>KITCHEN ORDER</h1><p class="muted">${o.ref} · ${new Date(o.created_date || o.created_at || Date.now()).toLocaleString('en-IN')} · ${o.type}${o.table_no ? ` · Table ${o.table_no}` : ''}</p>
     <table>${(o.items || []).map((i) => `<tr><td style="font-size:15px"><b>${i.qty}×</b> ${i.name}${i.note ? `<br/><span class="muted">${i.note}</span>` : ''}</td></tr>`).join('')}</table>
-    ${o.notes ? `<h2>Note</h2><p>${o.notes}</p>` : ''}
+    ${cleanSpecialRequests(o.notes) ? `<h2>Note</h2><p>${cleanSpecialRequests(o.notes)}</p>` : ''}
   `);
 
   const bill = (o) => printHtml(`Bill ${o.ref}`, `
@@ -415,7 +415,11 @@ export default function Orders() {
                 </span>
               </div>
             </div>
-            {active.notes && <p className="mt-2 rounded-lg bg-amber-50 px-3 py-2 text-sm text-amber-900">{active.notes}</p>}
+            {(() => {
+              const clean = cleanSpecialRequests(active.notes);
+              if (!clean) return null;
+              return <p className="mt-2 rounded-lg bg-amber-50 px-3 py-2 text-sm text-amber-900"><b>{L('Notes', 'टिप्पणी')}:</b> {clean}</p>;
+            })()}
 
             {/* PhonePe UPI QR Verification Box */}
             {(() => {

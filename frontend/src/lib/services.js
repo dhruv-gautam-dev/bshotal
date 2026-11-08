@@ -4,8 +4,24 @@ import { inr, makeRef, openWhatsApp } from '@/lib/whatsapp';
 import { createBookingRequest, createOrder, createEnquiry, createContactMessage } from '@/lib/publicApi';
 import { ORDER_CONFIG } from '@/data/site';
 
+function cleanReqText(text) {
+  if (!text) return '';
+  return String(text)
+    .replace(/\[PAYMENT_SCREENSHOT:\s*[^\]]+\]/gi, '')
+    .replace(/data:image\/[a-zA-Z0-9+.-]+;base64,[A-Za-z0-9+/=\s]+/gi, '')
+    .replace(/\[PAYMENT:\s*[^\]]+\]/gi, '')
+    .replace(/\[UTR:\s*[^\]]+\]/gi, '')
+    .replace(/\[Payer:\s*[^\]]+\]/gi, '')
+    .replace(/\[PhonePe UPI[^\]]*\]/gi, '')
+    .replace(/^Requests:\s*/i, '')
+    .replace(/^Notes:\s*/i, '')
+    .replace(/^\|\s*|\s*\|\s*$/g, '')
+    .trim();
+}
+
 export function bookingMessage(b) {
   const isUpi = b.payment_mode === 'upi_qr';
+  const cleanSpecial = cleanReqText(b.special);
   return [
     `*Room Booking Request* (Ref: ${b.ref})`,
     `Name: ${b.name}`,
@@ -20,7 +36,7 @@ export function bookingMessage(b) {
     isUpi && b.payment_utr ? `UTR No: ${b.payment_utr}` : null,
     isUpi && b.payment_name ? `Payer Name: ${b.payment_name}` : null,
     isUpi && b.payment_screenshot ? `Screenshot: Attached in booking` : null,
-    b.special ? `\nSpecial Requests: ${b.special}` : null,
+    cleanSpecial ? `\nSpecial Requests: ${cleanSpecial}` : null,
   ].filter(Boolean).join('\n');
 }
 
