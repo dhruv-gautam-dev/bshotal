@@ -14,6 +14,8 @@ import {
   Smartphone,
   ShieldCheck,
   Sparkles,
+  Loader2,
+  ArrowRight,
 } from 'lucide-react';
 import PageHero from '@/components/site/PageHero';
 import BookingConfirmation from '@/components/site/BookingConfirmation';
@@ -22,6 +24,7 @@ import { ROOMS } from '@/data/rooms';
 import { useI18n } from '@/lib/i18n';
 import { isValidPhone, inr } from '@/lib/whatsapp';
 import { submitBooking } from '@/lib/services';
+import { apiClient } from '@/api/apiClient';
 import useSeo from '@/lib/useSeo';
 import DatePicker from '@/components/ui/date-picker';
 import PhoneInput from '@/components/ui/phone-input';
@@ -87,6 +90,20 @@ export default function Booking() {
   const [busy, setBusy] = useState(false);
   const [done, setDone] = useState(null);
 
+  // Two-step verification state: room availability must be verified before payment QR is revealed
+  const [isAvailabilityVerified, setIsAvailabilityVerified] = useState(false);
+  const [checkingAvailability, setCheckingAvailability] = useState(false);
+  const [verifiedStayKey, setVerifiedStayKey] = useState('');
+
+  // If user modifies dates or room category, reset verified status so they must re-verify
+  useEffect(() => {
+    const currentKey = `${f.room}_${f.checkIn}_${f.checkOut}_${f.guests}`;
+    if (verifiedStayKey && currentKey !== verifiedStayKey) {
+      setIsAvailabilityVerified(false);
+      setVerifiedStayKey('');
+    }
+  }, [f.room, f.checkIn, f.checkOut, f.guests, verifiedStayKey]);
+
   useSeo(
     'Online Room Booking | B.S. Hotel & Restaurant, Mathura',
     'Reserve your AC luxury room at B.S. Hotel & Restaurant near Mathura Refinery, NH-19 (NH-2), Baad, Mathura with instant PhonePe UPI QR or Pay at Hotel.',
@@ -148,7 +165,8 @@ export default function Booking() {
     if (fileInputRef.current) fileInputRef.current.value = '';
   };
 
-  const validate = () => {
+  // 1. Validate stay and guest details
+  const validateStayDetails = () => {
     const e = {};
     if (f.name.trim().length < 2) e.name = L('Please enter your name.', 'कृपया अपना नाम दर्ज करें।');
     if (!isValidPhone(f.phone)) e.phone = L('Enter a valid 10-digit mobile number.', 'कृपया 10 अंकों का मान्य मोबाइल नंबर दर्ज करें।');
@@ -158,8 +176,12 @@ export default function Booking() {
     if (!f.checkOut) e.checkOut = L('Choose a check-out date.', 'चेक-आउट तारीख चुनें।');
     else if (f.checkIn && f.checkOut <= f.checkIn) e.checkOut = L('Check-out must be after check-in.', 'चेक-आउट तारीख चेक-इन के बाद की होनी चाहिए।');
     if (!(Number(f.guests) >= 1)) e.guests = L('At least 1 guest.', 'कम से कम 1 अतिथि।');
+    return e;
+  };
 
-    // Payment proof validation for UPI QR
+  // 2. Validate payment proof when UPI QR is chosen
+  const validatePaymentProof = () => {
+    const e = {};
     if (f.paymentMode === 'upi_qr') {
       const utrClean = (f.paymentUtr || '').trim();
       const hasUtr = utrClean.length >= 8;
@@ -178,7 +200,6 @@ export default function Booking() {
         e.paymentName = L('Enter the name registered on your UPI account.', 'कृपया अपने UPI खाते का नाम दर्ज करें।');
       }
     }
-
     return e;
   };
 
@@ -188,20 +209,70 @@ export default function Booking() {
     : 0;
   const roomPrice = Number(room?.price || room?.base_price || 1499);
   const totalAmount = nights > 0 ? roomPrice * nights : 0;
+  const roomName = room ? (typeof room.name === 'object' ? tr(room.name) : (room.name_en || room.name)) : 'Room';
 
-  const submit = async (ev) => {
-    ev.preventDefault();
+  // Live availability verification with backend
+  const verifyRoomAvailability = async () => {
     setServerError('');
-    const e = validate();
-    setErrors(e);
-    if (Object.keys(e).length) {
-      window.scrollTo({ top: 350, behavior: 'smooth' });
-      return;
+    const stayErrors = validateStayDetails();
+    setErrors(stayErrors);
+    if (Object.keys(stayErrors).length > 0) {
+      window.scrollTo({ top: 320, behavior: 'smooth' });
+      return false;
     }
 
-    setBusy(true);
-    const roomName = room ? (typeof room.name === 'object' ? tr(room.name) : (room.name_en || room.name)) : 'Room';
+    setCheckingAvailability(true);
+    try {
+      const roomService = apiClient.rooms || apiClient.entities?.RoomType;
+      if (roomService?.checkAvailability) {
+        const quotes = await roomService.checkAvailability(f.checkIn, f.checkOut, f.guests, 1);
+        if (Array.isArray(quotes) && quotes.length > 0) {
+          const selectedQuote = quotes.find((q) => q.room_type_id === f.room || q.id === f.room || q.slug === f.room) || quotes[0];
+          if (selectedQuote && (!selectedQuote.is_available || selectedQuote.available_rooms <= 0)) {
+            setServerError(
+              L(
+                `Selected room "${roomName}" is not available for ${f.checkIn} to ${f.checkOut}. Please choose alternative dates or another room category.`,
+                `चुने गए कमरे "${roomName}" ${f.checkIn} से ${f.checkOut} तक उपलब्ध नहीं हैं। कृपया अन्य तारीखें या दूसरा कमरा चुनें।`
+              )
+            );
+            window.scrollTo({ top: 300, behavior: 'smooth' });
+            return false;
+          }
+        }
+      }
 
+      const currentKey = `${f.room}_${f.checkIn}_${f.checkOut}_${f.guests}`;
+      setVerifiedStayKey(currentKey);
+      setIsAvailabilityVerified(true);
+      return true;
+    } catch (err) {
+      console.warn('Availability check error:', err);
+      if (err.status === 409 || (err.message && err.message.toLowerCase().includes('not available'))) {
+        setServerError(err.message || L('Selected room is not available for these dates.', 'चुने गए कमरे इन तारीखों पर उपलब्ध नहीं हैं।'));
+        return false;
+      }
+      const currentKey = `${f.room}_${f.checkIn}_${f.checkOut}_${f.guests}`;
+      setVerifiedStayKey(currentKey);
+      setIsAvailabilityVerified(true);
+      return true;
+    } finally {
+      setCheckingAvailability(false);
+    }
+  };
+
+  // Step 1 Click Handler for UPI: verifies availability before unlocking QR code
+  const handleProceedToPayment = async () => {
+    const isAvailable = await verifyRoomAvailability();
+    if (isAvailable) {
+      setTimeout(() => {
+        document.getElementById('upi-qr-payment-section')?.scrollIntoView({ behavior: 'smooth' });
+      }, 100);
+    }
+  };
+
+  // Final booking execution
+  const executeBookingSubmission = async () => {
+    setBusy(true);
     try {
       const res = await submitBooking({
         ...f,
@@ -210,23 +281,63 @@ export default function Booking() {
         nights,
         amount: totalAmount,
         payment_mode: f.paymentMode,
-        payment_utr: f.paymentUtr ? f.paymentUtr.trim() : null,
-        payment_name: f.paymentName ? f.paymentName.trim() : null,
-        payment_screenshot: f.paymentScreenshot || null,
+        payment_utr: f.paymentMode === 'upi_qr' && f.paymentUtr ? f.paymentUtr.trim() : null,
+        payment_name: f.paymentMode === 'upi_qr' && f.paymentName ? f.paymentName.trim() : null,
+        payment_screenshot: f.paymentMode === 'upi_qr' && f.paymentScreenshot ? f.paymentScreenshot : null,
       });
 
       setDone(res);
       window.scrollTo({ top: 0, behavior: 'smooth' });
     } catch (err) {
       console.error('Booking submission error:', err);
-      setServerError(err.message || L('Selected room is not available for the chosen dates. Please choose different dates.', 'चुने गए कमरे इन तारीखों पर उपलब्ध नहीं हैं। कृपया अन्य तारीखें चुनें।'));
+      setServerError(
+        err.message || L('Selected room is not available for the chosen dates. Please choose different dates.', 'चुने गए कमरे इन तारीखों पर उपलब्ध नहीं हैं। कृपया अन्य तारीखें चुनें।')
+      );
     } finally {
       setBusy(false);
     }
   };
 
+  // Click Handler for Pay at Hotel
+  const handleBookPayAtHotel = async () => {
+    const isAvailable = await verifyRoomAvailability();
+    if (!isAvailable) return;
+    await executeBookingSubmission();
+  };
+
+  // Step 2 Click Handler for UPI: submits payment proof
+  const handleFinalSubmitWithPayment = async (ev) => {
+    ev.preventDefault();
+    setServerError('');
+    const stayErrors = validateStayDetails();
+    const paymentErrors = validatePaymentProof();
+    const combinedErrors = { ...stayErrors, ...paymentErrors };
+    setErrors(combinedErrors);
+
+    if (Object.keys(combinedErrors).length > 0) {
+      if (Object.keys(stayErrors).length > 0) {
+        window.scrollTo({ top: 320, behavior: 'smooth' });
+      }
+      return;
+    }
+
+    await executeBookingSubmission();
+  };
+
   // Deep Link for Mobile UPI (PhonePe, GPay, Paytm)
   const upiIntentUrl = `upi://pay?pa=${UPI_ID}&pn=${encodeURIComponent(UPI_PAYEE_NAME)}&am=${totalAmount}&cu=INR&tn=${encodeURIComponent(`BSH Booking - ${f.name || 'Stay'}`)}`;
+
+  // Form submit router: handles Enter key or form submission safely
+  const handleSubmitForm = (ev) => {
+    ev.preventDefault();
+    if (f.paymentMode === 'pay_at_hotel') {
+      handleBookPayAtHotel();
+    } else if (isAvailabilityVerified) {
+      handleFinalSubmitWithPayment(ev);
+    } else {
+      handleProceedToPayment();
+    }
+  };
 
   return (
     <>
@@ -239,7 +350,7 @@ export default function Booking() {
         {done ? (
           <BookingConfirmation booking={done} />
         ) : (
-          <form onSubmit={submit} noValidate className="rounded-3xl border border-primary/30 bg-card/95 p-6 shadow-2xl backdrop-blur md:p-8">
+          <form onSubmit={handleSubmitForm} noValidate className="rounded-3xl border border-primary/30 bg-card/95 p-6 shadow-2xl backdrop-blur md:p-8">
             <div className="border-b border-primary/20 pb-4 mb-6">
               <h2 className="text-xl font-bold text-foreground flex items-center gap-2">
                 <Calendar className="text-primary" size={22} />
@@ -446,7 +557,58 @@ export default function Booking() {
 
               {/* DEDICATED PHONEPE UPI QR PAYMENT SECTION */}
               {f.paymentMode === 'upi_qr' && (
-                <div className="mt-6 rounded-3xl border border-amber-500/40 bg-card/98 p-5 sm:p-7 shadow-2xl backdrop-blur animate-in fade-in duration-200">
+                <div className="mt-6">
+                  {!isAvailabilityVerified ? (
+                    /* Step 1: Pre-Payment Verification Gate (QR Code is HIDDEN until room availability is verified) */
+                    <div className="rounded-2xl border border-amber-500/30 bg-amber-500/5 p-5 sm:p-6 text-center space-y-4">
+                      <div className="inline-flex h-12 w-12 items-center justify-center rounded-2xl bg-amber-500/20 text-amber-400">
+                        <ShieldCheck size={28} />
+                      </div>
+                      <div className="max-w-md mx-auto space-y-1">
+                        <h4 className="text-base font-bold text-foreground">
+                          {L('Step 1: Check Live Room Availability', 'चरण 1: कमरे की उपलब्धता की पुष्टि करें')}
+                        </h4>
+                        <p className="text-xs text-muted-foreground leading-relaxed">
+                          {L(
+                            'Before unlocking the PhonePe UPI payment QR, we will verify room availability and pricing for your exact dates so you never pay for a sold-out room.',
+                            'PhonePe UPI QR कोड खुलने से पहले हम आपकी तारीखों पर कमरे की उपलब्धता की पुष्टि करेंगे ताकि आपका भुगतान 100% सुरक्षित रहे।'
+                          )}
+                        </p>
+                      </div>
+
+                      <button
+                        type="button"
+                        disabled={checkingAvailability}
+                        onClick={handleProceedToPayment}
+                        className="btn-gold mx-auto flex items-center justify-center gap-2 py-3 px-6 text-sm font-bold shadow-xl"
+                      >
+                        {checkingAvailability ? (
+                          <>
+                            <Loader2 size={18} className="animate-spin" />
+                            <span>{L('Checking Room Availability...', 'कमरे की उपलब्धता जाँची जा रही है...')}</span>
+                          </>
+                        ) : (
+                          <>
+                            <Sparkles size={18} />
+                            <span>{L('Check Availability & Proceed to Pay', 'उपलब्धता जाँचें व भुगतान के लिए आगे बढ़ें')}</span>
+                            <ArrowRight size={18} />
+                          </>
+                        )}
+                      </button>
+                    </div>
+                  ) : (
+                    /* Step 2: Room is Verified Available -> Reveal PhonePe QR & Proof Upload */
+                    <div id="upi-qr-payment-section" className="rounded-3xl border border-emerald-500/40 bg-card/98 p-5 sm:p-7 shadow-2xl backdrop-blur animate-in fade-in duration-300 space-y-5">
+                      {/* Verified Badge Header */}
+                      <div className="flex items-center gap-2.5 rounded-xl border border-emerald-500/40 bg-emerald-500/10 p-3 text-xs font-semibold text-emerald-300">
+                        <CheckCircle2 size={18} className="text-emerald-400 shrink-0" />
+                        <span>
+                          {L(
+                            `✓ Room is Available for your stay (${f.checkIn} to ${f.checkOut})! Please complete payment below to guarantee your reservation.`,
+                            `✓ आपके प्रवास (${f.checkIn} से ${f.checkOut}) के लिए कमरा उपलब्ध है! आरक्षण पक्का करने के लिए कृपया नीचे भुगतान करें।`
+                          )}
+                        </span>
+                      </div>
                   {/* Merchant Badge Header */}
                   <div className="flex flex-wrap items-center justify-between gap-2 border-b border-primary/20 pb-4">
                     <div className="flex items-center gap-2.5">
@@ -700,8 +862,10 @@ export default function Booking() {
                 </div>
               )}
             </div>
+          )}
+        </div>
 
-            {/* Server Error Alert */}
+        {/* Server Error Alert */}
             {serverError && (
               <div className="mt-5 rounded-2xl border border-rose-500/40 bg-rose-950/40 p-4 text-rose-100 shadow-lg backdrop-blur-sm animate-in fade-in duration-200">
                 <div className="flex items-start gap-3.5">
@@ -718,24 +882,50 @@ export default function Booking() {
               </div>
             )}
 
-            {/* Submit Button */}
+            {/* Submit Button Area */}
             <div className="mt-6">
-              <button
-                type="submit"
-                disabled={busy}
-                className="btn-gold flex w-full items-center justify-center gap-2 py-3.5 text-sm font-bold shadow-xl"
-              >
-                {busy ? (
-                  <span>{L('Submitting Reservation...', 'आरक्षण दर्ज हो रहा है...')}</span>
-                ) : f.paymentMode === 'upi_qr' ? (
-                  <>
-                    <CheckCircle2 size={18} />
-                    <span>{L('Submit Booking with Payment Proof', 'भुगतान प्रमाण सहित बुकिंग दर्ज करें')}</span>
-                  </>
-                ) : (
-                  <span>{t('cta.requestBooking')}</span>
-                )}
-              </button>
+              {f.paymentMode === 'pay_at_hotel' ? (
+                <button
+                  type="button"
+                  onClick={handleBookPayAtHotel}
+                  disabled={busy || checkingAvailability}
+                  className="btn-gold flex w-full items-center justify-center gap-2 py-3.5 text-sm font-bold shadow-xl"
+                >
+                  {checkingAvailability ? (
+                    <>
+                      <Loader2 size={18} className="animate-spin" />
+                      <span>{L('Checking Room Availability...', 'कमरे की उपलब्धता जाँची जा रही है...')}</span>
+                    </>
+                  ) : busy ? (
+                    <span>{L('Submitting Reservation...', 'आरक्षण दर्ज हो रहा है...')}</span>
+                  ) : (
+                    <>
+                      <CheckCircle2 size={18} />
+                      <span>{L('Check Availability & Confirm Booking (Pay at Hotel)', 'उपलब्धता जाँचें व कमरा बुक करें (होटल पर भुगतान)')}</span>
+                    </>
+                  )}
+                </button>
+              ) : isAvailabilityVerified ? (
+                <button
+                  type="button"
+                  onClick={handleFinalSubmitWithPayment}
+                  disabled={busy}
+                  className="btn-gold flex w-full items-center justify-center gap-2 py-3.5 text-sm font-bold shadow-xl"
+                >
+                  {busy ? (
+                    <span>{L('Submitting Reservation...', 'आरक्षण दर्ज हो रहा है...')}</span>
+                  ) : (
+                    <>
+                      <CheckCircle2 size={18} />
+                      <span>{L('Verify Payment & Confirm Booking', 'भुगतान सत्यापित करें व कमरा बुक करें')}</span>
+                    </>
+                  )}
+                </button>
+              ) : (
+                <p className="text-center text-xs text-muted-foreground py-2 font-medium">
+                  {L('Click "Check Availability & Proceed to Pay" above to verify dates & unlock payment.', 'तारीखों की पुष्टि करने व भुगतान विकल्प खोलने के लिए ऊपर "उपलब्धता जाँचें व आगे बढ़ें" पर क्लिक करें।')}
+                </p>
+              )}
             </div>
           </form>
         )}

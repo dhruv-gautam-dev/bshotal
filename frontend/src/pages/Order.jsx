@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import {
   MessageCircle,
@@ -20,6 +20,8 @@ import {
   Radar,
   Building2,
   Home,
+  ArrowRight,
+  Loader2,
 } from 'lucide-react';
 import PageHero from '@/components/site/PageHero';
 import CartLine from '@/components/site/CartLine';
@@ -171,6 +173,20 @@ export default function Order() {
   // Automated distance checking state
   const [checkingDistance, setCheckingDistance] = useState(false);
 
+  // Address & Order verification state (must verify before QR code or COD order)
+  const [isOrderVerified, setIsOrderVerified] = useState(false);
+  const [verifiedOrderKey, setVerifiedOrderKey] = useState('');
+  const [verifiedLocationData, setVerifiedLocationData] = useState({ lat: null, lng: null, dist: null });
+
+  // Invalidate verification if customer changes address or details
+  useEffect(() => {
+    const currentKey = `${f.type}_${f.address1}_${f.address2}_${f.landmark}_${f.area}_${f.city}_${f.state}_${f.pincode}_${f.table}_${f.name}_${f.phone}`;
+    if (verifiedOrderKey && currentKey !== verifiedOrderKey) {
+      setIsOrderVerified(false);
+      setVerifiedOrderKey('');
+    }
+  }, [f.type, f.address1, f.address2, f.landmark, f.area, f.city, f.state, f.pincode, f.table, f.name, f.phone, verifiedOrderKey]);
+
   // Payment state
   const [paymentMode, setPaymentMode] = useState('upi_qr'); // 'upi_qr' | 'pay_on_delivery'
   const [proofType, setProofType] = useState('utr'); // 'utr' | 'screenshot'
@@ -257,11 +273,9 @@ export default function Order() {
     setScreenshotFileName('');
   };
 
-  // Submit order validation with structured address & instant automatic distance verification
-  const send = async () => {
-    setServerError('');
+  // 1. Validate customer & address / table fields
+  const validateOrderDetails = () => {
     const e = {};
-
     if (f.name.trim().length < 2) e.name = L('Please enter your name.', 'कृपया अपना नाम दर्ज करें।');
     if (!isValidPhone(f.phone)) e.phone = L('Enter a valid 10-digit Indian mobile number.', '10 अंकों का वैध मोबाइल नंबर दर्ज करें।');
 
@@ -286,8 +300,12 @@ export default function Order() {
         e.pincode = L('Enter a valid 6-digit PIN code.', '6 अंकों का वैध पिन कोड दर्ज करें।');
       }
     }
+    return e;
+  };
 
-    // Payment validation if PhonePe UPI QR is selected
+  // 2. Validate payment proof when UPI QR is chosen
+  const validatePaymentProof = () => {
+    const e = {};
     if (paymentMode === 'upi_qr') {
       if (proofType === 'utr') {
         const cleanUtr = paymentUtr.trim();
@@ -303,38 +321,31 @@ export default function Order() {
         }
       }
     }
+    return e;
+  };
 
-    setErrors(e);
-    if (Object.keys(e).length > 0) {
-      return;
+  // 3. Verify order details and 1 km delivery radius before unlocking QR or placing order
+  const verifyOrderAndDistance = async () => {
+    setServerError('');
+    const fieldErrors = validateOrderDetails();
+    setErrors(fieldErrors);
+    if (Object.keys(fieldErrors).length > 0) {
+      window.scrollTo({ top: 320, behavior: 'smooth' });
+      return false;
     }
 
     let detectedLat = null;
     let detectedLng = null;
     let detectedDist = null;
 
-    // Build consolidated Indian address string
-    const fullAddress = f.type === 'Delivery'
-      ? [
-          f.address1.trim(),
-          f.address2.trim() || null,
-          f.landmark.trim() ? `Near ${f.landmark.trim()}` : null,
-          f.area.trim(),
-          `${f.city.trim()}, ${f.state.trim()} - ${f.pincode.trim()}`,
-        ].filter(Boolean).join(', ')
-      : '';
-
-    // Instant automatic distance check right before placing delivery order
     if (f.type === 'Delivery') {
       setCheckingDistance(true);
-      setBusy(true);
 
       // 1. Text-based Mathura locality verification (catches Maholi Road, Lajpat Nagar, Dampier, etc.)
       const combinedAddressText = `${f.address1} ${f.address2} ${f.landmark} ${f.area}`;
       const outOfRangeArea = checkAddressOutOfRange(combinedAddressText);
       if (outOfRangeArea) {
         setCheckingDistance(false);
-        setBusy(false);
         setServerError(
           L(
             `⚠️ Out of 1 KM Delivery Radius: "${outOfRangeArea.name}" is approximately ${outOfRangeArea.dist} km away from B.S. Hotel & Restaurant (NH-2, Baad). Delicee Restaurant exclusively delivers within 1 km (Township Nagar / Baad NH-2 area). Please select "Pickup" or contact the restaurant at +91 91492 24039.`,
@@ -342,7 +353,7 @@ export default function Order() {
           )
         );
         window.scrollTo({ top: 300, behavior: 'smooth' });
-        return;
+        return false;
       }
 
       // 2. Geocode the typed Area / Landmark via Nominatim OpenStreetMap
@@ -353,7 +364,6 @@ export default function Order() {
           const geoDist = calculateDistanceKm(HOTEL_COORDS.lat, HOTEL_COORDS.lng, geocoded.lat, geocoded.lng);
           if (geoDist > MAX_DELIVERY_RADIUS_KM) {
             setCheckingDistance(false);
-            setBusy(false);
             setServerError(
               L(
                 `⚠️ Address Out of 1 KM Delivery Area: "${f.area}" is located ~${geoDist.toFixed(1)} km away from B.S. Hotel (NH-2, Baad). Delivery is strictly limited to 1 km. Please select "Pickup" or contact +91 91492 24039.`,
@@ -361,7 +371,7 @@ export default function Order() {
               )
             );
             window.scrollTo({ top: 300, behavior: 'smooth' });
-            return;
+            return false;
           }
           detectedLat = geocoded.lat;
           detectedLng = geocoded.lng;
@@ -381,7 +391,6 @@ export default function Order() {
         // Strict 1 km check (with slight GPS jitter tolerance up to 1.25 km)
         if (gpsDist > MAX_DELIVERY_RADIUS_KM) {
           setCheckingDistance(false);
-          setBusy(false);
           setServerError(
             L(
               `⚠️ Out of 1 KM Delivery Radius: Your detected GPS location is ~${gpsDist.toFixed(2)} km away from B.S. Hotel & Restaurant, NH-2 Baad (Mathura). Delivery is strictly limited to 1 km. Please select 'Pickup' or contact the restaurant at +91 91492 24039.`,
@@ -389,7 +398,7 @@ export default function Order() {
             )
           );
           window.scrollTo({ top: 300, behavior: 'smooth' });
-          return;
+          return false;
         }
         detectedLat = userLat;
         detectedLng = userLng;
@@ -401,8 +410,37 @@ export default function Order() {
       }
     }
 
+    const currentKey = `${f.type}_${f.address1}_${f.address2}_${f.landmark}_${f.area}_${f.city}_${f.state}_${f.pincode}_${f.table}_${f.name}_${f.phone}`;
+    setVerifiedLocationData({ lat: detectedLat, lng: detectedLng, dist: detectedDist });
+    setVerifiedOrderKey(currentKey);
+    setIsOrderVerified(true);
+    return true;
+  };
+
+  // Step 1 Click Handler for UPI: verifies details & 1 km delivery radius before unlocking QR code
+  const handleProceedToPayment = async () => {
+    const isVerified = await verifyOrderAndDistance();
+    if (isVerified) {
+      setTimeout(() => {
+        document.getElementById('upi-qr-order-section')?.scrollIntoView({ behavior: 'smooth' });
+      }, 100);
+    }
+  };
+
+  // Execution worker to place order with backend
+  const executeOrderSubmission = async () => {
     setBusy(true);
     try {
+      const fullAddress = f.type === 'Delivery'
+        ? [
+            f.address1.trim(),
+            f.address2.trim() || null,
+            f.landmark.trim() ? `Near ${f.landmark.trim()}` : null,
+            f.area.trim(),
+            `${f.city.trim()}, ${f.state.trim()} - ${f.pincode.trim()}`,
+          ].filter(Boolean).join(', ')
+        : '';
+
       const order = await submitOrder({
         ...f,
         address: fullAddress,
@@ -415,9 +453,9 @@ export default function Order() {
         payment_utr: paymentMode === 'upi_qr' && proofType === 'utr' ? paymentUtr.trim() : null,
         payment_name: paymentMode === 'upi_qr' && proofType === 'utr' ? paymentName.trim() : (paymentName.trim() || f.name.trim()),
         payment_screenshot: paymentMode === 'upi_qr' && proofType === 'screenshot' ? paymentScreenshot : null,
-        delivery_lat: detectedLat,
-        delivery_lng: detectedLng,
-        delivery_distance_km: detectedDist,
+        delivery_lat: verifiedLocationData.lat,
+        delivery_lng: verifiedLocationData.lng,
+        delivery_distance_km: verifiedLocationData.dist,
         delivery_landmark: f.landmark.trim() || f.area.trim(),
       });
 
@@ -431,6 +469,32 @@ export default function Order() {
       setBusy(false);
       setCheckingDistance(false);
     }
+  };
+
+  // Step 2 Click Handler for Cash on Delivery / Pay at Counter
+  const handlePlaceOrderPayOnDelivery = async () => {
+    const isVerified = await verifyOrderAndDistance();
+    if (!isVerified) return;
+    await executeOrderSubmission();
+  };
+
+  // Step 2 Click Handler for UPI: validates payment proof & submits order
+  const handleFinalSubmitWithUpi = async (ev) => {
+    if (ev?.preventDefault) ev.preventDefault();
+    setServerError('');
+    const fieldErrors = validateOrderDetails();
+    const proofErrors = validatePaymentProof();
+    const combinedErrors = { ...fieldErrors, ...proofErrors };
+    setErrors(combinedErrors);
+
+    if (Object.keys(combinedErrors).length > 0) {
+      if (Object.keys(fieldErrors).length > 0) {
+        window.scrollTo({ top: 320, behavior: 'smooth' });
+      }
+      return;
+    }
+
+    await executeOrderSubmission();
   };
 
   // UPI deep link for mobile devices
@@ -913,9 +977,59 @@ export default function Order() {
                   </div>
                 </div>
 
-                {/* UPI QR Display & Proof Box */}
-                {paymentMode === 'upi_qr' && (
-                  <div className="rounded-2xl border border-amber-400/40 bg-card p-5 space-y-4 shadow-lg">
+                {/* Step 1: Pre-verification Box if unverified */}
+                {paymentMode === 'upi_qr' && !isOrderVerified && (
+                  <div className="rounded-2xl border border-amber-400/40 bg-card p-5 text-center space-y-3 shadow-md">
+                    <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-xl bg-amber-400/10 text-amber-400 border border-amber-400/30">
+                      <QrCode size={24} />
+                    </div>
+                    <div>
+                      <h4 className="font-bold text-foreground text-sm">
+                        {f.type === 'Delivery'
+                          ? L('Step 1: Check Delivery Distance & Unlock QR', 'चरण 1: डिलीवरी दूरी की पुष्टि व QR खोलें')
+                          : L('Step 1: Verify Order Details & Unlock QR', 'चरण 1: ऑर्डर विवरण की पुष्टि व QR खोलें')}
+                      </h4>
+                      <p className="text-xs text-muted-foreground mt-1 max-w-md mx-auto">
+                        {f.type === 'Delivery'
+                          ? L('We deliver food strictly within 1 km of B.S. Hotel (NH-2, Baad). Please verify your address before making payment.', 'हमारी डिलीवरी होटल से केवल 1 किमी के दायरे में उपलब्ध है। कृपया भुगतान करने से पहले पते की पुष्टि करें।')
+                          : L('Please verify your order details before making online payment.', 'ऑनलाइन भुगतान करने से पहले कृपया अपने ऑर्डर विवरण की पुष्टि करें।')}
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={handleProceedToPayment}
+                      disabled={checkingDistance}
+                      className="btn-gold inline-flex items-center justify-center gap-2 px-6 py-2.5 text-xs font-bold shadow-md cursor-pointer hover:scale-[1.01] transition"
+                    >
+                      {checkingDistance ? (
+                        <>
+                          <Loader2 size={16} className="animate-spin" />
+                          <span>{L('Verifying 1 KM Delivery Radius…', '1 किमी डिलीवरी दायरे की जांच हो रही है…')}</span>
+                        </>
+                      ) : (
+                        <>
+                          <span>{f.type === 'Delivery' ? L('Verify Address & Proceed to Pay', 'पता जांचें व भुगतान के लिए आगे बढ़ें') : L('Verify Details & Proceed to Pay', 'विवरण जांचें व भुगतान के लिए आगे बढ़ें')}</span>
+                          <ArrowRight size={14} />
+                        </>
+                      )}
+                    </button>
+                  </div>
+                )}
+
+                {/* Step 2: UPI QR Display & Proof Box (Only when verified) */}
+                {paymentMode === 'upi_qr' && isOrderVerified && (
+                  <div id="upi-qr-order-section" className="rounded-2xl border border-amber-400/40 bg-card p-5 space-y-4 shadow-lg animate-in fade-in duration-200">
+                    <div className="flex items-center justify-between gap-2 rounded-xl bg-emerald-500/15 border border-emerald-500/30 px-3.5 py-2.5 text-xs text-emerald-400">
+                      <div className="flex items-center gap-2">
+                        <CheckCircle2 size={17} className="text-emerald-400 shrink-0" />
+                        <span className="font-semibold">
+                          {f.type === 'Delivery'
+                            ? L('✓ Delivery Address Verified (< 1 km radius). You can now scan and pay safely.', '✓ डिलीवरी पता सत्यापित (< 1 किमी)। अब आप सुरक्षित भुगतान कर सकते हैं।')
+                            : L('✓ Order Details Verified. You can now scan and pay safely.', '✓ ऑर्डर विवरण सत्यापित। अब आप सुरक्षित भुगतान कर सकते हैं।')}
+                        </span>
+                      </div>
+                    </div>
+
                     {/* Merchant & Security Header */}
                     <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border/80 pb-3">
                       <div>
@@ -1132,30 +1246,63 @@ export default function Order() {
                 </div>
               )}
 
-              {/* Submit Button */}
-              <button
-                type="button"
-                onClick={send}
-                disabled={busy || compressing || checkingDistance}
-                className="btn-gold w-full flex items-center justify-center gap-2 py-3.5 text-base shadow-lg disabled:opacity-75 transition-all"
-              >
-                {checkingDistance ? (
-                  <>
-                    <Radar size={20} className="animate-spin text-primary-foreground" />
-                    <span>{L('Checking Delivery Distance (1 km limit)…', '1 किमी डिलीवरी दूरी की जांच जारी…')}</span>
-                  </>
-                ) : busy ? (
-                  <>
-                    <Clock size={20} className="animate-pulse" />
-                    <span>{L('Placing Order with Kitchen…', 'किचन में ऑर्डर भेजा जा रहा है…')}</span>
-                  </>
-                ) : (
-                  <>
-                    <MessageCircle size={20} />
-                    <span>{L(`Place Order (${inr(total)})`, `ऑर्डर दर्ज करें (${inr(total)})`)}</span>
-                  </>
-                )}
-              </button>
+              {/* Submit Button Area */}
+              {paymentMode === 'pay_on_delivery' ? (
+                <button
+                  type="button"
+                  onClick={handlePlaceOrderPayOnDelivery}
+                  disabled={busy || checkingDistance}
+                  className="btn-gold w-full flex items-center justify-center gap-2 py-3.5 text-base shadow-lg disabled:opacity-75 transition-all cursor-pointer"
+                >
+                  {checkingDistance ? (
+                    <>
+                      <Radar size={20} className="animate-spin text-primary-foreground" />
+                      <span>{L('Checking Delivery Distance (1 km limit)…', '1 किमी डिलीवरी दूरी की जांच जारी…')}</span>
+                    </>
+                  ) : busy ? (
+                    <>
+                      <Clock size={20} className="animate-pulse" />
+                      <span>{L('Placing Order with Kitchen…', 'किचन में ऑर्डर भेजा जा रहा है…')}</span>
+                    </>
+                  ) : (
+                    <>
+                      <MessageCircle size={20} />
+                      <span>
+                        {f.type === 'Delivery'
+                          ? L(`Place Order (Cash on Delivery) (${inr(total)})`, `कैश ऑन डिलीवरी ऑर्डर दर्ज करें (${inr(total)})`)
+                          : f.type === 'Dine-in'
+                          ? L(`Confirm Order (Pay at Table) (${inr(total)})`, `ऑर्डर दर्ज करें (टेबल पर भुगतान) (${inr(total)})`)
+                          : L(`Confirm Order (Pay at Counter) (${inr(total)})`, `ऑर्डर दर्ज करें (काउंटर पर भुगतान) (${inr(total)})`)}
+                      </span>
+                    </>
+                  )}
+                </button>
+              ) : isOrderVerified ? (
+                <button
+                  type="button"
+                  onClick={handleFinalSubmitWithUpi}
+                  disabled={busy || compressing}
+                  className="btn-gold w-full flex items-center justify-center gap-2 py-3.5 text-base shadow-lg disabled:opacity-75 transition-all cursor-pointer"
+                >
+                  {busy ? (
+                    <>
+                      <Clock size={20} className="animate-pulse" />
+                      <span>{L('Placing Order with Kitchen…', 'किचन में ऑर्डर भेजा जा रहा है…')}</span>
+                    </>
+                  ) : (
+                    <>
+                      <CheckCircle2 size={20} />
+                      <span>{L(`Submit Payment & Place Order (${inr(total)})`, `भुगतान दर्ज करें व ऑर्डर दें (${inr(total)})`)}</span>
+                    </>
+                  )}
+                </button>
+              ) : (
+                <p className="text-center text-xs text-muted-foreground py-2 font-medium">
+                  {f.type === 'Delivery'
+                    ? L('Click "Verify Address & Proceed to Pay" above to check delivery radius & unlock QR code.', '1 किमी डिलीवरी दायरा जांचने और QR कोड देखने के लिए ऊपर "पता जांचें व भुगतान के लिए आगे बढ़ें" पर क्लिक करें।')
+                    : L('Click "Verify Details & Proceed to Pay" above to check details & unlock QR code.', 'विवरण जांचने और QR कोड देखने के लिए ऊपर "विवरण जांचें व भुगतान के लिए आगे बढ़ें" पर क्लिक करें।')}
+                </p>
+              )}
             </div>
           </div>
         )}
