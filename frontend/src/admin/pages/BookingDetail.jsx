@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useSelector, useDispatch } from 'react-redux';
-import { ArrowLeft, Phone, MessageCircle, Printer, CheckCircle2, LogIn, LogOut, XCircle, Trash2, Plus, AlertTriangle, X, BedDouble, ShieldCheck, Eye, QrCode, Clock } from 'lucide-react';
+import { ArrowLeft, Phone, MessageCircle, Printer, CheckCircle2, LogIn, LogOut, XCircle, Trash2, Plus, AlertTriangle, X, BedDouble, ShieldCheck, Eye, QrCode, Clock, ExternalLink } from 'lucide-react';
 import { apiClient } from '@/api/apiClient';
 import { useI18n } from '@/lib/i18n';
 import { useAdmin } from '../AdminContext';
@@ -861,18 +861,30 @@ export default function BookingDetail() {
             className="relative max-w-2xl max-h-[90vh] bg-white rounded-2xl p-3 shadow-2xl overflow-auto"
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="flex items-center justify-between pb-2 border-b border-slate-200 mb-2">
-              <span className="text-xs font-bold text-slate-900 flex items-center gap-1.5">
-                <ShieldCheck size={16} className="text-emerald-600" />
-                {L('UPI Payment Screenshot Proof', 'UPI भुगतान स्क्रीनशॉट प्रमाण')}
+            <div className="flex items-center justify-between pb-2 border-b border-slate-200 mb-3">
+              <span className="text-sm font-bold text-slate-900 flex items-center gap-2">
+                <ShieldCheck size={18} className="text-emerald-600" />
+                {L('Guest Payment Screenshot Proof', 'मेहमान द्वारा भेजा गया स्क्रीनशॉट प्रमाण')}
               </span>
-              <button
-                type="button"
-                onClick={() => setScreenshotModal(null)}
-                className="rounded-full bg-slate-100 p-1.5 text-slate-500 hover:bg-slate-200 transition"
-              >
-                <X size={16} />
-              </button>
+              <div className="flex items-center gap-2">
+                <a
+                  href={screenshotModal}
+                  download="payment_screenshot_proof.jpg"
+                  target="_blank"
+                  rel="noreferrer"
+                  className="inline-flex items-center gap-1 rounded-lg border border-slate-300 bg-slate-50 px-2.5 py-1 text-xs font-semibold text-slate-700 hover:bg-slate-100 transition"
+                >
+                  <ExternalLink size={13} />
+                  <span>{L('Open / Download', 'डाउनलोड / खोलें')}</span>
+                </a>
+                <button
+                  type="button"
+                  onClick={() => setScreenshotModal(null)}
+                  className="rounded-full bg-slate-100 p-1.5 text-slate-500 hover:bg-slate-200 transition cursor-pointer"
+                >
+                  <X size={18} />
+                </button>
+              </div>
             </div>
             <img
               src={screenshotModal}
