@@ -175,7 +175,8 @@ export async function createBookingRequest(data) {
   let formattedSpecial = data.special_requests || '';
   if (data.payment_mode === 'upi_qr') {
     const payLine = `[PAYMENT: PhonePe UPI QR] [UTR: ${data.payment_utr || 'Screenshot uploaded'}] [Payer: ${data.payment_name || data.guest_name}]`;
-    formattedSpecial = formattedSpecial ? `${payLine}\n${formattedSpecial}` : payLine;
+    const screenshotLine = data.payment_screenshot ? `\n[PAYMENT_SCREENSHOT: ${data.payment_screenshot}]` : '';
+    formattedSpecial = formattedSpecial ? `${payLine}${screenshotLine}\n${formattedSpecial}` : `${payLine}${screenshotLine}`;
   }
 
   try {
@@ -255,6 +256,13 @@ export async function createOrder(data) {
     note: i.note || '',
   }));
 
+  let formattedNotes = data.notes || '';
+  if (data.payment_mode === 'upi_qr' || data.payment_mode === 'upi') {
+    const payLine = `[PAYMENT: PhonePe UPI QR] [UTR: ${data.payment_utr || 'Screenshot uploaded'}] [Payer: ${data.payment_name || data.customer_name}]`;
+    const screenshotLine = data.payment_screenshot ? `\n[PAYMENT_SCREENSHOT: ${data.payment_screenshot}]` : '';
+    formattedNotes = formattedNotes ? `${payLine}${screenshotLine}\n${formattedNotes}` : `${payLine}${screenshotLine}`;
+  }
+
   try {
     const created = await apiClient.entities.Order.create({
       customer_name: data.customer_name,
@@ -264,7 +272,7 @@ export async function createOrder(data) {
       table_no: data.table_no || '',
       address: data.address || '',
       items,
-      notes: data.notes || '',
+      notes: formattedNotes,
       payment_mode: data.payment_mode || 'cash',
       payment_utr: data.payment_utr || null,
       payment_name: data.payment_name || null,

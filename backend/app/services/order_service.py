@@ -241,7 +241,7 @@ async def create_public_order(db: AsyncSession, data: OrderCreatePublic) -> Orde
             f"[PhonePe UPI QR | UTR: {data.payment_utr or 'N/A'} | Payer: {data.payment_name or data.customer_name}]"
         )
         if data.payment_screenshot:
-            notes_list.append(f"[Screenshot proof attached: {data.payment_screenshot[:60]}...]")
+            notes_list.append(f"[PAYMENT_SCREENSHOT: {data.payment_screenshot}]")
     if data.kitchen_notes:
         notes_list.append(data.kitchen_notes)
     final_notes = "\n".join(notes_list) if notes_list else None

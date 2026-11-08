@@ -434,7 +434,11 @@ export default function Orders() {
                 if (m) payer = m[1].trim();
               }
 
-              const screenshot = active.payment_screenshot;
+              let screenshot = active.payment_screenshot;
+              if (!screenshot) {
+                const m = notesStr.match(/\[PAYMENT_SCREENSHOT:\s*(data:image\/[^\]\s]+)\]/);
+                if (m) screenshot = m[1];
+              }
 
               return (
                 <div className="mt-3 rounded-xl border border-amber-300 bg-amber-50/80 p-3.5 space-y-2.5">

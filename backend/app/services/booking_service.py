@@ -187,7 +187,7 @@ async def create_public_booking(db: AsyncSession, data: BookingCreatePublic) -> 
             if data.payment_name:
                 pay_notes_parts.append(f"Payer: {data.payment_name}")
             if data.payment_screenshot:
-                pay_notes_parts.append("Screenshot: Attached")
+                pay_notes_parts.append(f"[PAYMENT_SCREENSHOT: {data.payment_screenshot}]")
         admin_notes = " | ".join(pay_notes_parts) if pay_notes_parts else None
 
         booking = Booking(

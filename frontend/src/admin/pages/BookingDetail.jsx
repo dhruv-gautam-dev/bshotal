@@ -433,6 +433,12 @@ export default function BookingDetail() {
             if (m) payer = m[1].trim();
           }
 
+          let screenshot = b.payment_screenshot;
+          if (!screenshot) {
+            const m = textToScan.match(/\[PAYMENT_SCREENSHOT:\s*(data:image\/[^\]\s]+)\]/);
+            if (m) screenshot = m[1];
+          }
+
           return (
             <div className="mt-3.5 rounded-xl border border-amber-300 bg-amber-50/80 p-4">
               <div className="flex flex-wrap items-center justify-between gap-2 border-b border-amber-200 pb-2.5">
@@ -466,22 +472,22 @@ export default function BookingDetail() {
                 </div>
               </div>
 
-              {b.payment_screenshot && (
+              {screenshot && (
                 <div className="mt-3 pt-2.5 border-t border-amber-200 flex items-center justify-between">
                   <span className="text-xs font-semibold text-amber-900">{L('Guest Payment Screenshot:', 'मेहमान द्वारा भेजा गया स्क्रीनशॉट:')}</span>
                   <div className="flex items-center gap-2">
                     <button
                       type="button"
-                      onClick={() => setScreenshotModal(b.payment_screenshot)}
+                      onClick={() => setScreenshotModal(screenshot)}
                       className="flex items-center gap-1.5 rounded-lg border border-amber-300 bg-white px-2.5 py-1 text-xs font-bold text-amber-900 hover:bg-amber-100 transition shadow-xs"
                     >
                       <Eye size={13} />
                       <span>{L('View Full Screenshot', 'स्क्रीनशॉट देखें')}</span>
                     </button>
                     <img
-                      src={b.payment_screenshot}
+                      src={screenshot}
                       alt="Payment proof"
-                      onClick={() => setScreenshotModal(b.payment_screenshot)}
+                      onClick={() => setScreenshotModal(screenshot)}
                       className="h-9 w-9 object-cover rounded-lg border border-amber-300 cursor-pointer hover:opacity-80"
                     />
                   </div>
@@ -616,6 +622,75 @@ export default function BookingDetail() {
                 <span className="font-semibold text-slate-900">{b.check_in} → {b.check_out} ({b.nights} {L('nights', 'रात')})</span>
               </div>
             </div>
+
+            {/* PhonePe UPI Payment Proof Preview inside Confirm Modal */}
+            {(() => {
+              const isUpi = b.payment_mode === 'upi_qr' || String(b.special_requests || '').includes('PhonePe UPI') || String(b.admin_notes || '').includes('PhonePe UPI');
+              if (!isUpi) return null;
+
+              let utr = b.payment_utr || '';
+              let payer = b.payment_name || '';
+              const textToScan = `${b.special_requests || ''}\n${b.admin_notes || ''}`;
+              if (!utr) {
+                const m = textToScan.match(/UTR:\s*([A-Za-z0-9]+)/i);
+                if (m) utr = m[1];
+              }
+              if (!payer) {
+                const m = textToScan.match(/Payer:\s*([^|\]\n]+)/i);
+                if (m) payer = m[1].trim();
+              }
+              let screenshot = b.payment_screenshot;
+              if (!screenshot) {
+                const m = textToScan.match(/\[PAYMENT_SCREENSHOT:\s*(data:image\/[^\]\s]+)\]/);
+                if (m) screenshot = m[1];
+              }
+
+              return (
+                <div className="rounded-xl border border-amber-300 bg-amber-50/90 p-3 space-y-2 text-xs">
+                  <div className="flex items-center justify-between border-b border-amber-200/80 pb-1.5">
+                    <span className="font-bold text-amber-900 flex items-center gap-1.5">
+                      <ShieldCheck size={14} className="text-amber-700" />
+                      {L('PhonePe Payment Verification', 'PhonePe भुगतान सत्यापन')}
+                    </span>
+                    <span className="font-bold text-slate-900">{inr(b.amount)}</span>
+                  </div>
+                  <div className="grid grid-cols-2 gap-2 text-[11px] text-slate-700">
+                    <div>
+                      <span className="text-slate-500 block text-[10px]">{L('UTR / Ref:', 'UTR नंबर:')}</span>
+                      <code className="font-mono font-bold bg-white px-1.5 py-0.5 rounded border border-amber-200 text-slate-900 select-all">
+                        {utr || L('Screenshot only', 'केवल स्क्रीनशॉट')}
+                      </code>
+                    </div>
+                    <div>
+                      <span className="text-slate-500 block text-[10px]">{L('Payer Name:', 'खाताधारक:')}</span>
+                      <span className="font-bold text-slate-900 truncate block">{payer || b.guest_name}</span>
+                    </div>
+                  </div>
+
+                  {screenshot && (
+                    <div className="pt-2 border-t border-amber-200/80 flex items-center justify-between gap-2">
+                      <span className="text-[11px] font-semibold text-amber-900">{L('Payment Screenshot Proof:', 'भुगतान स्क्रीनशॉट प्रमाण:')}</span>
+                      <div className="flex items-center gap-2">
+                        <button
+                          type="button"
+                          onClick={() => setScreenshotModal(screenshot)}
+                          className="inline-flex items-center gap-1 rounded-md border border-amber-300 bg-white px-2 py-1 text-[11px] font-bold text-amber-900 hover:bg-amber-100 transition shadow-2xs"
+                        >
+                          <Eye size={12} />
+                          <span>{L('View Photo', 'फ़ोटो देखें')}</span>
+                        </button>
+                        <img
+                          src={screenshot}
+                          alt="Payment Screenshot"
+                          onClick={() => setScreenshotModal(screenshot)}
+                          className="h-10 w-10 object-cover rounded-md border border-amber-400 cursor-pointer hover:opacity-80 transition shadow-2xs"
+                        />
+                      </div>
+                    </div>
+                  )}
+                </div>
+              );
+            })()}
 
             {confirmModal.loading ? (
               <div className="py-6 text-center text-xs text-slate-500 animate-pulse">
@@ -779,7 +854,7 @@ export default function BookingDetail() {
       {/* Screenshot Lightbox Modal */}
       {screenshotModal && (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/80 p-4 backdrop-blur-xs animate-in fade-in duration-150"
+          className="fixed inset-0 z-[90] flex items-center justify-center bg-slate-900/80 p-4 backdrop-blur-xs animate-in fade-in duration-150"
           onClick={() => setScreenshotModal(null)}
         >
           <div
